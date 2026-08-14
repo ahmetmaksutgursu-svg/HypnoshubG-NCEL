@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Güncellemeler — HYPNOSCOUT</title>
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<div id="app-header"></div>
+
+<section class="page-strip">
+  <div class="container">
+    <p class="eyebrow">SİTE GÜNCELLEMELERİ · CHANGELOG</p>
+    <h1>GÜNCELLEMELER</h1>
+    <p>HYPNOSCOUT'a eklenen yenilikler ve düzenlemeler. (Oyun değil, sitenin güncellemeleri.)</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container" style="max-width:820px">
+    <div id="updates"></div>
+  </div>
+</section>
+
+<div id="app-footer"></div>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+mountChrome("guncellemeler.html");
+const UPDATES = [
+  { date:"14 Ağustos 2026", tag:"YENİ", tone:"green", title:"Eğlence bölümü eklendi", body:"Kart Sıralama Oyunu (TikTok akımı tarzı) ve Rastgele Meta Deste Çarkı 'Eğlence' kategorisi altında toplandı. Yeni oyunlar yakında." },
+  { date:"14 Ağustos 2026", tag:"TASARIM", tone:"", title:"Sade ve nötr tema", body:"Arayüz beyaz/açık, nötr bir temaya taşındı; vurgular mavi tonlarına indirildi. Ana sayfa sadeleştirildi ve hızlı erişim kutucukları eklendi." },
+  { date:"14 Ağustos 2026", tag:"MENÜ", tone:"", title:"Hamburger menü (☰)", body:"Sağ üstteki menüden oyuncu/klan araması, tüm liderlik tabloları ve eğlence bölümüne tek yerden erişim eklendi." },
+  { date:"14 Ağustos 2026", tag:"VERİ", tone:"green", title:"Canlı meta ve sıralamalar", body:"Meta desteleri artık Nihai Kademe zirvesindeki oyuncuların gerçek destelerinden hesaplanıyor. Kartlarda evrim ve kahraman görselleri kullanılıyor." },
+  { date:"13 Ağustos 2026", tag:"YENİ", tone:"", title:"Global Son Maçlar & YouTube", body:"Canlı maç akışı ve HYPNOS CR son videoları bölümü eklendi. Sıralamalar 20'şerli sayfalandı." },
+  { date:"12 Ağustos 2026", tag:"YENİ", tone:"green", title:"HYPNOSCOUT yayında!", body:"Oyuncu/klan araması, global sıralamalar ve meta deste kütüphanesi ile ilk sürüm yayınlandı." },
+];
+document.getElementById("updates").innerHTML = UPDATES.map(u=>`
+  <div class="card" style="margin-bottom:16px">
+    <div class="flex center gap-12" style="margin-bottom:8px">
+      <span class="badge ${u.tone}">${u.tag}</span>
+      <span class="muted" style="font-size:.82rem">${u.date}</span>
+    </div>
+    <h3 style="margin:0 0 6px;font-size:1.15rem">${u.title}</h3>
+    <p class="soft" style="margin:0">${u.body}</p>
+  </div>`).join("");
+</script>
+</body>
+</html>

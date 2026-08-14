@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global Sıralamalar — HYPNOSCOUT</title>
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<div id="app-header"></div>
+
+<section class="page-strip">
+  <div class="container">
+    <p class="eyebrow" data-i18n="ranks.sub">Aktif sezon — en iyi 100 oyuncu</p>
+    <h1 data-i18n="ranks.title">GLOBAL SIRALAMALAR</h1>
+    <p><span class="api-status" data-api-status style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2);color:#eaf0fb"><span class="led"></span>Demo veri</span></p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="flex between center wrap gap-12" style="margin-bottom:6px">
+      <div class="tabs" id="rankTabs">
+        <button class="active" data-mode="pol">🏆 Nihai Kademe</button>
+      </div>
+      <div class="search-box" style="border-radius:12px;max-width:420px;flex:1">
+        <input id="lbSearch" type="text" placeholder="Oyuncu veya klan ara..." style="flex:1;min-width:0" oninput="filterRanks()">
+        <button class="search-go" onclick="filterRanks()" id="lbSearchBtn"></button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr>
+          <th data-i18n="col.rank">SIRA</th>
+          <th data-i18n="col.player">OYUNCU</th>
+          <th id="thPts"><span data-i18n="col.points">PUAN</span></th>
+          <th data-i18n="col.clan">KLAN</th>
+          <th data-i18n="ranks.deck">AKTİF DESTE</th>
+        </tr></thead>
+        <tbody id="rankBody"></tbody>
+      </table>
+    </div>
+    <div class="pager" id="pager"></div>
+    <p class="muted mt-8 text-center" style="font-size:.82rem" id="rankCount"></p>
+  </div>
+</section>
+
+<div id="app-footer"></div>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+mountChrome("siralamalar.html");
+document.getElementById("lbSearchBtn").innerHTML = ICONS.search;
+
+const MODE = "pol";
+let CACHE = { pol:null };
+const PER_PAGE = 20;
+let PAGE = 1;
+
+function rowHtml(r){
+  const medal = r.rank<=3 ? `<span class="rank-badge g${r.rank}">${r.rank}</span>` : `<span class="rank">${r.rank}</span>`;
+  const deck = r.deck && r.deck.length ? deckIcons(r.deck, r.evo||[]) : `<span class="muted" style="font-size:.78rem">—</span>`;
+  return `<tr>
+    <td>${medal}</td>
+    <td><a class="player-link" href="oyuncu.html?tag=${encodeURIComponent(r.tag)}">${r.name}</a> <span class="tag">${r.tag}</span></td>
+    <td class="trophy">${(r.trophies||0).toLocaleString("tr-TR")}</td>
+    <td>${clanChip(r.clan)}</td>
+    <td>${deck}</td>
+  </tr>`;
+}
+function filteredRows(){
+  const q=(document.getElementById("lbSearch").value||"").toLowerCase().trim();
+  const base = CACHE[MODE] || [];
+  return !q ? base : base.filter(r => r.name.toLowerCase().includes(q) || (r.tag||"").toLowerCase().includes(q) || (r.clan||"").toLowerCase().includes(q));
+}
+function paintPage(){
+  const rows = filteredRows();
+  const pages = Math.max(1, Math.ceil(rows.length / PER_PAGE));
+  if (PAGE > pages) PAGE = pages;
+  const start = (PAGE-1)*PER_PAGE;
+  const slice = rows.slice(start, start+PER_PAGE);
+  document.getElementById("rankBody").innerHTML = slice.map(rowHtml).join("");
+  renderPager(pages);
+  const from = rows.length ? start+1 : 0;
+  const to = start + slice.length;
+  document.getElementById("rankCount").textContent = LANG==="tr"
+    ? `${rows.length} oyuncudan ${from}–${to} arası gösteriliyor`
+    : `Showing ${from}–${to} of ${rows.length} players`;
+}
+function renderPager(pages){
+  const el = document.getElementById("pager");
+  if (pages <= 1) { el.innerHTML = ""; return; }
+  const btn = (label, page, opts={}) =>
+    `<button class="pg ${opts.active?'active':''} ${opts.dis?'dis':''}" ${opts.dis?'disabled':''} onclick="gotoPage(${page})">${label}</button>`;
+  let nums = [];
+  const win = 2;
+  for (let p=1; p<=pages; p++){
+    if (p===1 || p===pages || (p>=PAGE-win && p<=PAGE+win)) nums.push(p);
+    else if (nums[nums.length-1] !== "…") nums.push("…");
+  }
+  el.innerHTML =
+    btn("‹", PAGE-1, {dis:PAGE===1}) +
+    nums.map(n => n==="…" ? `<span class="pg-dots">…</span>` : btn(n, n, {active:n===PAGE})).join("") +
+    btn("›", PAGE+1, {dis:PAGE===pages});
+}
+function gotoPage(p){ PAGE = p; paintPage(); document.querySelector(".table-wrap").scrollIntoView({behavior:"smooth", block:"start"}); }
+function filterRanks(){ PAGE = 1; paintPage(); }
+
+(async function(){
+  const params = new URLSearchParams(location.search);
+  CACHE.pol = await HypnoAPI.pol();
+  const pg = parseInt(params.get("page"));
+  if (pg) PAGE = pg;
+  paintApiStatus();
+  paintPage();
+})();
+window.onLangChange = () => { paintApiStatus(); paintPage(); };
+</script>
+</body>
+</html>

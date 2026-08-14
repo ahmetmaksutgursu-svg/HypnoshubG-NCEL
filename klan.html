@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Klan Arama — HYPNOSCOUT</title>
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<div id="app-header"></div>
+
+<section class="page-strip">
+  <div class="container">
+    <p class="eyebrow" data-i18n="home.clan.sub">Klan üyelerini ve bağışları incele</p>
+    <h1 data-i18n="home.clan.title">KLAN ARAMA</h1>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="search-box" style="border-radius:12px;max-width:520px;margin-bottom:20px">
+      <input id="clanTag" type="text" placeholder="#9YQ2VG0P" style="flex:1;min-width:0" onkeydown="if(event.key==='Enter')loadClan(this.value)">
+      <button class="search-go" onclick="loadClan(document.getElementById('clanTag').value)"></button>
+    </div>
+
+    <!-- Clan header card -->
+    <div class="card" id="clanHead" style="margin-bottom:20px"></div>
+
+    <!-- Members table (image_3 style) -->
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr>
+          <th data-i18n="col.no">NO</th>
+          <th data-i18n="col.player">OYUNCU</th>
+          <th data-i18n="col.role">ROL</th>
+          <th data-i18n="col.level">SEVİYE</th>
+          <th data-i18n="col.trophy">KUPA</th>
+          <th data-i18n="col.donation">BAĞIŞ</th>
+        </tr></thead>
+        <tbody id="memberBody"></tbody>
+      </table>
+    </div>
+    <div class="notice mt-16" style="max-width:none">
+      <span>ℹ️</span>
+      <span>Tablodaki her oyuncu adı, oyuncunun tam profil sayfasına giden mavi bağlantıdır. Örnek: <b>1. Cigkofte #298Q8YVGG · Üye · 15 · 12.124 · 0/0</b></span>
+    </div>
+  </div>
+</section>
+
+<div id="app-footer"></div>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+mountChrome("");
+document.querySelector(".search-go[onclick^='loadClan']").innerHTML = ICONS.search;
+
+const roleColor = { "Lider":"gold","Yardımcı":"green","Yaşlı":"","Üye":"" };
+function paintClan(data){
+  const info = data.info;
+  document.getElementById("clanHead").innerHTML = `
+    <div class="flex between center wrap gap-16">
+      <div class="flex center gap-12">
+        <span class="clan-crest" style="width:44px;height:52px">${ICONS.crest}</span>
+        <div>
+          <h2 style="margin:0;font-size:1.4rem">${info.name} <span class="tag">${info.tag}</span></h2>
+          <span class="muted" style="font-size:.85rem">${info.type||"Davetle"} · ${info.region||"Türkiye"}</span>
+        </div>
+      </div>
+      <div class="flex gap-16 wrap">
+        <div class="stat-tile"><div class="k">Klan Skoru</div><div class="v trophy">${(info.score||0).toLocaleString("tr-TR")}</div></div>
+        <div class="stat-tile"><div class="k">Üye</div><div class="v">${info.members||data.members.length}/50</div></div>
+        <div class="stat-tile"><div class="k">Gerekli Kupa</div><div class="v">${(info.required||0).toLocaleString("tr-TR")}</div></div>
+      </div>
+    </div>`;
+  document.getElementById("memberBody").innerHTML = data.members.map(m=>`
+    <tr>
+      <td class="rank">${m.no}</td>
+      <td><a class="player-link" href="oyuncu.html?tag=${encodeURIComponent(m.tag)}">${m.name}</a> <span class="tag">${m.tag}</span></td>
+      <td><span class="badge ${roleColor[m.role]||''}">${m.role}</span></td>
+      <td><b>${m.level}</b></td>
+      <td class="trophy">${m.trophies.toLocaleString("tr-TR")}</td>
+      <td class="muted">${m.donations}</td>
+    </tr>`).join("");
+}
+async function loadClan(q){
+  q = (q||"").trim();
+  // İsimle arama: '#' ile başlamıyorsa ve boş değilse klan adı araması yap
+  if (q && !q.startsWith("#")){
+    const results = await HypnoAPI.clansSearch(q);
+    paintApiStatus();
+    if (results === null){
+      // proxy kapalı → isimle arama yapılamıyor, demo klan göster
+      document.getElementById("clanHead").innerHTML = `<div class="notice">İsimle klan araması için sunucunun (proxy) çalışması gerekir. Aşağıda örnek (demo) klan gösteriliyor. Etiketle aramak için "#" ile başlayan klan etiketini girin.</div>`;
+      const data = await HypnoAPI.clan(CLAN_INFO.tag); paintClan(data); return;
+    }
+    if (!results.length){ document.getElementById("clanHead").innerHTML = `<div class="notice">“${q}” için klan bulunamadı.</div>`; document.getElementById("memberBody").innerHTML=""; return; }
+    // sonuç listesini göster
+    document.getElementById("clanHead").innerHTML = `<div class="card"><b>“${q}” için ${results.length} klan:</b>
+      <div class="mt-8">${results.map(c=>`<a class="lb-row" style="text-decoration:none;color:inherit" href="klan.html?tag=${encodeURIComponent(c.tag)}">
+        <span class="lb-main"><span class="n"><span class="clan-crest" style="width:20px;height:24px">${ICONS.crest}</span>${c.name}</span><span class="s">${c.tag} · ${c.members}/50 · ${c.region||""}</span></span>
+        <span class="lb-val trophyv">${(c.score||0).toLocaleString("tr-TR")} 🏆</span></a>`).join("")}</div></div>`;
+    document.getElementById("memberBody").innerHTML = "";
+    return;
+  }
+  const data = await HypnoAPI.clan(q || CLAN_INFO.tag);
+  paintClan(data);
+  paintApiStatus();
+}
+(function(){
+  const p = new URLSearchParams(location.search).get("tag");
+  if (p) document.getElementById("clanTag").value = p;
+  loadClan(p);
+})();
+window.onLangChange = paintApiStatus;
+</script>
+</body>
+</html>

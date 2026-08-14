@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eğlence — HYPNOSCOUT</title>
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<div id="app-header"></div>
+
+<section class="page-strip">
+  <div class="container">
+    <p class="eyebrow">🎉 EĞLENCE</p>
+    <h1>Oyunlar & Eğlence</h1>
+    <p>Kart sıralama oyunu, rastgele meta deste çarkı ve yakında gelecek yeni eğlenceler burada.</p>
+  </div>
+</section>
+
+<!-- KART SIRALAMA OYUNU -->
+<section class="section">
+  <div class="container game-wrap">
+    <h2 class="section-title" style="margin-bottom:14px">🎲 Kart Sıralama <span class="accent">Oyunu</span></h2>
+    <div class="scenario-bar">
+      <div>
+        <div class="lbl">SENARYO</div>
+        <div class="txt" id="scenario">—</div>
+      </div>
+      <button class="btn btn-ghost" onclick="newScenario()" style="margin-left:auto">🔀 Senaryo Değiştir</button>
+    </div>
+    <div class="game-current" id="currentWrap">
+      <div class="draw-card" id="drawCard"></div>
+      <div class="hint" id="hint"></div>
+      <div class="remain" id="remain"></div>
+    </div>
+    <div class="rank-list" id="rankList"></div>
+    <div class="game-actions">
+      <button class="btn btn-primary" onclick="newGame()">🔄 Yeni Oyun</button>
+      <button class="btn btn-ghost" id="shareBtn" onclick="shareResult(this)" style="display:none">📋 Sonucu Kopyala</button>
+    </div>
+  </div>
+</section>
+
+<!-- RASTGELE META DESTE ÇARKI -->
+<section class="section" id="cark" style="padding-top:0">
+  <div class="container">
+    <div class="text-center" style="margin-bottom:20px">
+      <p class="eyebrow">ÇARKI ÇEVİR, META DESTESİNİ KEŞFET</p>
+      <h2 class="section-title" style="font-size:1.7rem">🎡 Rastgele <span class="accent">Meta Deste Çarkı</span></h2>
+    </div>
+    <div class="generator">
+      <div class="gen-layout">
+        <div class="wheel-wrap">
+          <div class="wheel-pointer"></div>
+          <div class="wheel" id="wheel"></div>
+          <div class="wheel-hub"><span id="hubIcon"></span></div>
+        </div>
+        <div class="gen-btn-col">
+          <button class="big-green-btn" id="spinBtn" onclick="spinWheel()">RASTGELE META DESTESİ OLUŞTUR</button>
+          <p class="muted" style="font-size:.86rem;margin:0">Çark, güncel meta destelerinden birini rastgele seçer. Sonuç; kartlar, kopyalama linki ve oynanış ipucuyla birlikte gösterilir.</p>
+          <span class="api-status" data-api-status><span class="led"></span>Demo veri</span>
+        </div>
+      </div>
+      <div class="deck-result" id="deckResult">
+        <h3><span>GÜNÜN META DESTESİ:</span> <span class="name" id="deckName"></span></h3>
+        <div class="deck-meta">
+          <span>Kullanım: <b id="deckUsage"></b></span>
+          <span>Ort. İksir: <b id="deckElixir"></b></span>
+        </div>
+        <div class="card-grid eight" id="deckCards"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CENABET BUTON -->
+<section class="section" style="padding-top:0">
+  <div class="container game-wrap">
+    <div class="card text-center" style="padding:26px">
+      <h2 class="section-title" style="font-size:1.5rem">🤪 Cenabet Deste</h2>
+      <p class="muted" style="margin:0 0 18px">Oyundaki kartlardan tamamen rastgele 8 kartlık kafadan bir deste! Mantık arama.</p>
+      <button class="big-green-btn" id="cenabetBtn" onclick="cenabet()" style="max-width:420px;margin:0 auto">CENABET BUTON</button>
+      <div id="cenabetResult" style="margin-top:22px;display:none">
+        <div class="deck-meta" style="justify-content:center;margin-bottom:12px">
+          <span>Ort. İksir: <b id="cenElixir"></b></span>
+        </div>
+        <div class="card-grid eight" id="cenCards" style="max-width:560px;margin:0 auto"></div>
+        <div class="flex gap-8 wrap" style="justify-content:center;margin-top:16px" id="cenActions"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- YAKINDA -->
+<section class="section" style="padding-top:0">
+  <div class="container">
+    <div class="tile-grid">
+      <div class="tile soon"><span class="t-ic">❓</span><span class="t-tx"><span class="tt">Tahmin Oyunu</span><span class="ts">Yakında</span></span></div>
+      <div class="tile soon"><span class="t-ic">❓</span><span class="t-tx"><span class="tt">Deste Düellosu</span><span class="ts">Yakında</span></span></div>
+      <div class="tile soon"><span class="t-ic">❓</span><span class="t-tx"><span class="tt">Kart Bilgi Yarışması</span><span class="ts">Yakında</span></span></div>
+      <div class="tile soon"><span class="t-ic">❓</span><span class="t-tx"><span class="tt">Sürpriz</span><span class="ts">Yakında</span></span></div>
+    </div>
+  </div>
+</section>
+
+<div id="app-footer"></div>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+mountChrome("");
+document.getElementById("hubIcon").innerHTML = ICONS.hammer;
+
+/* ============ Kart Sıralama Oyunu ============ */
+const SCENARIOS = [
+  "Kavgaya giderken yanımda çağıracağım kartlar",
+  "Sınavda kopya çekerken yanımda isteyeceğim kartlar",
+  "Zombi kıyametinde ekibime alacağım kartlar",
+  "Beni ders çalışmaya ikna edecek kartlar",
+  "Tatile birlikte gitmek istediğim kartlar",
+  "Bana borç para verecek kartlar",
+  "Düğünde yanımda olsun istediğim kartlar",
+  "Gece korkunca arayacağım kartlar",
+  "Ada karşı takım kursam alacağım kartlar",
+];
+const SLOTS = 8;
+let pool = [], current = null, slots = [], scenario = "";
+// Sadece KARAKTERLER (bina/büyü hariç): kart id'si 26xxxxxx olanlar birimdir.
+function allKeys(){ return Object.keys(CARD_DB).filter(k => !k.startsWith("api_") && CARD_DB[k].id>=26000000 && CARD_DB[k].id<27000000); }
+function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+function newScenario(){ scenario = SCENARIOS[Math.floor(Math.random()*SCENARIOS.length)]; document.getElementById("scenario").textContent = scenario; }
+function newGame(){
+  if (!scenario) newScenario();
+  pool = shuffle(allKeys()).slice(0, SLOTS + 6);
+  slots = new Array(SLOTS).fill(null);
+  document.getElementById("shareBtn").style.display = "none";
+  document.getElementById("currentWrap").innerHTML = `<div class="draw-card" id="drawCard"></div><div class="hint" id="hint"></div><div class="remain" id="remain"></div>`;
+  drawNext(); renderSlots();
+}
+function drawNext(){
+  const emptyLeft = slots.filter(s=>!s).length;
+  if (emptyLeft === 0 || pool.length === 0){ finish(); return; }
+  current = pool.pop();
+  document.getElementById("drawCard").innerHTML = renderCard(current);
+  document.getElementById("remain").textContent = `Kalan yerleştirme: ${emptyLeft}`;
+  document.getElementById("hint").textContent = `“${CARD_DB[current].name}” kartını hangi sıraya koyarsın?`;
+}
+function placeAt(i){ if (!current || slots[i]) return; slots[i]=current; current=null; renderSlots(); drawNext(); }
+function renderSlots(){
+  document.getElementById("rankList").innerHTML = slots.map((k,i)=>{
+    if (k) return `<div class="rank-slot filled"><span class="pos">${i+1}</span><span class="slot-card">${renderCard(k)}</span><span class="slot-name">${CARD_DB[k].name}</span></div>`;
+    return `<div class="rank-slot empty" onclick="placeAt(${i})"><span class="pos">${i+1}</span><span class="slot-empty-txt">Buraya yerleştir</span></div>`;
+  }).join("");
+}
+function finish(){
+  document.getElementById("currentWrap").innerHTML = `<div class="hint" style="font-size:1.05rem;font-weight:800;color:var(--blue-700)">✅ Sıralaman hazır! Ekran görüntüsü al ve paylaş.</div>`;
+  document.getElementById("shareBtn").style.display = "inline-flex";
+}
+function shareResult(btn){
+  const lines = slots.map((k,i)=>`${i+1}. ${k?CARD_DB[k].name:"—"}`).join("\n");
+  copyText(`${scenario}:\n${lines}\n\nSen de dene → HYPNOSCOUT`, btn);
+}
+
+/* ============ Meta Deste Çarkı ============ */
+const WHEEL_SLICES = 8;
+let wheelDecks = [], wheelRotation = 0, spinning = false, META_LIST = [];
+function pickWheelDecks(){
+  const pl = [...META_LIST];
+  for (let i=pl.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pl[i],pl[j]]=[pl[j],pl[i]]; }
+  return pl.slice(0, Math.min(WHEEL_SLICES, pl.length));
+}
+function polar(cx,cy,r,a){ const rad=a*Math.PI/180; return [cx+r*Math.sin(rad), cy-r*Math.cos(rad)]; }
+function buildWheel(){
+  if (!META_LIST.length) return;
+  wheelDecks = pickWheelDecks();
+  const n=wheelDecks.length, seg=360/n, cx=100, cy=100, R=96;
+  const colors = ["#2563eb","#475569","#12885a","#1d4ed8","#3b82f6","#0ea5a4","#64748b","#1e40af"];
+  let paths="", labels="";
+  wheelDecks.forEach((d,i)=>{
+    const a0=i*seg, a1=(i+1)*seg;
+    const [x1,y1]=polar(cx,cy,R,a0), [x2,y2]=polar(cx,cy,R,a1);
+    paths += `<path d="M${cx} ${cy} L${x1.toFixed(2)} ${y1.toFixed(2)} A${R} ${R} 0 0 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z" fill="${colors[i%colors.length]}" stroke="#fff" stroke-width="0.7"/>`;
+    const ac=a0+seg/2, [tx,ty]=polar(cx,cy,62,ac);
+    let rot=ac-90; if(rot>90)rot-=180; if(rot<-90)rot+=180;
+    const label=(d.name||"").length>15 ? (d.name||"").replace(/ /g,"\n") : (d.name||"");
+    const lines=label.split("\n");
+    const tspans=lines.map((ln,li)=>`<tspan x="${tx.toFixed(2)}" dy="${li===0?(-(lines.length-1)*3.2):6.4}">${ln}</tspan>`).join("");
+    labels += `<text x="${tx.toFixed(2)}" y="${ty.toFixed(2)}" transform="rotate(${rot.toFixed(2)} ${tx.toFixed(2)} ${ty.toFixed(2)})" text-anchor="middle" font-size="5.2" font-weight="800" fill="#fff" style="paint-order:stroke" stroke="rgba(0,0,0,.3)" stroke-width="0.5">${tspans}</text>`;
+  });
+  document.getElementById("wheel").innerHTML = `<svg viewBox="0 0 200 200" style="width:100%;height:100%;display:block">${paths}${labels}</svg>`;
+}
+function spinWheel(){
+  if (spinning || !META_LIST.length) return;
+  spinning = true;
+  const btn=document.getElementById("spinBtn"); btn.disabled=true;
+  buildWheel();
+  const n=wheelDecks.length, seg=360/n, idx=Math.floor(Math.random()*n), ac=idx*seg+seg/2;
+  wheelRotation += 360*5 + (360-(ac%360)) + (360-(wheelRotation%360));
+  document.getElementById("wheel").style.transform = `rotate(${wheelRotation}deg)`;
+  setTimeout(()=>{ showDeck(wheelDecks[idx]); btn.disabled=false; spinning=false; }, 4700);
+}
+function showDeck(d){
+  document.getElementById("deckName").textContent = d.name;
+  document.getElementById("deckUsage").textContent = d.usage!=null ? "%"+d.usage : "—";
+  document.getElementById("deckElixir").textContent = deckElixir(d.cards);
+  document.getElementById("deckCards").innerHTML = d.cards.map(c=>renderCard(c,{level:14,evo:(d.evo||[]).includes(c)})).join("");
+  document.getElementById("deckResult").classList.add("show");
+  const link = copyDeckLink(d.cards);
+  const copyBtn = link
+    ? `<button class="btn btn-primary" onclick="copyText('${link}',this)">${ICONS.copy}<span>Desteyi Kopyala</span></button><a class="btn btn-ghost" href="${link}">Oyunda Aç</a>`
+    : `<span class="muted" style="font-size:.82rem">Kopyalama linki canlı API bağlıyken tüm kart id'leriyle oluşur.</span>`;
+  openModal(`
+    <button class="btn btn-ghost icon-btn modal-close" onclick="closeModal()">${ICONS.x}</button>
+    <p class="eyebrow" style="color:var(--blue-600)">GÜNÜN META DESTESİ</p>
+    <h3 class="name">${d.name}</h3>
+    <div class="deck-meta" style="margin:8px 0 16px">
+      ${d.usage!=null?`<span>Kullanım: <b>%${d.usage}</b></span>`:""}
+      <span>Ort. İksir: <b>💧 ${deckElixir(d.cards)}</b></span>
+    </div>
+    <div class="card-grid eight">${d.cards.map(c=>renderCard(c,{level:14,evo:(d.evo||[]).includes(c)})).join("")}</div>
+    ${d.tip?`<div class="modal-tip"><b>Oynanış İpucu:</b> ${d.tip}</div>`:""}
+    <div class="flex gap-8 wrap" style="margin-top:16px">${copyBtn}</div>
+  `);
+}
+
+/* ============ Cenabet Deste ============ */
+function cenabet(){
+  const all = Object.keys(CARD_DB).filter(k=>!k.startsWith("api_"));
+  const pick = shuffle([...all]).slice(0,8);
+  document.getElementById("cenElixir").textContent = "💧 " + deckElixir(pick);
+  document.getElementById("cenCards").innerHTML = pick.map(c=>renderCard(c,{level:14})).join("");
+  const link = copyDeckLink(pick);
+  document.getElementById("cenActions").innerHTML = link
+    ? `<button class="btn btn-primary" onclick="copyText('${link}',this)">${ICONS.copy}<span>Desteyi Kopyala</span></button><a class="btn btn-ghost" href="${link}">Oyunda Aç</a>`
+    : `<span class="muted" style="font-size:.82rem">Kopyalama linki canlı API bağlıyken oluşur.</span>`;
+  document.getElementById("cenabetResult").style.display = "block";
+}
+
+/* boot */
+newGame();
+(async function(){ META_LIST = await HypnoAPI.meta(); buildWheel(); paintApiStatus(); if(location.hash==="#cark") document.getElementById("cark").scrollIntoView(); })();
+</script>
+</body>
+</html>

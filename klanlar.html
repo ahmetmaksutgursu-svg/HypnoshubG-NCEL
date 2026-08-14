@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Klan Liderlik Tablosu — HYPNOSCOUT</title>
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<div id="app-header"></div>
+
+<section class="page-strip">
+  <div class="container">
+    <p class="eyebrow">EN İYİ KLANLAR — KLAN SKORUNA GÖRE</p>
+    <h1>KLAN LİDERLİK TABLOSU</h1>
+    <p><span class="api-status" data-api-status style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2);color:#eaf0fb"><span class="led"></span>Demo veri</span></p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="search-box" style="border-radius:12px;max-width:420px;margin-bottom:16px">
+      <input id="clanSearch" type="text" placeholder="Klan ara..." style="flex:1;min-width:0" oninput="filterClans()">
+      <button class="search-go" onclick="filterClans()" id="clanSearchBtn"></button>
+    </div>
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr>
+          <th data-i18n="col.rank">SIRA</th>
+          <th>KLAN</th>
+          <th>ÜYE</th>
+          <th>KLAN SKORU</th>
+        </tr></thead>
+        <tbody id="clanBody"></tbody>
+      </table>
+    </div>
+    <div class="pager" id="pager"></div>
+    <p class="muted mt-8 text-center" style="font-size:.82rem" id="clanCount"></p>
+  </div>
+</section>
+
+<div id="app-footer"></div>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+mountChrome("");
+document.getElementById("clanSearchBtn").innerHTML = ICONS.search;
+let ROWS=[], PAGE=1; const PER=20;
+
+function filtered(){
+  const q=(document.getElementById("clanSearch").value||"").toLowerCase().trim();
+  return !q ? ROWS : ROWS.filter(c => c.name.toLowerCase().includes(q));
+}
+function paint(){
+  const rows=filtered();
+  const pages=Math.max(1,Math.ceil(rows.length/PER));
+  if(PAGE>pages)PAGE=pages;
+  const start=(PAGE-1)*PER, slice=rows.slice(start,start+PER);
+  document.getElementById("clanBody").innerHTML = slice.map(c=>`
+    <tr>
+      <td>${c.rank<=3?`<span class="rank-badge g${c.rank}">${c.rank}</span>`:`<span class="rank">${c.rank}</span>`}</td>
+      <td><span class="clan-chip"><span class="clan-crest">${ICONS.crest}</span><b>${c.name}</b> <span class="flag">${c.flag||''}</span></span> <span class="tag">${c.tag||''}</span></td>
+      <td><b>${c.members}</b>/50</td>
+      <td class="trophy">${(c.score||0).toLocaleString("tr-TR")}</td>
+    </tr>`).join("");
+  renderPager(pages);
+  const from=rows.length?start+1:0, to=start+slice.length;
+  document.getElementById("clanCount").textContent = `${rows.length} klandan ${from}–${to} arası gösteriliyor`;
+}
+function renderPager(pages){
+  const el=document.getElementById("pager");
+  if(pages<=1){el.innerHTML="";return;}
+  const btn=(l,p,o={})=>`<button class="pg ${o.active?'active':''} ${o.dis?'dis':''}" ${o.dis?'disabled':''} onclick="goto(${p})">${l}</button>`;
+  let nums=[]; const win=2;
+  for(let p=1;p<=pages;p++){ if(p===1||p===pages||(p>=PAGE-win&&p<=PAGE+win))nums.push(p); else if(nums[nums.length-1]!=="…")nums.push("…"); }
+  el.innerHTML=btn("‹",PAGE-1,{dis:PAGE===1})+nums.map(n=>n==="…"?`<span class="pg-dots">…</span>`:btn(n,n,{active:n===PAGE})).join("")+btn("›",PAGE+1,{dis:PAGE===pages});
+}
+function goto(p){PAGE=p;paint();document.querySelector(".table-wrap").scrollIntoView({behavior:"smooth",block:"start"});}
+function filterClans(){PAGE=1;paint();}
+(async function(){ ROWS=await HypnoAPI.clanRankings(); paintApiStatus(); paint(); })();
+window.onLangChange=paintApiStatus;
+</script>
+</body>
+</html>

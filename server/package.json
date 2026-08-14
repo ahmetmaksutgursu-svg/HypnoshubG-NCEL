@@ -1,0 +1,16 @@
+{
+  "name": "hypnoscout-proxy",
+  "version": "1.0.0",
+  "description": "Clash Royale API proxy for the HYPNOSCOUT frontend",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  }
+}

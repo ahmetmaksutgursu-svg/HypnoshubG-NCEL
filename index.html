@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HYPNOSCOUT — Clash Royale Analiz Platformu</title>
+<meta name="description" content="Clash Royale oyuncu, klan ve meta istatistiklerini keşfet. Sıralamalar, canlı maçlar, kartlar ve eğlence.">
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<div id="app-header"></div>
+
+<!-- HERO + SEARCH -->
+<section class="hero">
+  <div class="hero-watermark"><img src="assets/img/hammer-logo.jpg" alt=""></div>
+  <div class="container">
+    <p class="eyebrow" data-i18n="hero.eyebrow">CLASH ROYALE ANALİZ PLATFORMU</p>
+    <h1><span data-i18n="hero.title">CLASH ROYALE İSTATİSTİKLERİNİ KEŞFET</span></h1>
+    <p data-i18n="hero.sub">Oyuncuları ve klanları ara, meta desteleri incele, canlı maçları izle ve eğlenceli oyunlar oyna.</p>
+
+    <div class="grid grid-2" style="margin-top:22px;max-width:820px">
+      <div class="card" style="padding:16px">
+        <div class="flex center gap-8" style="margin-bottom:10px"><span style="font-size:1.1rem">👤</span><b>Oyuncu Ara</b></div>
+        <div class="search-box" style="border-radius:12px">
+          <input id="pIn" type="text" placeholder="#298Q8YVGG veya isim" style="flex:1;min-width:0" onkeydown="if(event.key==='Enter')go('oyuncu',this.value)">
+          <button class="search-go" onclick="go('oyuncu',document.getElementById('pIn').value)">Ara</button>
+        </div>
+        <span class="muted" style="font-size:.76rem">Etiket (#ABC) veya isimle</span>
+      </div>
+      <div class="card" style="padding:16px">
+        <div class="flex center gap-8" style="margin-bottom:10px"><span style="font-size:1.1rem">🛡️</span><b>Klan Ara</b></div>
+        <div class="search-box" style="border-radius:12px">
+          <input id="cIn" type="text" placeholder="#9YQ2VG0P veya isim" style="flex:1;min-width:0" onkeydown="if(event.key==='Enter')go('klan',this.value)">
+          <button class="search-go" onclick="go('klan',document.getElementById('cIn').value)">Ara</button>
+        </div>
+        <span class="muted" style="font-size:.76rem">Etiket (#ABC) veya isimle</span>
+      </div>
+    </div>
+
+    <div class="hero-stats">
+      <span class="api-status" data-api-status><span class="led"></span>Demo veri</span>
+    </div>
+  </div>
+</section>
+
+<!-- SEASON BAR -->
+<section class="section-tight">
+  <div class="container">
+    <div class="season">
+      <span class="s-label" id="sLabel">SEZON</span>
+      <div class="s-bar"><div class="s-fill" id="sFill" style="width:0%"></div></div>
+      <div class="s-right"><b id="sDays">—</b><span id="sEnd"></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- QUICK ACCESS TILES -->
+<section class="section-tight">
+  <div class="container">
+    <div class="tile-grid">
+      <a class="tile" href="siralamalar.html"><span class="t-ic">🏆</span><span class="t-tx"><span class="tt">Sıralamalar</span><span class="ts">Nihai Kademe & Kupa Yolu</span></span></a>
+      <a class="tile" href="klanlar.html"><span class="t-ic">🛡️</span><span class="t-tx"><span class="tt">Klan Liderlik</span><span class="ts">En iyi klanlar</span></span></a>
+      <a class="tile" href="canli.html"><span class="t-ic">🔴</span><span class="t-tx"><span class="tt">Canlı Maçlar</span><span class="ts">Zirveden akış</span></span></a>
+      <a class="tile" href="meta.html"><span class="t-ic">🃏</span><span class="t-tx"><span class="tt">Meta Desteler</span><span class="ts">Güncel meta</span></span></a>
+      <a class="tile" href="kartlar.html"><span class="t-ic">📇</span><span class="t-tx"><span class="tt">Kartlar</span><span class="ts">Tüm kartlar</span></span></a>
+      <a class="tile fun" href="eglence.html"><span class="t-ic">🎲</span><span class="t-tx"><span class="tt">Kart Sıralama Oyunu</span><span class="ts">Eğlence</span></span></a>
+      <a class="tile fun" href="eglence.html#cark"><span class="t-ic">🎡</span><span class="t-tx"><span class="tt">Rastgele Deste Çarkı</span><span class="ts">Eğlence</span></span></a>
+      <div class="tile soon"><span class="t-ic">❓</span><span class="t-tx"><span class="tt">Yeni Eğlenceler</span><span class="ts">Yakında</span></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ACTIVE META -->
+<section class="section">
+  <div class="container">
+    <div class="flex between center wrap" style="margin-bottom:16px">
+      <div>
+        <p class="eyebrow" data-i18n="home.meta.sub">Zirve oyuncuların gerçek destelerinden</p>
+        <h2 class="section-title" data-i18n="home.meta.title">Aktif Meta Desteleri</h2>
+      </div>
+      <a class="btn btn-ghost" href="meta.html">Tümü →</a>
+    </div>
+    <div class="grid grid-3" id="homeMetaDecks"></div>
+  </div>
+</section>
+
+<!-- LEADERBOARDS -->
+<section class="section" style="padding-top:0">
+  <div class="container">
+    <div class="flex between center wrap" style="margin:0 0 16px">
+      <div>
+        <p class="eyebrow" data-i18n="home.ranks.sub">Dünyanın en iyileri</p>
+        <h2 class="section-title" data-i18n="home.ranks.title">Küresel Sıralamalar</h2>
+      </div>
+    </div>
+    <div class="grid grid-2">
+      <div class="lb-card">
+        <div class="lb-head"><span class="ic">⚔️</span><h3>EN İYİ OYUNCULAR</h3></div>
+        <div id="lbPlayers"></div>
+        <div class="lb-foot"><a class="btn btn-primary" href="siralamalar.html">Tüm en iyi oyuncuları görüntüle →</a></div>
+      </div>
+      <div class="lb-card">
+        <div class="lb-head"><span class="ic">🛡️</span><h3>KLAN LİDERLİK TABLOSU</h3></div>
+        <div id="lbClans"></div>
+        <div class="lb-foot"><a class="btn btn-primary" href="klanlar.html">Tüm en iyi klanları görüntüle →</a></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SON VİDEOLAR -->
+<section class="section" style="padding-top:0">
+  <div class="container">
+    <div class="flex between center wrap" style="margin-bottom:16px">
+      <div>
+        <p class="eyebrow">HYPNOS CR YOUTUBE KANALI</p>
+        <h2 class="section-title">Son <span class="accent">Videolar</span></h2>
+      </div>
+      <div class="flex gap-8 wrap">
+        <a class="btn btn-ghost" id="igBtn" target="_blank" rel="noopener">Instagram</a>
+        <a class="btn btn-primary" id="ytBtn" target="_blank" rel="noopener" style="background:#d60f0f">YouTube'da Abone Ol</a>
+      </div>
+    </div>
+    <div class="video-grid" id="videoGrid"></div>
+  </div>
+</section>
+
+<div id="app-footer"></div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+mountChrome("index.html");
+
+function go(type, q){ q=(q||"").trim(); location.href=(type==="klan"?"klan.html":"oyuncu.html")+(q?"?tag="+encodeURIComponent(q):""); }
+
+/* Season bar */
+(function(){
+  const s = seasonInfo();
+  document.getElementById("sLabel").textContent = s.label;
+  document.getElementById("sFill").style.width = s.pct + "%";
+  document.getElementById("sDays").textContent = s.daysLeft + (LANG==="tr"?" gün kaldı":" days left");
+  document.getElementById("sEnd").textContent = s.endStr;
+})();
+
+/* Meta decks (live → demo) */
+function renderHomeMeta(decks){
+  document.getElementById("homeMetaDecks").innerHTML = decks.slice(0,6).map(d => `
+    <div class="card hoverable metadeck">
+      <div class="flex between center">
+        <h3 style="font-size:1rem;margin:0">${d.name}</h3>
+        ${d.usage!=null?`<span class="badge">%${d.usage}</span>`:""}
+      </div>
+      <div class="mini-cards">${d.cards.slice(0,4).map(c => renderCard(c,{evo:(d.evo||[]).includes(c)})).join("")}</div>
+      <div class="mini-cards">${d.cards.slice(4,8).map(c => renderCard(c,{evo:(d.evo||[]).includes(c)})).join("")}</div>
+      <div class="foot">
+        <span class="elixir-badge">💧 ${deckElixir(d.cards)}</span>
+        ${d.usage!=null?`<span>Kullanım: <b>%${d.usage}</b></span>`:""}
+        ${copyDeckLink(d.cards)?`<a class="wr" style="margin-left:auto" href="${copyDeckLink(d.cards)}">Kopyala ↗</a>`:``}
+      </div>
+    </div>`).join("");
+}
+
+/* Leaderboard cards */
+function renderLbPlayers(rows){
+  document.getElementById("lbPlayers").innerHTML = rows.slice(0,5).map(r=>`
+    <a class="lb-row" href="oyuncu.html?tag=${encodeURIComponent(r.tag)}" style="text-decoration:none;color:inherit">
+      <span class="lb-medal ${r.rank<=3?'g'+r.rank:''}">${r.rank}</span>
+      <span class="lb-main"><span class="n">${r.name}</span><span class="s">${clanChip(r.clan)}</span></span>
+      <span class="lb-val">${(r.trophies||0).toLocaleString("tr-TR")} 🏅</span>
+    </a>`).join("");
+}
+function renderLbClans(rows){
+  document.getElementById("lbClans").innerHTML = rows.slice(0,5).map(c=>`
+    <div class="lb-row">
+      <span class="lb-medal ${c.rank<=3?'g'+c.rank:''}">${c.rank}</span>
+      <span class="lb-main"><span class="n"><span class="clan-crest" style="width:20px;height:24px">${ICONS.crest}</span>${c.name} <span class="flag">${c.flag||''}</span></span><span class="s">${c.members} Üye Sayısı</span></span>
+      <span class="lb-val trophyv">${(c.score||0).toLocaleString("tr-TR")} 🏆</span>
+    </div>`).join("");
+}
+
+/* Videos */
+function renderVideos(items){
+  document.getElementById("igBtn").href = SOCIAL.instagram;
+  document.getElementById("ytBtn").href = SOCIAL.youtube;
+  document.getElementById("videoGrid").innerHTML = items.slice(0,4).map(v=>`
+    <a class="video-card" href="${v.url}" target="_blank" rel="noopener">
+      <div class="video-thumb">
+        ${v.thumb ? `<img src="${v.thumb}" alt="" loading="lazy" onerror="this.style.display='none';this.parentElement.querySelector('.thumb-fb').style.display='grid'">` : ""}
+        <div class="thumb-fb" style="display:${v.thumb?'none':'grid'}">HYPNOS CR</div>
+        <div class="play"><span>${ICONS.playV}</span></div>
+      </div>
+      <div class="video-meta">
+        <div class="vt">${v.title}</div>
+        <div class="va"><span class="yt-dot"></span>${relativeTime(v.published)}${v.views?` · ${Number(v.views).toLocaleString("tr-TR")} izlenme`:""}</div>
+      </div>
+    </a>`).join("");
+}
+
+/* Boot */
+(async function(){
+  const [meta, players, clans, videos] = await Promise.all([
+    HypnoAPI.meta(), HypnoAPI.pol(), HypnoAPI.clanRankings(), HypnoAPI.youtube()
+  ]);
+  renderHomeMeta(meta);
+  renderLbPlayers(players);
+  renderLbClans(clans);
+  renderVideos(videos);
+  paintApiStatus();
+})();
+
+window.onLangChange = () => { paintApiStatus(); const s=seasonInfo(); document.getElementById("sDays").textContent = s.daysLeft + (LANG==="tr"?" gün kaldı":" days left"); document.getElementById("sEnd").textContent=s.endStr; };
+</script>
+</body>
+</html>

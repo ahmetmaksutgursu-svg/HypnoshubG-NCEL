@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meta Desteleri — HYPNOSCOUT</title>
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<div id="app-header"></div>
+
+<section class="page-strip">
+  <div class="container">
+    <p class="eyebrow" data-i18n="home.meta.sub">Şu an en çok kazandıran desteler</p>
+    <h1 data-i18n="nav.meta">META DESTELERİ</h1>
+    <p><span class="api-status" data-api-status style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2);color:#eaf0fb"><span class="led"></span>Demo veri</span></p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="grid grid-3" id="metaGrid"></div>
+  </div>
+</section>
+
+<div id="app-footer"></div>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+mountChrome("meta.html");
+function render(decks){
+  document.getElementById("metaGrid").innerHTML = decks.map(d=>{
+    const link = copyDeckLink(d.cards);
+    return `
+    <div class="card hoverable metadeck">
+      <div class="flex between center">
+        <h3 style="font-size:1.05rem;margin:0">${d.name}</h3>
+        ${d.usage!=null?`<span class="badge">%${d.usage}</span>`:""}
+      </div>
+      <div class="mini-cards">${d.cards.slice(0,4).map(c=>renderCard(c,{evo:(d.evo||[]).includes(c)})).join("")}</div>
+      <div class="mini-cards">${d.cards.slice(4,8).map(c=>renderCard(c,{evo:(d.evo||[]).includes(c)})).join("")}</div>
+      <div class="foot">
+        <span class="elixir-badge">💧 ${deckElixir(d.cards)}</span>
+        ${d.usage!=null?`<span>Kullanım: <b>%${d.usage}</b></span>`:""}
+        ${link?`<a class="wr" style="margin-left:auto" href="${link}">Kopyala ↗</a>`:""}
+      </div>
+    </div>`;}).join("");
+}
+(async function(){ const decks = await HypnoAPI.meta(); render(decks); paintApiStatus(); })();
+window.onLangChange = paintApiStatus;
+</script>
+</body>
+</html>

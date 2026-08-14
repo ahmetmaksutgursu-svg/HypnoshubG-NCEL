@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Oyuncu Profili — HYPNOSCOUT</title>
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<div id="app-header"></div>
+
+<section class="section">
+  <div class="container">
+    <div class="search-box" style="border-radius:12px;max-width:520px;margin-bottom:20px">
+      <input id="pTag" type="text" placeholder="#298Q8YVGG" style="flex:1;min-width:0" onkeydown="if(event.key==='Enter')loadPlayer(this.value)">
+      <button class="search-go" onclick="loadPlayer(document.getElementById('pTag').value)"></button>
+    </div>
+    <div id="searchNote" style="display:none;max-width:640px;margin-bottom:16px"></div>
+
+    <div id="profile"></div>
+  </div>
+</section>
+
+<div id="app-footer"></div>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+mountChrome("");
+document.querySelector(".search-go[onclick^='loadPlayer']").innerHTML = ICONS.search;
+
+function bigGraph(vals){
+  const w=720,h=200,padX=32,padY=22;
+  const min=Math.min(...vals),max=Math.max(...vals),rng=(max-min)||1;
+  const pts=vals.map((v,i)=>[padX+i*(w-2*padX)/(vals.length-1), h-padY-((v-min)/rng)*(h-2*padY)]);
+  const d=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");
+  const area=`M${pts[0][0]} ${h-padY} `+pts.map(p=>"L"+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ")+` L${pts[pts.length-1][0]} ${h-padY} Z`;
+  return `<svg class="trophy-graph" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <defs><linearGradient id="tg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2b807" stop-opacity=".35"/><stop offset="1" stop-color="#f2b807" stop-opacity="0"/></linearGradient></defs>
+    <path d="${area}" fill="url(#tg)"/>
+    <path d="${d}" fill="none" stroke="#f2b807" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+    ${pts.map((p,i)=>{
+      const anchor = i===0 ? "start" : i===pts.length-1 ? "end" : "middle";
+      return `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.5" fill="#1e5ae0"/>
+      <text x="${p[0].toFixed(1)}" y="${(p[1]-9).toFixed(1)}" font-size="11" font-weight="700" fill="currentColor" text-anchor="${anchor}">${vals[i].toLocaleString("tr-TR")}</text>`;}).join("")}
+  </svg>`;
+}
+
+function nf(v){ return (v||0).toLocaleString("tr-TR"); }
+// map demo battle short deck keys → a full 8-card deck for display
+const DECK_BY_KEY = { hog:"HOG 2.6", golem:"GOLEM BEATDOWN", logbait:"LOG BAIT", pekka:"PEKKA BRIDGE SPAM", miner:"MINER POISON" };
+function fullDeck(key){
+  const name = DECK_BY_KEY[key];
+  const d = META_POOL.find(x=>x.name===name) || META_POOL[0];
+  return d.cards;
+}
+
+function paintPlayer(p){
+  const total = (p.wins||0)+(p.losses||0);
+  const wr = total ? ((p.wins/total)*100).toFixed(1) : "—";
+  const collection = (p.collection && p.collection.length) ? p.collection : p.cards;
+  document.getElementById("profile").innerHTML = `
+    <div class="profile-hero">
+      <div class="avatar">👑</div>
+      <div>
+        <h1>${p.name}</h1>
+        <div class="tag">${p.tag} · ${p.arena||"Efsanevi Arena"} · Sv. ${p.level||"—"} · ${p.clanRole||""} @ ${clanChip(p.clan)}</div>
+      </div>
+      <div class="p-stats">
+        <div><b>${nf(p.polRating||p.trophies)}</b><span data-i18n="profile.pol">Nihai Kademe</span></div>
+        <div><b>${p.polRank?("#"+nf(p.polRank)):"—"}</b><span data-i18n="profile.polrank">Dünya Sırası</span></div>
+        <div><b>${nf(p.trophies)}</b><span data-i18n="profile.tr">Kupa Yolu</span></div>
+      </div>
+    </div>
+
+    <!-- Genel istatistikler -->
+    <div class="grid grid-4" style="margin-top:20px">
+      <div class="stat-tile"><div class="k" data-i18n="profile.best">En İyi (Kupa Yolu)</div><div class="v trophy">${nf(p.bestTrophies||p.trophies)}</div></div>
+      <div class="stat-tile"><div class="k" data-i18n="profile.winrate">Kazanma %</div><div class="v" style="color:var(--green-600)">${wr}</div></div>
+      <div class="stat-tile"><div class="k" data-i18n="profile.wins">Galibiyet</div><div class="v">${nf(p.wins)}</div></div>
+      <div class="stat-tile"><div class="k" data-i18n="profile.losses">Mağlubiyet</div><div class="v">${nf(p.losses)}</div></div>
+      <div class="stat-tile"><div class="k" data-i18n="profile.3crown">3 Taç</div><div class="v">${nf(p.threeCrown)}</div></div>
+      <div class="stat-tile"><div class="k" data-i18n="profile.total">Toplam Maç</div><div class="v">${nf(p.battleCount||total)}</div></div>
+      <div class="stat-tile"><div class="k" data-i18n="profile.challenge">Meydan Okuma Rekoru</div><div class="v">${nf(p.challengeMax)} <span class="muted" style="font-size:.75rem">galibiyet</span></div></div>
+      <div class="stat-tile"><div class="k" data-i18n="profile.tourbest">Turnuva Kartı</div><div class="v">${nf(p.tournamentCardsWon)}</div></div>
+    </div>
+
+    <div class="grid grid-2" style="margin-top:20px">
+      <div class="card">
+        <div class="card-head"><span class="dot">🃏</span><h3 data-i18n="profile.deck">Güncel Deste</h3><span class="badge gold" style="margin-left:auto">💧 ${deckElixir(p.cards)}</span></div>
+        <div class="card-grid" style="grid-template-columns:repeat(4,1fr)">
+          ${p.cards.map((c,i)=>renderCard(c,{level:p.levels?p.levels[i]:null,max:p.maxed?p.maxed[i]:false,evo:(p.evo||[]).includes(c)})).join("")}
+        </div>
+        ${copyDeckLink(p.cards) ? `<div class="flex gap-8" style="margin-top:14px"><button class="btn btn-gold" onclick="copyText('${copyDeckLink(p.cards)}',this)">${ICONS.copy}<span data-i18n="gen.copy">Desteyi Kopyala</span></button></div>` : ""}
+      </div>
+      <div class="card">
+        <div class="card-head"><span class="dot">📈</span><h3 data-i18n="profile.graph">Kupa Geçmişi</h3></div>
+        ${p.trophyHistory && p.trophyHistory.length ? bigGraph(p.trophyHistory) : `<p class="muted" style="font-size:.85rem">Kupa geçmişi grafiği canlı API verisi ile dolar.</p>`}
+      </div>
+    </div>
+
+    <!-- Kart koleksiyonu -->
+    <div class="card" style="margin-top:20px">
+      <div class="card-head"><span class="dot">📇</span><h3 data-i18n="profile.collection">Kart Koleksiyonu</h3><span class="muted" style="margin-left:auto;font-size:.82rem">${collection.length} kart</span></div>
+      <div class="collection">
+        ${collection.map((c,i)=>renderCard(c,{level: p.cards.includes(c)&&p.levels?p.levels[p.cards.indexOf(c)]:14, max: false})).join("")}
+      </div>
+    </div>
+
+    <!-- Battle log -->
+    <div class="card" style="margin-top:20px">
+      <div class="card-head"><span class="dot">⚔️</span><h3 data-i18n="profile.battles">Son Savaşlar</h3></div>
+      ${(p.battles||[]).map(b=>{
+        const myDeck = b.myDeck || fullDeck(b.deck);
+        const opDeck = b.opDeck2 || fullDeck(b.oppDeck);
+        return `
+        <div style="border-bottom:1px solid var(--border);padding:14px 0">
+          <div class="flex center gap-12 wrap" style="margin-bottom:8px">
+            <span class="result-pill ${b.result}">${b.result==='win'?'GALİBİYET':'MAĞLUBİYET'}</span>
+            <b>${b.crowns} 👑</b>
+            <span class="badge">${b.type}</span>
+            <span style="margin-left:auto" class="tag">${t("profile.vs")} <b>${b.opp}</b> ${b.oppClan&&b.oppClan!=="—"?"· "+b.oppClan:""}</span>
+            <b style="color:${b.trophies.startsWith('+')?'var(--green-600)':b.trophies.startsWith('-')?'#d23c3c':'var(--text-muted)'};min-width:44px;text-align:right">${b.trophies}</b>
+          </div>
+          <div class="flex between wrap gap-12">
+            <div><div class="muted" style="font-size:.72rem;font-weight:800;margin-bottom:4px">SENİN DESTEN · 💧 ${deckElixir(myDeck)}</div>${deckIcons(myDeck)}</div>
+            <div style="text-align:right"><div class="muted" style="font-size:.72rem;font-weight:800;margin-bottom:4px">RAKİP · 💧 ${deckElixir(opDeck)}</div>${deckIcons(opDeck)}</div>
+          </div>
+        </div>`;}).join("") || `<p class="muted" style="font-size:.85rem">Savaş geçmişi canlı API bağlıyken görüntülenir.</p>`}
+    </div>`;
+  applyLang(LANG);
+}
+async function loadPlayer(tag){
+  tag = (tag||"").trim();
+  const note = document.getElementById("searchNote");
+  if (tag && !tag.startsWith("#")){
+    note.style.display = "block";
+    note.innerHTML = `<div class="notice">Oyuncu araması yalnızca <b>etiketle</b> yapılabilir (ör. <b>#298Q8YVGG</b>) — Clash Royale API isimle oyuncu aramayı desteklemez. Klanı ise isimle arayabilirsiniz.</div>`;
+  } else if (note){ note.style.display = "none"; }
+  const p = await HypnoAPI.player(tag || SAMPLE_PLAYER.tag);
+  paintPlayer(p);
+  paintApiStatus();
+}
+(function(){
+  const q = new URLSearchParams(location.search).get("tag");
+  if (q) document.getElementById("pTag").value = q;
+  loadPlayer(q);
+})();
+window.onLangChange = paintApiStatus;
+</script>
+</body>
+</html>

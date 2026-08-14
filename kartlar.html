@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kartlar — HYPNOSCOUT</title>
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<div id="app-header"></div>
+
+<section class="page-strip">
+  <div class="container">
+    <p class="eyebrow" data-i18n="cards.sub">Tüm Clash Royale kartları — nadirlik ve iksir maliyetine göre</p>
+    <h1 data-i18n="cards.title">KARTLAR</h1>
+    <p><span class="api-status" data-api-status><span class="led"></span>Demo veri</span></p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="flex gap-8 wrap" id="filters" style="margin-bottom:14px">
+      <button class="btn btn-primary" data-r="all" onclick="filterCards('all',this)">Tümü</button>
+      <button class="btn btn-ghost" data-r="common" onclick="filterCards('common',this)">Sıradan</button>
+      <button class="btn btn-ghost" data-r="rare" onclick="filterCards('rare',this)">Nadir</button>
+      <button class="btn btn-ghost" data-r="epic" onclick="filterCards('epic',this)">Destansı</button>
+      <button class="btn btn-ghost" data-r="legendary" onclick="filterCards('legendary',this)">Efsanevi</button>
+      <button class="btn btn-ghost" data-r="champion" onclick="filterCards('champion',this)">Şampiyon</button>
+    </div>
+    <p class="muted" style="font-size:.84rem;margin:0 0 16px">Bir karta tıkla → o kartın kullanıldığı güncel meta desteleri gör.</p>
+    <div class="card-grid" id="cardGrid" style="grid-template-columns:repeat(8,1fr)"></div>
+    <p class="muted mt-16 text-center" style="font-size:.82rem" id="cardCount"></p>
+  </div>
+</section>
+
+<div id="app-footer"></div>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+mountChrome("kartlar.html");
+let KEYS = [], META = [], RARITY = "all";
+
+function rarOf(k){ return (CARD_DB[k]?.rarity || "").toLowerCase(); }
+function elx(k){ return CARD_DB[k]?.elixir || 0; }
+
+function render(){
+  const list = KEYS.filter(k => RARITY==="all" || rarOf(k)===RARITY).sort((a,b)=> elx(a)-elx(b) || CARD_DB[a].name.localeCompare(CARD_DB[b].name));
+  document.getElementById("cardGrid").innerHTML = list.map(k => renderCard(k, { onClick:`showCardDecks('${k}')` })).join("");
+  document.getElementById("cardCount").textContent = `${list.length} kart`;
+}
+function filterCards(r, btn){
+  RARITY = r;
+  document.querySelectorAll("#filters .btn").forEach(b=>{b.classList.remove("btn-primary");b.classList.add("btn-ghost");});
+  btn.classList.remove("btn-ghost"); btn.classList.add("btn-primary");
+  render();
+}
+function showCardDecks(key){
+  const c = CARD_DB[key];
+  const decks = decksUsingCard(key, META);
+  const body = decks.length
+    ? decks.slice(0,8).map(d=>{
+        const link = copyDeckLink(d.cards);
+        return `<div style="border-top:1px solid var(--border);padding:12px 0">
+          <div class="flex between center" style="margin-bottom:8px">
+            <b>${d.name}</b>
+            <span class="flex gap-8 center">${d.usage!=null?`<span class="badge">%${d.usage}</span>`:""}<span class="elixir-badge">💧 ${deckElixir(d.cards)}</span></span>
+          </div>
+          <div class="flex between center gap-8 wrap">
+            ${deckIcons(d.cards, d.evo||[])}
+            ${link?`<a class="btn btn-primary" style="padding:7px 12px" href="${link}">${ICONS.copy}<span>Kopyala</span></a>`:""}
+          </div>
+        </div>`;}).join("")
+    : `<p class="muted">Bu kartın kullanıldığı güncel meta destesi bulunamadı. Canlı API bağlıyken zirve oyuncuların desteleri taranır.</p>`;
+  openModal(`
+    <button class="btn btn-ghost icon-btn modal-close" onclick="closeModal()">${ICONS.x}</button>
+    <div class="flex center gap-12" style="margin-bottom:6px">
+      <span style="width:64px">${renderCard(key)}</span>
+      <div><h3 style="margin:0">${c.name}</h3><span class="muted">${c.elixir} iksir · ${c.rarity||"—"}</span></div>
+    </div>
+    <p class="eyebrow" style="margin-top:14px">BU KARTIN KULLANILDIĞI META DESTELERİ</p>
+    ${body}
+  `);
+}
+(async function(){
+  META = await HypnoAPI.meta();
+  KEYS = await HypnoAPI.cards();
+  paintApiStatus();
+  render();
+})();
+window.onLangChange = paintApiStatus;
+</script>
+</body>
+</html>

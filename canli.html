@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global Son Maçlar — HYPNOSCOUT</title>
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<div id="app-header"></div>
+
+<section class="page-strip">
+  <div class="container">
+    <p class="eyebrow" data-i18n="live.sub">Nihai Kademe zirvesinden canlı maç akışı</p>
+    <h1 data-i18n="live.title">GLOBAL SON MAÇLAR</h1>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="flex between center wrap gap-12" style="margin-bottom:16px">
+      <span class="api-status" data-api-status><span class="led"></span>Demo veri</span>
+      <button class="btn btn-ghost" onclick="loadLive()"><span data-i18n="live.refresh">Yenile</span></button>
+    </div>
+    <div id="liveFeed"></div>
+  </div>
+</section>
+
+<div id="app-footer"></div>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+mountChrome("canli.html");
+
+function side(pl, right){
+  const link = pl.tag ? `oyuncu.html?tag=${encodeURIComponent(pl.tag)}` : "#";
+  return `<div class="match-side ${right?'right':''}">
+    <div class="pn"><a class="player-link" href="${link}">${pl.name}</a></div>
+    <div class="pc">${pl.clan&&pl.clan!=='—'?pl.clan+' · ':''}🏆 ${(pl.trophies||0).toLocaleString("tr-TR")}</div>
+    <div class="decks">${deckIcons(pl.deck, pl.evo||[])}</div>
+  </div>`;
+}
+function matchHtml(m){
+  const w1 = m.winner===1, w2 = m.winner===2;
+  return `<div class="match-card">
+    <div class="match-top">
+      <span class="mtype">${m.type||'Maç'}</span>
+      ${m.ago?`<span class="mago">${m.ago}</span>`:''}
+    </div>
+    <div class="match-grid">
+      ${side(m.p1,false)}
+      <div class="match-score">
+        <div class="sc"><span style="color:${w1?'var(--green-600)':'var(--text-muted)'}">${m.c1}</span><span class="l"> - </span><span style="color:${w2?'var(--green-600)':'var(--text-muted)'}">${m.c2}</span></div>
+        <div class="vs" data-i18n="live.vs">KARŞI</div>
+        <div class="win-badge">${w1?m.p1.name:m.p2.name} 👑</div>
+      </div>
+      ${side(m.p2,true)}
+    </div>
+  </div>`;
+}
+async function loadLive(){
+  const feed = document.getElementById("liveFeed");
+  feed.innerHTML = `<div class="text-center muted" style="padding:40px"><span class="spinner" style="border-color:rgba(30,90,224,.3);border-top-color:var(--blue-600)"></span></div>`;
+  const matches = await HypnoAPI.live();
+  feed.innerHTML = matches.map(matchHtml).join("");
+  paintApiStatus();
+}
+loadLive();
+window.onLangChange = () => { paintApiStatus(); loadLive(); };
+</script>
+</body>
+</html>
