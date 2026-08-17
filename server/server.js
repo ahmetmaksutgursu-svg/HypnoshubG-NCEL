@@ -2072,9 +2072,16 @@ app.get("/api/live", async (req, res) => {
 function decodeXml(s){
   return String(s||"").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&#x27;/g,"'");
 }
+/* HYPNOS CR kanalı (@hypnoscr). Açık bilgi — bkz. aşağıdaki not. */
+const YT_VARSAYILAN = "UC5pUCwGNR9rnoWLfweHcnRw";
 app.get("/api/youtube", async (req, res) => {
   try {
-    const id = process.env.YT_CHANNEL_ID || req.query.channel_id;
+    /* Kanal kimliği gizli bir bilgi değil (herkese açık bir YouTube kanalı),
+       o yüzden varsayılanı kodda duruyor. Ortam değişkeni olarak bırakılmıştı
+       ve yayına alırken girilmediği için "Son Videolar" bölümü boş kalıyordu —
+       ayarlanması unutulabilecek her şeyin makul bir varsayılanı olmalı.
+       Başka bir kanal göstermek isteyen YT_CHANNEL_ID ile değiştirebilir. */
+    const id = process.env.YT_CHANNEL_ID || req.query.channel_id || YT_VARSAYILAN;
     if (!id) return res.status(400).json({ error: "no_channel" });
     const data = await cached("yt:" + id, 600e3, async () => {
       const r = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${id}`, { headers: { "User-Agent": "Mozilla/5.0 (HYPNOSHUB)" } });
