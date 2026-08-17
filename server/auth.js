@@ -542,6 +542,14 @@ function mount(app) {
 
   /* Ada göre ara. Sorgu boşsa son kayıt olanlar gelir ki yönetici
      "kim var" diye bakabilsin. */
+  /* Şu an sitede kaç kişi var — YALNIZCA yönetici.
+     Ziyaretçi sayısı işletme bilgisidir, herkese açık olması gerekmez;
+     ayrıca "kim çevrimiçi" bilgisi kullanıcıların mahremiyetine girer. */
+  app.get("/api/admin/canli", (req, res) => {
+    if (!yonetici(req, res)) return;
+    res.json(require("./anlik").durum());
+  });
+
   app.get("/api/admin/users", (req, res) => {
     if (!yonetici(req, res)) return;
     const q = String(req.query.q || "").trim().toLowerCase();

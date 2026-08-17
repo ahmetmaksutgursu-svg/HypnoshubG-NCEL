@@ -559,6 +559,23 @@ app.use(["/api/auth", "/api/games", "/api/quiz", "/api/feedback", "/api/board", 
 
 app.get("/api/health", (req, res) => res.json({ ok: true, hasToken: !!TOKEN }));
 
+/* ---------- anlık kullanıcı sayacı ----------
+   Her API isteği işaretleniyor. Sayfa dosyaları (HTML/CSS) sayılmıyor;
+   önbellekten açılan bir sekme "kullanıcı geldi" demek olmadığı gibi,
+   her görsel isteği de ayrı ziyaret sayılmamalı. Site zaten açılışta
+   API çağırıyor, yani gerçek ziyaretçi kaçmıyor.
+
+   Sayaç bellekte, ham IP tutmuyor — ayrıntı ve gerekçe anlik.js'te. */
+const anlik = require("./anlik");
+app.use("/api", (req, res, next) => {
+  /* `auth` bu dosyanın çok aşağısında tanımlı; burada doğrudan ada
+     başvurmak yerine modülü istek anında alıyoruz (require önbellekli,
+     maliyeti yok). Böylece dosyadaki sıralama değişse de kırılmıyor. */
+  try { anlik.isaretle(req, require("./auth").readSession(req)); }
+  catch { /* sayaç hiçbir koşulda isteği düşürmemeli */ }
+  next();
+});
+
 /*
   Player search. Returns a LIST — it never guesses a single profile.
   An exact tag short-circuits to the real lookup; a name is matched against the

@@ -2129,6 +2129,7 @@ function openAccount(){
       <button class="btn btn-ghost" onclick="openMessages()">💌 ${t("msg.title")}${MSG_UNREAD?` (${MSG_UNREAD})`:""}</button>
       ${IS_ADMIN ? `<button class="btn btn-ghost" onclick="openProAdmin('bekliyor')">🏅 ${t("pro.admin")}${PRO_PENDING?` (${PRO_PENDING})`:""}</button>` : ""}
       ${IS_ADMIN ? `<button class="btn btn-ghost" onclick="openUserAdmin('')">🚫 ${t("admin.users")}</button>` : ""}
+      ${IS_ADMIN ? `<button class="btn btn-ghost" onclick="openCanli()">📡 ${TRa?"Şu an sitede":"Online now"}</button>` : ""}
       <button class="btn btn-ghost" style="margin-left:auto" onclick="doLogout()">${TRa?"Çıkış Yap":"Log out"}</button>
     </div>
     ${/* KVKK m.11 hakları. Bir e-posta yazıp cevap beklemek yerine kişinin
@@ -2140,6 +2141,54 @@ function openAccount(){
       <a class="btn btn-ghost" href="gizlilik.html">🔒 ${TRa?"Gizlilik":"Privacy"}</a>
     </div>`);
 }
+
+/* ---------- ANLIK KULLANICI SAYACI (yönetici) ----------
+   Kendi kendine yenileniyor: sayının canlı olmasının bütün anlamı bu.
+   Pencere kapanınca zamanlayıcı durduruluyor — açık kalan bir aralık
+   arka planda sonsuza kadar istek atardı. */
+let CANLI_ZAMANLAYICI = null;
+async function openCanli(){
+  const TRa = LANG === "tr";
+  clearInterval(CANLI_ZAMANLAYICI);
+  const ciz = async () => {
+    const r = await adminApi("/canli");
+    const kutu = document.getElementById("canliGovde");
+    if (!kutu) { clearInterval(CANLI_ZAMANLAYICI); return; }   // pencere kapandı
+    if (!r || r.toplam == null){
+      kutu.innerHTML = notice(`<span>⚠️</span><span>${TRa?"Veri alınamadı.":"Could not load."}</span>`, "warn");
+      return;
+    }
+    const kutucuk = (sayi, etiket, sinif = "") =>
+      `<div class="cn-kutu ${sinif}"><span class="cn-sayi">${nfTR(sayi)}</span><span class="cn-et">${etiket}</span></div>`;
+    kutu.innerHTML = `
+      <div class="cn-izgara">
+        ${kutucuk(r.toplam, TRa?"toplam":"total", "buyuk")}
+        ${kutucuk(r.uye, TRa?"üye":"members")}
+        ${kutucuk(r.misafir, TRa?"misafir":"guests")}
+        ${kutucuk(r.aktif, TRa?"şu an ekranda":"active now", "aktif")}
+      </div>
+      ${r.uyeler.length ? `<div class="cn-liste">
+          <span class="cn-baslik">${TRa?"Giriş yapmış olanlar":"Signed in"}</span>
+          ${r.uyeler.map((u) => `<span class="cn-uye">${esc(u.ad)}
+            <i>${u.saniyeOnce < 60 ? (TRa?"az önce":"just now")
+                : `${Math.round(u.saniyeOnce/60)} ${TRa?"dk önce":"min ago"}`}</i></span>`).join("")}
+        </div>` : `<p class="muted" style="font-size:.84rem;margin:12px 0 0">${TRa
+          ? "Şu an giriş yapmış kimse yok." : "Nobody signed in right now."}</p>`}
+      <p class="muted" style="font-size:.78rem;margin:14px 0 0">${TRa
+        ? `Son <b>${r.pencereDk} dakikada</b> siteye istek atanlar sayılıyor. Sayaç yalnızca
+           bellekte tutulur, IP adresi saklanmaz — ayrıntı <a href="gizlilik.html">gizlilik metninde</a>.`
+        : `Counts visitors active in the last ${r.pencereDk} minutes. Kept in memory only; no IP stored.`}</p>`;
+  };
+  openModal(`
+    <button class="btn btn-ghost icon-btn modal-close" onclick="closeCanli()">${ICONS.x}</button>
+    <h3 style="margin:0 0 4px">📡 ${TRa?"Şu an sitede":"Online now"}</h3>
+    <p class="muted" style="font-size:.82rem;margin:0 0 14px">${TRa
+      ? "Her 10 saniyede bir yenilenir." : "Refreshes every 10 seconds."}</p>
+    <div id="canliGovde">${spinnerBox(TRa?"Sayılıyor…":"Counting…")}</div>`);
+  await ciz();
+  CANLI_ZAMANLAYICI = setInterval(ciz, 10000);
+}
+function closeCanli(){ clearInterval(CANLI_ZAMANLAYICI); CANLI_ZAMANLAYICI = null; closeModal(); }
 
 /* ---------- KVKK m.11: kişinin kendi verisini görmesi ---------- */
 async function verilerimiGoster(){

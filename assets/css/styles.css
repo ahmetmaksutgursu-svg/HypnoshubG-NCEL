@@ -888,6 +888,42 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
 /* page-strip API status pill on light bg */
 .page-strip .api-status { background:var(--surface)!important; border-color:var(--border)!important; color:var(--text-soft)!important; }
 
+/* ---------- Anlık kullanıcı sayacı (yönetici) ----------
+   Rakamlar tek bakışta okunmalı: büyük punto, tabular rakam (sayı
+   değişince sütun kaymasın), toplam en belirgin. */
+.cn-izgara { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.cn-kutu {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 10px; text-align: center;
+}
+.cn-kutu .cn-sayi {
+  display: block; font-size: 1.5rem; font-weight: 800; letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums; color: var(--text); line-height: 1.15;
+}
+.cn-kutu .cn-et {
+  font-size: .7rem; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--text-muted); font-weight: 700;
+}
+.cn-kutu.buyuk { background: var(--blue-100); border-color: transparent; }
+.cn-kutu.buyuk .cn-sayi { color: var(--blue-700); font-size: 1.8rem; }
+[data-theme="dark"] .cn-kutu.buyuk .cn-sayi { color: var(--blue-500); }
+.cn-kutu.aktif .cn-sayi { color: var(--green-600); }
+[data-theme="dark"] .cn-kutu.aktif .cn-sayi { color: var(--green-400); }
+
+.cn-liste { margin-top: 16px; }
+.cn-baslik {
+  display: block; font-size: .7rem; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text-muted); font-weight: 700; margin-bottom: 8px;
+}
+.cn-uye {
+  display: inline-flex; align-items: baseline; gap: 6px; margin: 0 6px 6px 0;
+  padding: 5px 10px; border-radius: 999px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  font-size: .84rem; font-weight: 700;
+}
+.cn-uye i { font-style: normal; font-weight: 400; font-size: .74rem; color: var(--text-muted); }
+@media (max-width: 560px) { .cn-izgara { grid-template-columns: repeat(2, 1fr); } }
+
 /* ---------- KVKK onay kutusu (kayıt formu) ----------
    Onay bilinçli bir eylem olmalı: kutu belirgin, yazı okunur, bağlantı
    yeni sekmede açılıyor ki form kaybolmasın. */
