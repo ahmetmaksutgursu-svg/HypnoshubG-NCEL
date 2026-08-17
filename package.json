@@ -7,15 +7,20 @@
   "_not": [
     "Bu dosya kökte duruyor çünkü Railway/Render gibi sağlayıcılar depoyu",
     "klonlayıp KÖKTE package.json arıyor. Gerçek sunucu server/ içinde;",
-    "buradaki komutlar oraya yönlendiriyor. Böylece sağlayıcıda 'root",
-    "directory' ayarı yapmaya gerek kalmıyor.",
+    "buradaki komutlar oraya yönlendiriyor.",
     "",
-    "--max-old-space-size: oyuncu ad indeksi bellekte milyonlarca satır",
-    "tutuyor. Küçük bir sunucuda indeksi CRAWL_CLANS=0 ile kapatın, o zaman",
-    "bu bayrak da gereksiz kalır."
+    "`start` yığın boyutunu ARTIK SABİTLEMİYOR. Eskiden",
+    "--max-old-space-size=6144 yazılıydı: bilgisayarda sorun değil ama bulutta",
+    "tehlikeli. Kaba 512 MB ise V8'e '6 GB kullanabilirsin' demek, çöp",
+    "toplamayı kabın sınırının çok ötesine erteletir ve süreç bellek aşımından",
+    "öldürülür. Bayraksız bırakınca Node kendi sınırını kaba göre seçiyor.",
+    "",
+    "Oyuncu adı indeksini AÇIK çalıştıracaksan (CRAWL_CLANS>0) bellek ~1,6 GB",
+    "olur; o zaman `npm run start:buyuk` kullan ya da NODE_OPTIONS ile ayarla."
   ],
   "scripts": {
-    "start": "node --max-old-space-size=6144 server/server.js",
+    "start": "node server/server.js",
+    "start:buyuk": "node --max-old-space-size=6144 server/server.js",
     "dev": "node --max-old-space-size=6144 --watch server/server.js",
     "postinstall": "npm --prefix server install --omit=dev"
   },
