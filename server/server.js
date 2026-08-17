@@ -1210,8 +1210,13 @@ const rozetKumeSifirla = () => { rozetKume = null; };
 function rozetle(nesne, tag, pro, elo) {
   const t = verified.normTag(tag);
   const verilen = badges.get(t);
+  /* Yönetici siteden kaldırdıysa kodda sabit yazılı rozet de gösterilmiyor.
+     verified.js bir kaynak dosya, çalışırken değiştirilemiyor; gizleme
+     listesi bu yüzden var (bkz. badges.js). */
+  const yayinciGizli = badges.gizliMi(t, "yayinci");
+  const proGizli = badges.gizliMi(t, "pro");
 
-  if (verified.isVerified(t)) {
+  if (verified.isVerified(t) && !yayinciGizli) {
     nesne.verified = true;
     nesne.note = verified.info(t)?.note || "";
   } else if (verilen && verilen.yayinci) {
@@ -1220,7 +1225,10 @@ function rozetle(nesne, tag, pro, elo) {
   }
 
   const r = pro.get(t);
+  /* Dünya ilk 100 sıralaması canlı bir gerçek, gizlenemez — o rozet
+     "şu an ilk 100'de" demek, bizim verdiğimiz bir ödül değil. */
   if (r) { nesne.pro = true; nesne.proRank = r; }
+  else if (proGizli) { /* elle verilen/sabit PRO gizlenmiş */ }
   else if (verified.isPro(t) || (verilen && verilen.pro)) nesne.pro = true;
   else if (elo != null && elo >= verified.PRO_MIN_MEDALS) { nesne.pro = true; nesne.proMedals = true; }
   return nesne;
@@ -2262,10 +2270,32 @@ app.post("/api/pro/grant", async (req, res) => {
 });
 app.post("/api/pro/revoke", (req, res) => {
   const s = proNeedAdmin(req, res); if (!s) return;
-  const r = badges.revoke(badges.normTag(req.body?.tag), req.body?.kind || "");
+  const tag = badges.normTag(req.body?.tag);
+  const kind = req.body?.kind || "";
+  if (!badges.gecerliTag(tag))
+    return res.status(400).json({ error: "tag", message: `"${req.body?.tag || ""}" geçerli bir oyuncu etiketi değil.` });
+  /* Kodda sabit yazılı mı? badges.js verified.js'i tanımıyor, cevabı buradan
+     alıyor — böylece sabit rozetler de siteden kaldırılabiliyor. */
+  const sabitVar = verified.isVerified(tag) || verified.isPro(tag);
+  const r = badges.revoke(tag, kind, sabitVar);
   if (r.error) return res.status(404).json(r);
   rozetKumeSifirla();
-  res.json({ ok: true, message: "Rozet kaldırıldı." });
+  res.json({ ok: true, tag,
+    message: r.kaynak === "sabit"
+      ? `${tag} rozeti kaldırıldı (yerleşik listede olduğu için gizlendi; geri almak için "Gizlemeyi kaldır" kullanın).`
+      : `${tag} rozeti kaldırıldı.` });
+});
+/* Yanlışlıkla gizlenen yerleşik rozeti geri getir. */
+app.post("/api/pro/unhide", (req, res) => {
+  const s = proNeedAdmin(req, res); if (!s) return;
+  const r = badges.gizlemeKaldir(badges.normTag(req.body?.tag), req.body?.kind || "");
+  if (r.error) return res.status(404).json(r);
+  rozetKumeSifirla();
+  res.json({ ok: true, message: `${r.tag} rozeti geri getirildi.` });
+});
+app.get("/api/pro/hidden", (req, res) => {
+  const s = proNeedAdmin(req, res); if (!s) return;
+  res.json({ items: badges.listGizli() });
 });
 app.get("/api/pro/granted", (req, res) => {
   const s = proNeedAdmin(req, res); if (!s) return;

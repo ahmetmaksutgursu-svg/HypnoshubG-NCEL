@@ -37,12 +37,21 @@ const KIND_TR = { pro: "PRO", yayinci: "Yayıncı" };
 const db = {
   granted: {},        // "#TAG" -> { pro:bool, yayinci:bool, note, at, by }
   apps: [],           // başvurular
+  /* Kodda SABİT yazılı rozetlerin (server/verified.js) gizlenmesi.
+     Neden gerekli: o liste bir kaynak dosya, çalışırken değiştirilemez.
+     Yönetici siteden "kaldır" dediğinde eskiden hiçbir şey olmuyordu —
+     revoke() rozeti `granted` içinde arıyor, orada olmadığı için
+     "notfound" dönüyordu ve ekranda sebepsiz bir hata çıkıyordu.
+     Artık etiket buraya yazılıyor ve rozet dağıtımı bu listeyi atlıyor;
+     yani kaldırma yayına yeni kod göndermeden çalışıyor. */
+  gizli: {},          // "#TAG" -> { pro:bool, yayinci:bool, at, by }
 };
 
 function load() {
   try {
     const d = JSON.parse(fs.readFileSync(FILE, "utf8"));
     if (d && typeof d.granted === "object") db.granted = d.granted;
+    if (d && typeof d.gizli === "object") db.gizli = d.gizli;
     if (d && Array.isArray(d.apps)) db.apps = d.apps;
     const n = Object.keys(db.granted).length;
     console.log(`🏅  Verilen rozetler yüklendi (${n} hesap, ${db.apps.filter((a) => a.status === "bekliyor").length} bekleyen başvuru).`);
@@ -84,15 +93,50 @@ function grant(tag, kind, { note = "", by = "" } = {}) {
   save();
   return { ok: true, tag: t, kind, row };
 }
-function revoke(tag, kind) {
+/* `sabitVar(t, kind)` — bu etiket kodda sabit yazılı listede mi?
+   Çağıran taraf (server.js) veriyor; badges.js verified.js'i tanımıyor. */
+function revoke(tag, kind, sabitVar) {
   const t = normTag(tag);
   const row = db.granted[t];
-  if (!row) return { error: "notfound" };
-  if (kind) delete row[kind]; else delete db.granted[t];
-  if (row && !row.pro && !row.yayinci) delete db.granted[t];
+
+  if (row) {
+    if (kind) delete row[kind]; else delete db.granted[t];
+    if (db.granted[t] && !db.granted[t].pro && !db.granted[t].yayinci) delete db.granted[t];
+    save();
+    return { ok: true, tag: t, kaynak: "verilen" };
+  }
+
+  /* Siteden verilmemiş ama kodda sabit yazılı olabilir. O dosyayı çalışırken
+     değiştiremeyiz; onun yerine etiketi gizleme listesine alıyoruz. */
+  if (sabitVar) {
+    const g = db.gizli[t] || { at: Date.now() };
+    if (kind) g[kind] = true; else { g.pro = true; g.yayinci = true; }
+    g.at = Date.now();
+    db.gizli[t] = g;
+    save();
+    return { ok: true, tag: t, kaynak: "sabit" };
+  }
+
+  return { error: "notfound",
+           message: `${t} için verilmiş ya da tanımlı bir rozet bulunamadı. Etiketi kontrol edin.` };
+}
+
+/* Gizlenmiş mi? `rozetle` bunu sorup sabit listeyi atlıyor. */
+function gizliMi(tag, kind) {
+  const g = db.gizli[normTag(tag)];
+  return !!(g && (kind ? g[kind] : (g.pro || g.yayinci)));
+}
+/* Yanlışlıkla gizlenen bir rozeti geri getirmek için. */
+function gizlemeKaldir(tag, kind) {
+  const t = normTag(tag);
+  const g = db.gizli[t];
+  if (!g) return { error: "notfound", message: `${t} için gizleme kaydı yok.` };
+  if (kind) delete g[kind]; else delete db.gizli[t];
+  if (db.gizli[t] && !db.gizli[t].pro && !db.gizli[t].yayinci) delete db.gizli[t];
   save();
   return { ok: true, tag: t };
 }
+const listGizli = () => Object.entries(db.gizli).map(([tag, r]) => ({ tag, ...r }));
 const get = (tag) => db.granted[normTag(tag)] || null;
 const listGranted = () =>
   Object.entries(db.granted).map(([tag, r]) => ({ tag, ...r }))
@@ -144,5 +188,6 @@ function decide(id, karar, { by = "", note = "" } = {}) {
 module.exports = {
   KINDS, KIND_TR, normTag, gecerliTag,
   grant, revoke, get, listGranted,
+  gizliMi, gizlemeKaldir, listGizli,
   apply, myApps, listApps, pendingCount, decide,
 };

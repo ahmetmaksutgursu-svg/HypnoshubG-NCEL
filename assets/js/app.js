@@ -947,7 +947,14 @@ function playerResultRow(p){
     p.level ? `${LANG==="tr"?"Sv.":"Lv."} ${p.level}` : "",
     p.clanName ? `${clanCrest(p.badge, 16)} ${p.clanName}` : `<span class="muted">${t("word.none")}</span>`,
   ].filter(Boolean).join(" · ");
-  const score = p.elo != null ? `${nfTR(p.elo)} 🏅` : p.trophies != null ? `${nfTR(p.trophies)} 🏆` : "";
+  /* `elo` = Nihai Kademe madalyonu. SIFIR da geçerli bir cevap ama "madalyon
+     yok" demek: madalyon yalnızca en üst ligde tutuluyor, alt liglerdeki
+     oyuncuya API `trophies: 0` gönderiyor. `!= null` yazmak sıfırı da madalyon
+     sayıyordu ve 14.000 kupalı bir oyuncu arama sonucunda "0 🏅" olarak
+     görünüyordu. Madalyon ancak SIFIRDAN BÜYÜKSE gösteriliyor; değilse
+     oyuncunun Kupa Yolu kupası yazılıyor. */
+  const score = p.elo > 0 ? `${nfTR(p.elo)} 🏅`
+              : p.trophies != null ? `${nfTR(p.trophies)} 🏆` : "";
   return `<a class="res-row ${p.verified || p.pro ? "vf" : ""}" href="oyuncu.html?tag=${encodeURIComponent(p.tag)}">
     <span class="res-ic">👤</span>
     <span class="res-main">
@@ -1907,7 +1914,8 @@ function attachSuggest(input, getType){
            <span class="sug-ic">👤</span>
            <span class="sug-main"><span class="n">${esc(it.name)}${verifyTick(it)}<span class="tag">${it.tag}</span></span>
            <span class="s">${it.clanName ? `${clanCrest(it.badge,15)} ${esc(it.clanName)}` : `<span class="muted">${t("word.none")}</span>`}</span></span>
-           <span class="sug-val">${it.elo != null ? polScore(it.elo, 14) : it.trophies != null ? nfTR(it.trophies) + " 🏆" : ""}</span></a>`
+           <span class="sug-val">${it.elo > 0 ? polScore(it.elo, 14)
+              : it.trophies != null ? nfTR(it.trophies) + " 🏆" : ""}</span></a>`
     ).join("");
     box.classList.add("open");
   };
@@ -2427,6 +2435,8 @@ async function openProAdmin(durum){
       <select id="pgKind"><option value="pro">PRO</option><option value="yayinci">Yayıncı</option></select>
       <button class="btn btn-primary" onclick="proGrant(1)">Ver</button>
       <button class="btn btn-ghost" onclick="proGrant(0)">Kaldır</button>
+      <button class="btn btn-ghost" onclick="proGrant(2)"
+        title="Yerleşik listedeki bir rozeti yanlışlıkla kaldırdıysanız geri getirir">Geri getir</button>
     </div>
     <div id="pgMsg"></div>
     <div class="pa-list">${r.items.length ? r.items.map(satir).join("")
@@ -2440,12 +2450,20 @@ async function proDecide(id, karar){
   openProAdmin("bekliyor");
 }
 
+/* 1 = ver, 0 = kaldır, 2 = geri getir (yanlışlıkla gizlenmiş yerleşik rozet).
+
+   Mesaj artık her durumda sunucudan geliyor. Eskiden sunucu bazı hatalarda
+   yalnızca `{error:"notfound"}` dönüyordu ve buradaki `r.message || "?"`
+   ekrana düpedüz "?" basıyordu — kullanıcı ne olduğunu anlayamıyordu. */
 async function proGrant(ver){
   const msg = document.getElementById("pgMsg");
   const tag = document.getElementById("pgTag").value;
   const kind = document.getElementById("pgKind").value;
-  const r = await proAdminApi(ver ? "/grant" : "/revoke", { tag, kind });
-  msg.innerHTML = notice(`<span>${r.ok?"✅":"⚠️"}</span><span>${esc(r.message || "?")}</span>`, r.ok ? "" : "warn");
+  const yol = ver === 1 ? "/grant" : ver === 2 ? "/unhide" : "/revoke";
+  const r = await proAdminApi(yol, { tag, kind });
+  const metin = r.message
+    || (r.error ? `İşlem tamamlanamadı (${r.error}).` : "Sunucudan yanıt alınamadı.");
+  msg.innerHTML = notice(`<span>${r.ok?"✅":"⚠️"}</span><span>${esc(metin)}</span>`, r.ok ? "" : "warn");
 }
 
 /* ============================================================
