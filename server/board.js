@@ -302,4 +302,24 @@ function award(userId, points, game) {
   return addPoints(userId, p, game);
 }
 
-module.exports = { mount, weekInfo, award, acilisBilgisi };
+/* ---------- KVKK: kişinin kendi verisi ----------
+   Puan kayıtları kullanıcı kimliğine bağlı ve auth.js bunları bilmiyor.
+   Silme hakkı EKSİKSİZ çalışsın diye her modül kendi verisini kendisi
+   özetliyor ve siliyor; auth.js yalnızca bu işlevleri çağırıyor.
+   (Bkz. auth.js/veriKaydet — yeni modül eklendiğinde auth.js'e
+   dokunulmasın, modül kendi sorumluluğunu bildirsin.) */
+function kullaniciOzeti(userId) {
+  let donem = 0, puan = 0;
+  for (const h of Object.values(db.weeks)) {
+    if (h[userId]) { donem++; puan += h[userId].points || 0; }
+  }
+  return donem ? `${donem} dönemde toplam ${puan} puan` : "kayıt yok";
+}
+function kullaniciSil(userId) {
+  let n = 0;
+  for (const h of Object.values(db.weeks)) if (h[userId]) { delete h[userId]; n++; }
+  if (n) save();
+  return `${n} dönem puan kaydı`;
+}
+
+module.exports = { mount, weekInfo, award, acilisBilgisi, kullaniciOzeti, kullaniciSil };

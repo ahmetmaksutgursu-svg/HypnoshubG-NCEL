@@ -186,4 +186,20 @@ function mount(app, { readSession, listUsers, isAdmin, userInfo }) {
   console.log("💌  Mesajlaşma hazır (/api/messages/*) — kullanıcılar yalnız yöneticiyle yazışır.");
 }
 
-module.exports = { mount };
+/* ---------- KVKK: kişinin kendi verisi ----------
+   Mesajlar serbest metin, yani kişinin kendi yazdığı her şey burada.
+   Hesap silinince yöneticiyle olan yazışmanın tamamı da gidiyor —
+   "hesabı sildim ama mesajlarım duruyor" olmamalı. */
+function kullaniciOzeti(userId) {
+  const n = db.items.filter((m) => m.peerId === userId).length;
+  return n ? `${n} mesaj` : "kayıt yok";
+}
+function kullaniciSil(userId) {
+  const once = db.items.length;
+  db.items = db.items.filter((m) => m.peerId !== userId);
+  const n = once - db.items.length;
+  if (n) save();
+  return `${n} mesaj`;
+}
+
+module.exports = { mount, kullaniciOzeti, kullaniciSil };

@@ -2113,7 +2113,8 @@ board.mount(app, {
   readSession: auth.readActiveSession, listUsers: auth.listUsers,
   isAdmin: auth.isAdmin, banUser: auth.banUser, userInfo: auth.userInfo,
 });
-require("./quiz").mount(app, {
+const quiz = require("./quiz");
+quiz.mount(app, {
   readSession: auth.readActiveSession,
   addPoints: board.award,
   banUser: auth.banUser,                 // bot tespitinde otomatik ceza
@@ -2172,10 +2173,25 @@ require("./feedback").mount(app, {
   banUser: auth.banUser, unbanUser: auth.unbanUser, userInfo: auth.userInfo, banSteps: auth.BAN_STEPS,
   isAdmin: auth.isAdmin, adminLabel: auth.adminLabel,
 });
-require("./messages").mount(app, {
+const messages = require("./messages");
+messages.mount(app, {
   readSession: auth.readActiveSession, listUsers: auth.listUsers,
   isAdmin: auth.isAdmin, userInfo: auth.userInfo,
 });
+
+/* ---------- KVKK: silme ve görüntüleme haklarının kapsamı ----------
+   Kullanıcı verisi tek dosyada durmuyor. "Hesabımı sil" dendiğinde
+   hangi modüllerin temizleneceği BURADA, tek yerde yazılı; auth.js
+   bu listeyi gezip her birini çağırıyor.
+
+   Yeni bir modül kişisel veri tutmaya başlarsa buraya bir satır
+   eklenmeli — yoksa hesap silinir ama o modülde veri kalır. Listeyi
+   tek noktada tutmanın sebebi tam olarak bunu gözden kaçırmamak. */
+const games = require("./games");
+auth.veriKaydet("Tokmakçılar puanları", board.kullaniciOzeti, board.kullaniciSil);
+auth.veriKaydet("Yarışma hakları", quiz.kullaniciOzeti, quiz.kullaniciSil);
+auth.veriKaydet("Oyun hakları", games.kullaniciOzeti, games.kullaniciSil);
+auth.veriKaydet("Mesajlar", messages.kullaniciOzeti, messages.kullaniciSil);
 
 /* ---------- PRO başvuruları ve rozet yönetimi ----------
    Oyuncu etiketini yazıp başvurur; yönetici kabul ya da reddeder.

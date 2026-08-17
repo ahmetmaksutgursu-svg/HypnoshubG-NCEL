@@ -1,0 +1,32 @@
+# ---------------------------------------------------------------
+# `railway up` bu klasörü olduğu gibi yükler — .gitignore'a GÜVENMEYİN.
+# Buraya yazılanlar sunucuya hiç gitmez.
+#
+# Neden ayrı bir dosya: GitHub'a giden şeyle Railway'e giden şey aynı
+# değil. Depoya hiç girmemiş dosyalar (server/.env, server/.cache)
+# bilgisayarda duruyor ve bu liste olmasa doğrudan sunucuya yüklenirdi.
+# ---------------------------------------------------------------
+
+# API anahtarı. Railway'de zaten Variables ekranından giriliyor.
+server/.env
+server/.env.eski
+.env
+*.env
+!*.env.example
+
+# Yerel hesaplar (parola özetleri), puan tablosu, mesajlar, oyuncu indeksi.
+# Sunucudaki veri kalıcı diskte (/data) duruyor; buranın oraya karışması
+# canlı verinin üzerine yazılmasına yol açardı.
+server/.cache/
+.cache/
+
+# Sunucuda `npm install` ile kurulacak; yüklemek hem yavaş hem gereksiz.
+node_modules/
+
+# Geçmiş ve düzenleyici artıkları
+.git/
+.vscode/
+.idea/
+*.log
+Thumbs.db
+.DS_Store

@@ -489,4 +489,18 @@ function mount(app, deps) {
   console.log("🎮  Oyunlar hazır: Günün Kartı, Deste Düellosu, Eksik Kartı Bul, Kart Kapışması, Deste Jeneratörü (/api/games/*)");
 }
 
-module.exports = { mount, RULES };
+/* ---------- KVKK: kişinin kendi verisi ----------
+   Anahtar biçimi "oyun|kullaniciId|tarih", o yüzden kimlik ortada
+   aranıyor — baştan eşleştirmek yanlış sonuç verirdi. */
+function kullaniciOzeti(userId) {
+  const n = Object.keys(plays).filter((k) => k.split("|")[1] === userId).length;
+  return n ? `${n} oyun/gün hak kaydı` : "kayıt yok";
+}
+function kullaniciSil(userId) {
+  let n = 0;
+  for (const k of Object.keys(plays)) if (k.split("|")[1] === userId) { delete plays[k]; n++; }
+  if (n) save();
+  return `${n} oyun hakkı kaydı`;
+}
+
+module.exports = { mount, RULES, kullaniciOzeti, kullaniciSil };

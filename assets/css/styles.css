@@ -888,6 +888,61 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
 /* page-strip API status pill on light bg */
 .page-strip .api-status { background:var(--surface)!important; border-color:var(--border)!important; color:var(--text-soft)!important; }
 
+/* ---------- KVKK onay kutusu (kayıt formu) ----------
+   Onay bilinçli bir eylem olmalı: kutu belirgin, yazı okunur, bağlantı
+   yeni sekmede açılıyor ki form kaybolmasın. */
+.auth-kvkk {
+  display: flex; gap: 10px; align-items: flex-start;
+  margin: 4px 0 2px; padding: 11px 13px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 10px; font-size: .84rem; line-height: 1.5;
+  color: var(--text-soft); cursor: pointer;
+}
+.auth-kvkk input { flex: none; width: 17px; height: 17px; margin-top: 2px; cursor: pointer; }
+.auth-kvkk a { font-weight: 700; }
+
+/* ---------- Hesap panelindeki KVKK hakları ---------- */
+.kvkk-haklar {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border);
+}
+.kvkk-haklar .kh-baslik {
+  font-size: .72rem; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text-muted); font-weight: 700; margin-right: 2px;
+}
+.kvkk-haklar .btn { font-size: .82rem; padding: 7px 11px; }
+/* Silme yıkıcı bir işlem; rengiyle de ayrılıyor ama varsayılan olarak
+   bağırmıyor — yanlışlıkla basılmasını zorlaştıran asıl şey onay ekranı. */
+.kvkk-haklar .kh-sil { color: #c0392b; border-color: rgba(192,57,43,.35); }
+[data-theme="dark"] .kvkk-haklar .kh-sil { color: #f0897a; border-color: rgba(240,137,122,.3); }
+.kh-sil-onay { background: #c0392b !important; border-color: #c0392b !important; }
+.kh-sil-onay:hover { background: #a83226 !important; }
+
+/* ---------- Yasal metin sayfası (gizlilik.html) ----------
+   Okunması gereken bir metin, taranan bir arayüz değil: satır uzunluğu
+   sınırlı, başlıklar arası nefes payı geniş. */
+.yasal { max-width: 74ch; }
+.yasal h2 {
+  font-size: 1.18rem; font-weight: 800; letter-spacing: -.01em;
+  margin: 38px 0 10px; padding-top: 18px; border-top: 1px solid var(--border);
+}
+.yasal h2:first-of-type { border-top: 0; padding-top: 0; }
+.yasal h3 { font-size: 1rem; font-weight: 700; margin: 24px 0 8px; }
+.yasal p { margin: 0 0 12px; line-height: 1.7; }
+.yasal ul.madde { margin: 0 0 14px; padding-left: 22px; }
+.yasal ul.madde li { margin-bottom: 8px; line-height: 1.65; }
+.yasal .tabloKap { margin: 14px 0 18px; }
+.yasal table td, .yasal table th { font-size: .88rem; }
+.yasal .son-guncelleme { color: var(--text-muted); font-size: .85rem; margin-bottom: 20px; }
+/* Görünürlük sütunu: "herkese açık" ile "yalnızca site sahibi" arasındaki
+   fark bu sayfanın en önemli bilgisi, renkle de ayrılıyor. */
+.yasal td.acik  { color: var(--gold-600); font-weight: 700; }
+.yasal td.gizli { color: var(--green-600); font-weight: 700; }
+/* Koyu temada bu iki ton okunmuyor; belirteçler tema başına yeniden
+   tanımlanmadığı için burada açıkça daha açık basamağa geçiliyor. */
+[data-theme="dark"] .yasal td.acik  { color: var(--gold-400); }
+[data-theme="dark"] .yasal td.gizli { color: var(--green-400); }
+
 /* ---------- Utilities ---------- */
 .flex { display:flex; } .between{ justify-content:space-between; } .center{ align-items:center; }
 .gap-8{ gap:8px;} .gap-12{ gap:12px;} .gap-16{gap:16px;} .wrap{ flex-wrap:wrap; }

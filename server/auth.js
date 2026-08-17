@@ -53,6 +53,17 @@ const COOKIE = "hs_session";
 const RATE_WINDOW = 15 * 60e3;
 const RATE_MAX = 8;
 
+/* ---------- KVKK: aydınlatma ve onay ----------
+   6698 sayılı kanun, kişisel veri toplanmadan ÖNCE kişinin
+   aydınlatılmasını istiyor (m.10). Onayın alındığını sonradan
+   ispatlamak da veri sorumlusunun yükümlülüğü — bu yüzden onayın
+   kendisi değil, hangi METNİN hangi ANDA kabul edildiği kaydediliyor.
+
+   Metin değişirse bu sürüm de değişmeli; o zaman eski onaylar
+   "eski sürüme verilmiş" olarak görünür ve kimin neye onay verdiği
+   karışmaz. Tarih biçimi bilinçli: sıralanabilir ve okunabilir. */
+const KVKK_SURUM = "2026-08-17";
+
 /* ---------- kalıcı depolama ---------- */
 const db = { users: [], sessions: {} };
 
@@ -278,6 +289,17 @@ function userInfo(userId) {
            banCount: u.banCount || 0, ban: banState(u) || null, next: nextBanStep(u).label };
 }
 
+/* ---------- diğer modüllerdeki kişisel kayıtlar ----------
+   Kullanıcı verisi tek dosyada durmuyor: puan tablosu, mesajlar, oyun
+   hakları ayrı modüllerde. Silme ve görüntüleme haklarının EKSİKSİZ
+   çalışması için her modül kendini buraya kaydediyor.
+
+   Kayıt yöntemi bilinçli: yeni bir modül eklendiğinde auth.js'i
+   düzenlemek gerekmesin, modül kendi sorumluluğunu kendi bildirsin.
+   Aksi hâlde "silindi" denip bir köşede veri kalma riski var. */
+const veriToplayicilar = [];
+function veriKaydet(ad, ozet, sil) { veriToplayicilar.push({ ad, ozet, sil }); }
+
 /* ---------- rotalar ---------- */
 function mount(app) {
   app.use("/api/auth", require("express").json({ limit: "8kb" }));
@@ -293,9 +315,20 @@ function mount(app) {
         return res.status(429).json({ error: "rate",
           message: "Bu bağlantıdan çok fazla hesap açıldı. Bir saat sonra tekrar deneyin." });
 
-      const { username, email, password } = req.body || {};
+      const { username, email, password, kvkk } = req.body || {};
+      /* Sıra önemli: ÖNCE girdi denetimi. Onay kontrolünü öne almak,
+         hem şifresi kısa hem onayı eksik olan birine önce "onaylayın"
+         dedirtiyor; kişi onaylıyor, sonra "şifre kısa" duyuyor. Formu
+         iki turda doldurtmak yerine asıl eksiği önce söylüyoruz. */
       const bad = validate({ username, email, password });
       if (bad) return res.status(400).json({ error: "invalid", message: bad });
+
+      /* Aydınlatma metni onaylanmadan hesap açılmıyor (KVKK m.10).
+         Sunucuda kontrol etmek şart: istemcideki onay kutusu yalnızca bir
+         arayüz öğesi, doğrudan API'ye istek atan biri onu hiç görmez. */
+      if (kvkk !== true)
+        return res.status(400).json({ error: "kvkk",
+          message: "Hesap açmak için aydınlatma metnini okuyup onaylamanız gerekiyor." });
 
       const uLower = String(username).toLowerCase();
       const eLower = String(email).toLowerCase();
@@ -312,6 +345,10 @@ function mount(app) {
         email: String(email), emailLower: eLower,
         salt: salt.toString("hex"), hash,
         createdAt: Date.now(), playerTag: "",
+        /* Onayın ispatı: hangi metin sürümü, hangi anda kabul edildi.
+           Onayın kendisini "true" diye saklamak yetmez — hangi metne
+           onay verildiği sorulduğunda cevap verebilmemiz gerekiyor. */
+        kvkk: { surum: KVKK_SURUM, at: Date.now() },
         /* İlk kayıt olan sitenin sahibi. Bayrak kalıcı: sonradan hesap
            silinse bile yöneticilik başka birine kaymasın. */
         owner: db.users.length === 0,
@@ -386,6 +423,60 @@ function mount(app) {
     s.user.playerTag = tag ? "#" + tag : "";
     save();
     res.json({ ok: true, user: publicUser(s.user) });
+  });
+
+  /* ---------- KVKK m.11: kişinin kendi verisine erişmesi ----------
+     "Hakkımda ne tutuyorsunuz?" sorusunun cevabı. Parola özeti ve tuz
+     BİLEREK dışarıda: onlar kişinin verisi değil, kimlik doğrulamanın
+     iç malzemesi; dışarı vermek kimseye fayda sağlamaz, riski artırır. */
+  app.get("/api/auth/data", (req, res) => {
+    const s = readSession(req);
+    if (!s) return res.status(401).json({ error: "auth", message: "Önce giriş yapın." });
+    const u = s.user;
+    const oturum = Object.values(db.sessions).filter((x) => x.userId === u.id).length;
+    res.json({
+      hesap: {
+        kullaniciAdi: u.username, eposta: u.email,
+        kayitTarihi: new Date(u.createdAt).toISOString(),
+        oyuncuEtiketi: u.playerTag || null,
+        favoriler: (u.favorites || []).map((f) => ({ etiket: f.tag, ad: f.name, eklenme: f.at })),
+        acikOturum: oturum,
+        kvkkOnayi: u.kvkk || null,
+        yasak: banState(u) ? { bitis: u.ban.until, sebep: u.ban.reason || "" } : null,
+      },
+      /* Diğer modüllerdeki kayıtları da tek yerden gösteriyoruz; kişi
+         verisinin nerelere dağıldığını bilmek hakkının parçası. */
+      digerKayitlar: veriToplayicilar.map((m) => ({ alan: m.ad, ozet: m.ozet(u.id) })),
+      not: "Parolanız hiçbir biçimde saklanmıyor; yalnızca geri döndürülemez bir özeti tutuluyor.",
+    });
+  });
+
+  /* ---------- KVKK m.7: silme hakkı ----------
+     Şu ana kadar hesap silmenin hiçbir yolu yoktu. Kanun bunu bir hak
+     olarak tanımlıyor ve bir e-posta yazıp beklemeye bırakmak yerine
+     kişinin kendi eliyle yapabilmesi doğrusu.
+
+     Parola soruluyor: oturumu ele geçiren biri hesabı silememeli. */
+  app.post("/api/auth/delete", async (req, res) => {
+    const s = readSession(req);
+    if (!s) return res.status(401).json({ error: "auth", message: "Önce giriş yapın." });
+    const u = s.user;
+    if (!(await verifyPassword(String(req.body?.password || ""), u)))
+      return res.status(401).json({ error: "bad", message: "Parola hatalı — hesap silinmedi." });
+    if (isAdmin(u) || u.owner)
+      return res.status(400).json({ error: "admin",
+        message: "Yönetici hesabı buradan silinemez. Önce yöneticiliği başka bir hesaba devredin." });
+
+    const id = u.id, ad = u.username;
+    /* Önce diğer modüller, sonra hesabın kendisi: sıra ters olursa
+       kimliği kaybeder, artık hangi kayıtları sileceğimizi bilemeyiz. */
+    const silinen = veriToplayicilar.map((m) => `${m.ad}: ${m.sil(id)}`);
+    for (const [t, sess] of Object.entries(db.sessions)) if (sess.userId === id) delete db.sessions[t];
+    db.users = db.users.filter((x) => x.id !== id);
+    save();
+    clearCookie(res, req);
+    console.log(`🗑️  Hesap silindi: ${ad} — ${silinen.join(", ")}`);
+    res.json({ ok: true, message: "Hesabınız ve bağlı bütün kayıtlarınız silindi.", silinen });
   });
 
   /* ---------- favori oyuncular ----------
@@ -516,4 +607,5 @@ function isAdmin(user) {
 const adminLabel = () => (ADMIN_ENV.length ? ADMIN_ENV.join(", ") : "ilk kayıtlı hesap");
 
 module.exports = { mount, readSession, readActiveSession, listUsers, banUser, unbanUser,
+                   veriKaydet, KVKK_SURUM,
                    userInfo, BAN_STEPS, isAdmin, adminLabel };

@@ -477,4 +477,16 @@ function mount(app, deps) {
   console.log(`🚫  Bot koruması açık: <${BOT_SERT_MS} ms tek cevap ya da ${BOT_DESEN_ADET}× <${BOT_DESEN_MS} ms → ${BOT_BAN.label} yasak (şık kilidi ${KILIT_MS} ms).`);
 }
 
-module.exports = { mount, TOTAL_Q, CHECKPOINTS, DAILY_LIMIT };
+/* ---------- KVKK: kişinin kendi verisi ---------- */
+function kullaniciOzeti(userId) {
+  const n = Object.keys(plays).filter((k) => k.startsWith(userId + "|")).length;
+  return n ? `${n} güne ait oynama hakkı kaydı` : "kayıt yok";
+}
+function kullaniciSil(userId) {
+  let n = 0;
+  for (const k of Object.keys(plays)) if (k.startsWith(userId + "|")) { delete plays[k]; n++; }
+  if (n) savePlays();
+  return `${n} oynama hakkı kaydı`;
+}
+
+module.exports = { mount, TOTAL_Q, CHECKPOINTS, DAILY_LIMIT, kullaniciOzeti, kullaniciSil };

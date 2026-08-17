@@ -86,7 +86,7 @@ const I18N = {
     "col.rank":"SIRA","col.player":"OYUNCU","col.trophies":"MADALYON","col.points":"MADALYON","col.clan":"KLAN",
     "clan.title":"KLAN ÜYELERİ","col.no":"NO","col.role":"ROL","col.level":"SEVİYE","col.trophy":"KUPA","col.donation":"BAĞIŞ",
     "footer.disclaimer":"Sitemizde kullanılan veriler ve resimler Clash Royale API'den çekilmektedir.",
-    "footer.copyright":"Telif Hakkı","footer.contact":"İletişim","msg.title":"Mesajlar","pro.admin":"PRO Başvuruları","admin.users":"Kullanıcı Yönetimi",
+    "footer.copyright":"Telif Hakkı","footer.contact":"İletişim","footer.privacy":"Gizlilik ve KVKK","msg.title":"Mesajlar","pro.admin":"PRO Başvuruları","admin.users":"Kullanıcı Yönetimi",
     "api.off":"Veri alınamadı","api.live":"Canlı API",
     "err.title":"Veri alınamadı",
     "err.body":"Sunucuya ya da Clash Royale API'sine ulaşılamadı. Yanlış bilgi vermemek için örnek veri göstermiyoruz.",
@@ -178,7 +178,7 @@ const I18N = {
     "col.rank":"RANK","col.player":"PLAYER","col.trophies":"MEDALS","col.points":"MEDALS","col.clan":"CLAN",
     "clan.title":"CLAN MEMBERS","col.no":"NO","col.role":"ROLE","col.level":"LEVEL","col.trophy":"TROPHIES","col.donation":"DONATIONS",
     "footer.disclaimer":"Data and images on our site are drawn from the Clash Royale API.",
-    "footer.copyright":"Copyright","footer.contact":"Contact","msg.title":"Messages","pro.admin":"Pro applications","admin.users":"User management",
+    "footer.copyright":"Copyright","footer.contact":"Contact","footer.privacy":"Privacy & KVKK","msg.title":"Messages","pro.admin":"Pro applications","admin.users":"User management",
     "api.off":"No data","api.live":"Live API",
     "err.title":"Could not load data",
     "err.body":"The server or the Clash Royale API could not be reached. We do not show sample data, so nothing here is made up.",
@@ -1786,9 +1786,10 @@ function buildFooter(){
         <div class="footer-col">
           <h4 data-i18n="chrome.site">${t("chrome.site")}</h4>
           <a href="guncellemeler.html" data-i18n="nav.updates">Güncellemeler</a>
-          <!-- "Hakkımızda" ve "Gizlilik" kaldırıldı: ikisi de href="#" idi,
-               yani tıklanınca hiçbir yere gitmiyordu. İletişim ise artık
-               gerçek bilgi taşıyor — boş bağlantı bırakmıyoruz. -->
+          <!-- "Gizlilik" bir dönem href="#" olduğu için kaldırılmıştı; artık
+               gerçek bir sayfası var (aydınlatma metni + KVKK hakları) ve
+               yasal olarak her sayfadan ulaşılabilir olması gerekiyor. -->
+          <a href="gizlilik.html" data-i18n="footer.privacy">${t("footer.privacy")}</a>
           <h4 style="margin-top:16px" data-i18n="footer.contact">${t("footer.contact")}</h4>
           <a href="mailto:${CONTACT.mail}" class="social-link">${ICONS.mail}<span>${CONTACT.mail}</span></a>
         </div>
@@ -2050,6 +2051,19 @@ function openAuth(tab){
         <input id="auPass" type="password" required minlength="8"
                autocomplete="${tab==="register"?"new-password":"current-password"}"
                placeholder="${TRa?"en az 8 karakter":"at least 8 characters"}"></label>
+      ${/* KVKK m.10: kişisel veri toplanmadan ÖNCE bilgilendirme. Kutu
+            `required` — tarayıcı boş bırakılmasına izin vermiyor; sunucu da
+            ayrıca denetliyor, çünkü doğrudan API'ye istek atan biri bu
+            kutuyu hiç görmez. */""}
+      <label class="auth-kvkk" id="auKvkkWrap" style="display:${tab==="register"?"flex":"none"}">
+        <input type="checkbox" id="auKvkk" ${tab==="register"?"required":""}>
+        <span>${TRa
+          ? `<a href="gizlilik.html" target="_blank" rel="noopener">Aydınlatma metnini</a>
+             okudum; kullanıcı adı, e-posta ve hesap verilerimin bu kapsamda
+             işlenmesini kabul ediyorum.`
+          : `I have read the <a href="gizlilik.html" target="_blank" rel="noopener">privacy notice</a>
+             and accept the processing of my account data as described.`}</span>
+      </label>
       <div class="auth-msg" id="auMsg"></div>
       <button class="btn btn-primary auth-go" type="submit" id="auGo">
         ${tab==="register" ? (TRa?"Hesap Oluştur":"Create account") : (TRa?"Giriş Yap":"Log in")}</button>
@@ -2075,8 +2089,9 @@ async function authSubmit(e){
   msg.className = "auth-msg"; msg.textContent = "";
   go.disabled = true; go.textContent = TRa ? "Bekleyin…" : "Please wait…";
 
+  const kvkk = !!document.getElementById("auKvkk")?.checked;
   const r = AUTH_TAB === "register"
-    ? await authFetch("/register", { username, email, password })
+    ? await authFetch("/register", { username, email, password, kvkk })
     : await authFetch("/login", { username, password });
 
   go.disabled = false;
@@ -2115,7 +2130,91 @@ function openAccount(){
       ${IS_ADMIN ? `<button class="btn btn-ghost" onclick="openProAdmin('bekliyor')">🏅 ${t("pro.admin")}${PRO_PENDING?` (${PRO_PENDING})`:""}</button>` : ""}
       ${IS_ADMIN ? `<button class="btn btn-ghost" onclick="openUserAdmin('')">🚫 ${t("admin.users")}</button>` : ""}
       <button class="btn btn-ghost" style="margin-left:auto" onclick="doLogout()">${TRa?"Çıkış Yap":"Log out"}</button>
+    </div>
+    ${/* KVKK m.11 hakları. Bir e-posta yazıp cevap beklemek yerine kişinin
+          kendi eliyle kullanabilmesi doğrusu. */""}
+    <div class="kvkk-haklar">
+      <span class="kh-baslik">${TRa?"Verileriniz":"Your data"}</span>
+      <button class="btn btn-ghost" onclick="verilerimiGoster()">📋 ${TRa?"Verilerim":"My data"}</button>
+      <button class="btn btn-ghost kh-sil" onclick="hesabiSilSor()">🗑️ ${TRa?"Hesabımı sil":"Delete account"}</button>
+      <a class="btn btn-ghost" href="gizlilik.html">🔒 ${TRa?"Gizlilik":"Privacy"}</a>
     </div>`);
+}
+
+/* ---------- KVKK m.11: kişinin kendi verisini görmesi ---------- */
+async function verilerimiGoster(){
+  const TRa = LANG === "tr";
+  const r = await fetch(API_BASE + "/auth/data", { credentials: "same-origin" })
+    .then((x) => x.json()).catch(() => null);
+  if (!r || !r.hesap) return toast(TRa ? "Veriler alınamadı." : "Could not load data.");
+  const h = r.hesap;
+  const satir = (ad, deger) => `<tr><td>${esc(ad)}</td><td>${deger}</td></tr>`;
+  openModal(`
+    <button class="btn btn-ghost icon-btn modal-close" onclick="closeModal()">${ICONS.x}</button>
+    <h3 style="margin:0 0 4px">${TRa?"Hakkınızda tuttuklarımız":"What we store about you"}</h3>
+    <p class="muted" style="font-size:.84rem;margin:0 0 14px">${esc(r.not || "")}</p>
+    <div class="tabloKap"><table>
+      <tbody>
+        ${satir(TRa?"Kullanıcı adı":"Username", esc(h.kullaniciAdi))}
+        ${satir(TRa?"E-posta":"Email", esc(h.eposta))}
+        ${satir(TRa?"Kayıt tarihi":"Registered", new Date(h.kayitTarihi).toLocaleString(TRa?"tr-TR":"en-GB"))}
+        ${satir(TRa?"Oyuncu etiketi":"Player tag", h.oyuncuEtiketi ? esc(h.oyuncuEtiketi) : `<span class="muted">—</span>`)}
+        ${satir(TRa?"Favori oyuncu":"Favourites", `${h.favoriler.length}`)}
+        ${satir(TRa?"Açık oturum":"Active sessions", `${h.acikOturum}`)}
+        ${satir(TRa?"Onayladığınız metin":"Consent version", h.kvkkOnayi
+          ? `${esc(h.kvkkOnayi.surum)} · ${new Date(h.kvkkOnayi.at).toLocaleDateString(TRa?"tr-TR":"en-GB")}`
+          : `<span class="muted">${TRa?"kayıt yok (bu özellikten önce açılmış hesap)":"none"}</span>`)}
+        ${(r.digerKayitlar||[]).map((x) => satir(esc(x.alan), esc(x.ozet))).join("")}
+      </tbody>
+    </table></div>
+    <p class="muted" style="font-size:.8rem;margin-top:12px">${TRa
+      ? `Bunların dışında hiçbir veriniz tutulmuyor. Ayrıntı için <a href="gizlilik.html">gizlilik metni</a>.`
+      : `Nothing else is stored. See the <a href="gizlilik.html">privacy notice</a>.`}</p>`);
+}
+
+/* ---------- KVKK m.7: silme hakkı ----------
+   Geri alınamaz bir işlem, o yüzden iki kapı var: parola ve kullanıcı
+   adının elle yazılması. "Emin misiniz?" tek başına yeterli değil —
+   yanlışlıkla tıklanabilir. */
+function hesabiSilSor(){
+  const TRa = LANG === "tr";
+  openModal(`
+    <button class="btn btn-ghost icon-btn modal-close" onclick="closeModal()">${ICONS.x}</button>
+    <h3 style="margin:0 0 8px">${TRa?"Hesabınızı silmek üzeresiniz":"Delete your account"}</h3>
+    ${notice(`<span>⚠️</span><span>${TRa
+      ? `Bu işlem <b>geri alınamaz</b>. Hesabınız, puanlarınız, favorileriniz ve
+         mesajlarınız kalıcı olarak silinir. Kullanıcı adınız yeniden alınabilir hâle gelir.`
+      : `This cannot be undone. Your account, points, favourites and messages are permanently deleted.`}</span>`, "warn")}
+    <label class="auth-l">${TRa?`Onaylamak için kullanıcı adınızı yazın:`:`Type your username to confirm:`}
+      <input id="silAd" placeholder="${esc(ME.username)}" autocomplete="off"></label>
+    <label class="auth-l">${TRa?"Parolanız":"Your password"}
+      <input id="silSifre" type="password" autocomplete="current-password"></label>
+    <div class="auth-msg" id="silMsg"></div>
+    <div class="flex gap-8" style="margin-top:12px">
+      <button class="btn btn-ghost" onclick="openAccount()">${TRa?"Vazgeç":"Cancel"}</button>
+      <button class="btn btn-primary kh-sil-onay" onclick="hesabiSil()">${TRa?"Hesabımı kalıcı olarak sil":"Delete permanently"}</button>
+    </div>`);
+}
+
+async function hesabiSil(){
+  const TRa = LANG === "tr";
+  const msg = document.getElementById("silMsg");
+  const ad = document.getElementById("silAd").value.trim();
+  const sifre = document.getElementById("silSifre").value;
+  if (ad.toLowerCase() !== String(ME.username).toLowerCase()){
+    msg.className = "auth-msg bad";
+    msg.textContent = TRa ? "Kullanıcı adı eşleşmiyor." : "Username does not match.";
+    return;
+  }
+  const r = await authFetch("/delete", { password: sifre });
+  if (!r.ok){
+    msg.className = "auth-msg bad";
+    msg.textContent = r.message || (TRa ? "Silinemedi." : "Could not delete.");
+    return;
+  }
+  ME = null; paintAuth(); closeModal();
+  toast(r.message || (TRa ? "Hesabınız silindi." : "Account deleted."));
+  setTimeout(() => location.reload(), 1200);
 }
 
 async function saveTag(){
