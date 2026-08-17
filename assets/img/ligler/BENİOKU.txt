@@ -1,0 +1,65 @@
+LİG ROZETLERİ — buraya yükle
+============================
+
+Bu klasör, Nihai Kademe (Path of Legends) liglerinin HEM resmini HEM adını
+belirler. Buraya bir dosya koyduğun anda site onu kullanır; sunucuyu yeniden
+başlatmana gerek yok, sayfayı yenilemen yeter.
+
+
+DOSYA ADI NASIL OLMALI
+----------------------
+
+    <lig numarası> - <lig adı>.<uzantı>
+
+ŞU AN YÜKLÜ OLANLAR (16 Ağustos 2026):
+
+    1 - USTA1.avif
+    2 - USTA2.avif
+    3 - USTA3.avif
+    4 - ŞAMPİYON.avif
+    5 - BÜYÜK ŞAMPİYON.avif
+    6 - ASİL ŞAMPİYON.avif
+    7 - NİHAİ ŞAMPİYON.avif
+
+Baştaki numara SIRAYI belirler: 1 en alt lig, 7 en üst (madalyonun ve dünya
+sıralamasının tutulduğu lig). Tireden sonrası ekranda görünen addır — sen ne
+yazarsan sitede o görünür. Türkçe harf (ç ğ ı ö ş ü) ve boşluk sorun değil.
+
+Adı değiştirmek istersen dosyayı yeniden adlandırman yeter, ör.
+"1 - USTA1.avif" → "1 - I. Usta.avif". Sırayı değiştirmek de aynı şekilde:
+baştaki numarayı değiştir.
+
+Ayırıcı olarak tire yerine alt çizgi de olur:  "1_Meydan Okuyucu.png"
+Baştaki "lig" yazısı da olur:                 "lig1 - Meydan Okuyucu.png"
+
+Sadece resmi değiştirip adı olduğu gibi bırakmak istersen, adsız da koyabilirsin:
+
+    1.png    2.png    3.png   ...   7.png
+
+
+UZANTI
+------
+png, webp, avif, jpg, jpeg, gif, svg, bmp — hepsi çalışır.
+Kare görsel (ör. 256x256) en temiz durur; site zaten sığdırır.
+
+
+NEREDE GÖRÜNÜR
+--------------
+· Oyuncu profilinde adın solundaki büyük rozet
+· "Lig Geçmişi" kartındaki çubukların ucundaki küçük simge
+· Lig adı: profil başlığı, lig geçmişi satırları ve savaş günlüğü etiketleri
+
+
+EKSİK BIRAKIRSAN
+----------------
+Yüklemediğin lig için site eski davranışına döner: RoyaleAPI'deki genel lig
+görseli ve "3. Lig" gibi numaralı bir ad. Yani yarısını yükleyip yarısını
+sonra tamamlayabilirsin, hiçbir şey kırılmaz.
+
+Bir dosyayı silersen o lig yine varsayılana döner.
+
+
+KONTROL
+-------
+Neyin okunduğunu şuradan görebilirsin:
+    http://localhost:8787/api/leagues

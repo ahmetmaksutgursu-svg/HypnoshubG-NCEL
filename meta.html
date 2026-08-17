@@ -2,8 +2,10 @@
 <html lang="tr" data-theme="light">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Meta Desteleri — HYPNOSCOUT</title>
+<!-- viewport-fit=cover: bu olmadan env(safe-area-inset-*) HER ZAMAN 0 döner,
+     yani alt çubuğun iPhone çentik/ana-ekran çubuğu payı hiç uygulanmıyordu. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Meta Desteleri — HYPNOSHUB</title>
 <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
@@ -11,14 +13,23 @@
 
 <section class="page-strip">
   <div class="container">
-    <p class="eyebrow" data-i18n="home.meta.sub">Şu an en çok kazandıran desteler</p>
+    <p class="eyebrow" id="metaEyebrow" data-i18n="meta.eyebrow">AKTİF SEZON META DESTELERİ</p>
     <h1 data-i18n="nav.meta">META DESTELERİ</h1>
-    <p><span class="api-status" data-api-status style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2);color:#eaf0fb"><span class="led"></span>Demo veri</span></p>
+    <p><span class="api-status" data-api-status style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2);color:#eaf0fb"><span class="led"></span>Veri alınamadı</span></p>
   </div>
 </section>
 
 <section class="section">
   <div class="container">
+
+    <div id="metaSummary" style="margin-bottom:18px"></div>
+    <div class="flex between center wrap gap-12" style="margin-bottom:16px">
+      <div class="tabs" id="sortTabs">
+        <button class="active" data-sort="usage" onclick="setSort('usage',this)" data-i18n="meta.sortUsage">🔥 En Çok Kullanılan</button>
+        <button data-sort="winrate" onclick="setSort('winrate',this)" data-i18n="meta.sortWin">🏅 En Yüksek Galibiyet</button>
+      </div>
+      <span class="muted" style="font-size:.8rem" data-i18n="meta.clickHint">Bir desteye tıklayın → o desteyle en yükseğe çıkan oyuncular</span>
+    </div>
     <div class="grid grid-3" id="metaGrid"></div>
   </div>
 </section>
@@ -28,26 +39,170 @@
 <script src="assets/js/app.js"></script>
 <script>
 mountChrome("meta.html");
-function render(decks){
-  document.getElementById("metaGrid").innerHTML = decks.map(d=>{
+const TRL = () => LANG === "tr";
+let DECKS = [], SORT = "usage";
+
+function setSort(s, btn){
+  SORT = s;
+  document.querySelectorAll("#sortTabs button").forEach(b => b.classList.toggle("active", b === btn));
+  render();
+}
+
+function summary(){
+  const m = HypnoAPI.metaMeta;
+  const el = document.getElementById("metaSummary");
+  /* metaMeta yoksa canlı meta hesaplanamamış demektir. Örnek deste
+     göstermiyoruz; uyarıyı render() basıyor, burası sadece susuyor. */
+  if (!m){ el.innerHTML = ""; return; }
+  document.getElementById("metaEyebrow").textContent = `${t("meta.eyebrow")} ${m.season} — ${t("nav.meta")}`;
+  const range = m.rankRange ? (TRL() ? `${m.rankRange[0]}–${m.rankRange[1]}. sıra` : `rank ${m.rankRange[0]}–${m.rankRange[1]}`) : "";
+  el.innerHTML = `<div class="res-head" style="border:1px solid var(--border);border-radius:12px;display:block">
+    <div><b>${TRL()?"Sezon":"Season"} ${m.season}</b>
+      <span class="muted">— ${nfTR(m.battles)} ${TRL()?"sıralı maç":"ranked battles"} · ${nfTR(m.sampled)} ${TRL()?"deste gözlemi":"deck observations"} · ${nfTR(m.distinctDecks)} ${TRL()?"farklı deste":"distinct decks"}</span></div>
+    <div class="muted" style="margin-top:5px;font-size:.79rem">${TRL()
+      ? `Kaynak: Nihai Kademe ladder'ına yayılmış ${m.accounts} hesabın (${range}) maç kayıtları.
+         Galibiyet oranı <b>denge düzeltmeli</b>: örneklenen hesaplar maçlarının %${m.baseRates?.sampled}'ini,
+         rakipleri %${m.baseRates?.opponents}'ini kazanıyor, bu yüzden her deste kendi pilot karışımının
+         beklenen skoruna göre ölçülüyor. ${m.minBattles} maçın altındaki desteler için oran verilmiyor.`
+      : `Source: the battle logs of ${m.accounts} accounts (${range}) spread across the Path of Legends
+         ladder. Win rates are <b>bias-corrected</b>: the sampled accounts win %${m.baseRates?.sampled} of
+         their games while their opponents win %${m.baseRates?.opponents}, so each deck is measured against
+         what its own mix of pilots would be expected to score. Decks under ${m.minBattles} games get no rate.`}
+    </div>
+    ${slotNote(m)}
+  </div>`;
+}
+
+/* Deck slots, and why they are not what the API says.
+
+   Supercell reports the HERO slot with the same `evolutionLevel` field as an
+   evolution, so decks used to be drawn with three evolutions. The mix below is
+   counted after separating the two, and matches Clash Royale League decks —
+   where heroes and evolutions are recorded separately — almost exactly. */
+function slotNote(m){
+  const mix = m.slotMix || [];
+  if (!mix.length) return "";
+  const label = (k) => {
+    const p = k.match(/^(\d+)e(\d+)h(\d+)c$/);
+    if (!p) return k;
+    const [, e, h, c] = p;
+    const bits = [`${e} ${TRL() ? "evrim" : "evo"}`];
+    if (+h) bits.push(`${h} ${TRL() ? "kahraman" : "hero"}`);
+    if (+c) bits.push(`${c} ${TRL() ? "şampiyon" : "champion"}`);
+    return bits.join(" + ");
+  };
+  const top = mix.slice(0, 3).map(x => `<b>${label(x.mix)}</b> %${x.pct}`).join(" · ");
+  return `<div class="muted" style="margin-top:5px;font-size:.79rem">${TRL()
+    ? `Deste yuvaları — gözlenen dağılım: ${top}.
+       Bir destede <b>3 özel yuva</b> var ama hepsi evrim değil: <b>en fazla 2 evrim</b>,
+       üçüncüsü <b>kahraman</b>. Clash Royale API'si kahraman yuvasını da evrim olarak
+       bildirdiği için burada önceden 3 evrim görünüyordu; artık ikisi ayrılıyor.
+       Doğrulama: CRL'in kahraman ve evrimi ayrı tutan 1.084 destesinin %73'ü 2 evrim + 1 kahraman.`
+    : `Deck slots — observed mix: ${top}.
+       A deck has <b>three special slots</b>, but not all are evolutions: <b>at most two</b> are,
+       and the third is the <b>hero</b>. The Clash Royale API reports the hero slot as an evolution,
+       which is why three evolutions used to show here. Checked against 1,084 Clash Royale League
+       decks, where the two are recorded separately: 73% run 2 evolutions + 1 hero.`}
+  </div>`;
+}
+
+function render(){
+  /* DECKS null = canlı meta hesaplanamadı. Kullanım/galibiyet oranı uydurulmuş
+     desteler göstermek, tam da bu sayfanın işe yaramaz olması demek. */
+  if (!DECKS){
+    document.getElementById("metaGrid").innerHTML = apiDownBox("reloadMeta");
+    return;
+  }
+  // Decks without enough games have no win rate, so they sink to the bottom of
+  // the win-rate sort rather than showing a number nobody should trust.
+  const list = [...DECKS].sort((a,b) =>
+    SORT === "winrate" ? (b.winrate ?? -1)-(a.winrate ?? -1) || (b.battles||0)-(a.battles||0)
+                       : (b.usage||0)-(a.usage||0));
+  document.getElementById("metaGrid").innerHTML = list.map(d=>{
     const link = copyDeckLink(d.cards);
+    const wr = d.winrate!=null ? d.winrate : null;
+    const wrCls = wr==null ? "" : wr>=55 ? "good" : wr<45 ? "bad" : "";
+    /* Deck order already puts the three special slots first (evolutions, then
+       the champion), so the top row shows them and the bottom row is plain. */
+    const card = c => renderCard(c, { evo:(d.evo||[]).includes(c), heroSlot:(d.hero||[]).includes(c), hero:(d.champ||[]).includes(c) });
     return `
-    <div class="card hoverable metadeck">
+    <div class="card hoverable metadeck" ${d.players&&d.players.length?`onclick="showDeckPlayers('${d.key}')" style="cursor:pointer"`:""}>
       <div class="flex between center">
         <h3 style="font-size:1.05rem;margin:0">${d.name}</h3>
-        ${d.usage!=null?`<span class="badge">%${d.usage}</span>`:""}
+        ${wr!=null
+          ? `<span class="badge wr-badge ${wrCls}" title="Denge düzeltmeli · ham oran %${d.rawWinrate} (${nfTR(d.battles)} maç)">%${wr} ${t("word.winrate")}</span>`
+          : d.battles ? `<span class="badge" title="${nfTR(d.battles)} maç — güvenilir bir oran için yetersiz">${t("meta.thin")}</span>`
+          : d.usage!=null?`<span class="badge">%${d.usage}</span>`:""}
       </div>
-      <div class="mini-cards">${d.cards.slice(0,4).map(c=>renderCard(c,{evo:(d.evo||[]).includes(c)})).join("")}</div>
-      <div class="mini-cards">${d.cards.slice(4,8).map(c=>renderCard(c,{evo:(d.evo||[]).includes(c)})).join("")}</div>
+      <div class="mini-cards">${d.cards.slice(0,4).map(card).join("")}</div>
+      <div class="mini-cards">${d.cards.slice(4,8).map(card).join("")}</div>
       <div class="foot">
         <span class="elixir-badge">💧 ${deckElixir(d.cards)}</span>
-        ${d.usage!=null?`<span>Kullanım: <b>%${d.usage}</b></span>`:""}
-        ${link?`<a class="wr" style="margin-left:auto" href="${link}">Kopyala ↗</a>`:""}
+        ${d.usage!=null?`<span>${t("word.usage")}: <b>%${d.usage}</b></span>`:""}
+        ${d.battles?`<span class="muted">${nfTR(d.battles)} ${t("unit.battle")} · ${d.pilots} ${t("unit.players")}</span>`:""}
+        ${link?`<a class="wr" style="margin-left:auto" href="${link}" onclick="event.stopPropagation()">${t("word.copy")} ↗</a>`:""}
       </div>
     </div>`;}).join("");
 }
-(async function(){ const decks = await HypnoAPI.meta(); render(decks); paintApiStatus(); })();
+
+/* Clicking a deck opens the pilots who climbed highest on it this season.
+   `peak` is the medal count right after their best game with the deck, taken
+   from the battle log (startingTrophies + trophyChange). */
+function showDeckPlayers(key){
+  const d = DECKS.find(x => x.key === key);
+  if (!d) return;
+  openModal(`
+    <div class="flex between center" style="margin-bottom:4px">
+      <h3 style="margin:0;font-size:1.15rem">${d.name}</h3>
+      <button class="icon-btn" onclick="closeModal()" aria-label="Kapat">${ICONS.x}</button>
+    </div>
+    <p class="muted" style="font-size:.82rem;margin:0 0 14px">
+      ${d.winrate!=null ? `%${d.winrate} ${t("word.winrate")} ${TRL()?"(düzeltmeli)":"(corrected)"} · ${TRL()?"ham":"raw"} %${d.rawWinrate}` : (TRL() ? "galibiyet oranı için yetersiz veri" : "not enough data for a win rate")}
+      · ${nfTR(d.battles)} ${t("unit.battle")} · ${d.pilots} ${t("unit.players")} · 💧 ${deckElixir(d.cards)}
+    </p>
+    <div class="mini-cards" style="margin-bottom:6px">${d.cards.slice(0,4).map(c=>renderCard(c,{evo:(d.evo||[]).includes(c),heroSlot:(d.hero||[]).includes(c),hero:(d.champ||[]).includes(c)})).join("")}</div>
+    <div class="mini-cards" style="margin-bottom:16px">${d.cards.slice(4,8).map(c=>renderCard(c,{evo:(d.evo||[]).includes(c),heroSlot:(d.hero||[]).includes(c),hero:(d.champ||[]).includes(c)})).join("")}</div>
+    <h4 style="margin:0 0 8px;font-size:.9rem">${TRL()?"Bu desteyle en yükseğe çıkanlar":"Who climbed highest on this deck"}</h4>
+    <div class="res-list">
+      ${d.players.map((p,i)=>`
+        <a class="res-row" href="oyuncu.html?tag=${encodeURIComponent(p.tag)}">
+          <span class="res-ic">${i+1}</span>
+          <span class="res-main">
+            <span class="n">${esc(p.name)}<span class="tag">${esc(p.tag)}</span></span>
+            <span class="s">${p.clan?`${clanCrest(p.badge,16)} ${p.clan}`:`<span class="muted">${t("word.none")}</span>`} · ${p.battles} ${t("unit.battle")} · ${p.wins}${TRL()?"G":"W"}/${p.battles-p.wins}${TRL()?"M":"L"} · %${p.winrate}</span>
+          </span>
+          <span class="res-val">${polScore(p.peak,16)}<span class="s">${TRL()?"en yüksek":"peak"}</span></span>
+        </a>`).join("")}
+    </div>
+    <p class="muted" style="font-size:.76rem;margin-top:10px">
+      ${TRL()
+        ? "En yüksek madalyon, oyuncunun bu desteyle oynadığı maçlardan sonraki en iyi değeridir; sayılar bu sezonun maç kayıtlarından gelir."
+        : "Peak medals is the best value reached right after a game played on this deck; the numbers come from this season's battle logs."}</p>
+  `);
+}
+
+async function loadMeta(){
+  document.getElementById("metaGrid").innerHTML = spinnerBox(TRL()?"Sezon meta verisi maç kayıtlarından hesaplanıyor…":"Computing the season meta from battle logs…");
+  DECKS = await HypnoAPI.meta();
+  paintApiStatus();
+  summary();
+  render();
+  return DECKS;
+}
+function reloadMeta(){ loadMeta(); }
+
+(async function(){
+  await loadMeta();
+  // ?deck=<key> (or ?deck=1 for the top deck) opens that deck's pilot list.
+  const want = new URLSearchParams(location.search).get("deck");
+  if (want && DECKS){
+    const byRank = /^\d+$/.test(want) ? DECKS[parseInt(want) - 1] : null;
+    const d = byRank || DECKS.find(x => x.key === want);
+    if (d) showDeckPlayers(d.key);
+  }
+})();
 window.onLangChange = paintApiStatus;
+window.repaint = () => { summary(); render(); };
 </script>
 </body>
 </html>

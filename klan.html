@@ -2,8 +2,10 @@
 <html lang="tr" data-theme="light">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Klan Arama — HYPNOSCOUT</title>
+<!-- viewport-fit=cover: bu olmadan env(safe-area-inset-*) HER ZAMAN 0 döner,
+     yani alt çubuğun iPhone çentik/ana-ekran çubuğu payı hiç uygulanmıyordu. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Klan Arama — HYPNOSHUB</title>
 <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
@@ -18,31 +20,36 @@
 
 <section class="section">
   <div class="container">
-    <div class="search-box" style="border-radius:12px;max-width:520px;margin-bottom:20px">
-      <input id="clanTag" type="text" placeholder="#9YQ2VG0P" style="flex:1;min-width:0" onkeydown="if(event.key==='Enter')loadClan(this.value)">
-      <button class="search-go" onclick="loadClan(document.getElementById('clanTag').value)"></button>
+    <div class="search-box" style="border-radius:12px;max-width:520px;margin-bottom:8px">
+      <input id="clanTag" type="text" placeholder="Klan adı veya etiketi (#9YQ2VG0P)" style="flex:1;min-width:0" onkeydown="if(event.key==='Enter')runSearch(this.value)">
+      <button class="search-go" onclick="runSearch(document.getElementById('clanTag').value)"></button>
     </div>
+    <p class="muted" style="font-size:.8rem;margin:0 0 18px">En az 3 harf girin — eşleşen klanlar rozetleriyle listelenir. Etiket girerseniz doğrudan o klan açılır.</p>
 
-    <!-- Clan header card -->
-    <div class="card" id="clanHead" style="margin-bottom:20px"></div>
+    <div id="results" style="margin-bottom:20px"></div>
 
-    <!-- Members table (image_3 style) -->
-    <div class="table-wrap">
-      <table class="data">
-        <thead><tr>
-          <th data-i18n="col.no">NO</th>
-          <th data-i18n="col.player">OYUNCU</th>
-          <th data-i18n="col.role">ROL</th>
-          <th data-i18n="col.level">SEVİYE</th>
-          <th data-i18n="col.trophy">KUPA</th>
-          <th data-i18n="col.donation">BAĞIŞ</th>
-        </tr></thead>
-        <tbody id="memberBody"></tbody>
-      </table>
-    </div>
-    <div class="notice mt-16" style="max-width:none">
-      <span>ℹ️</span>
-      <span>Tablodaki her oyuncu adı, oyuncunun tam profil sayfasına giden mavi bağlantıdır. Örnek: <b>1. Cigkofte #298Q8YVGG · Üye · 15 · 12.124 · 0/0</b></span>
+    <!-- Clan detail: header + member table (hidden until a clan is opened) -->
+    <div id="clanDetail" style="display:none">
+      <div class="card" id="clanHead" style="margin-bottom:20px"></div>
+      <div class="search-box" style="border-radius:12px;max-width:360px;margin-bottom:12px">
+        <input id="memberFilter" type="text" placeholder="Üyeler içinde ara..." style="flex:1;min-width:0" oninput="paintMembers()">
+        <button class="search-go" onclick="paintMembers()" id="memberFilterBtn"></button>
+      </div>
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr>
+            <th data-i18n="col.no">NO</th>
+            <th data-i18n="col.player">OYUNCU</th>
+            <th data-i18n="col.role">ROL</th>
+            <th data-i18n="col.level">SEVİYE</th>
+            <th data-i18n="col.trophy">KUPA</th>
+            <th>NİHAİ KADEME</th>
+            <th data-i18n="col.donation">BAĞIŞ</th>
+          </tr></thead>
+          <tbody id="memberBody"></tbody>
+        </table>
+      </div>
+      <p class="muted mt-8" style="font-size:.82rem" id="memberCount"></p>
     </div>
   </div>
 </section>
@@ -52,66 +59,129 @@
 <script src="assets/js/app.js"></script>
 <script>
 mountChrome("");
-document.querySelector(".search-go[onclick^='loadClan']").innerHTML = ICONS.search;
+document.querySelector(".search-go[onclick^='runSearch']").innerHTML = ICONS.search;
+document.getElementById("memberFilterBtn").innerHTML = ICONS.search;
+attachSuggest(document.getElementById("clanTag"), () => "clan");
 
-const roleColor = { "Lider":"gold","Yardımcı":"green","Yaşlı":"","Üye":"" };
+const RES = document.getElementById("results");
+const DETAIL = document.getElementById("clanDetail");
+const roleColor = { "Lider":"gold","Yardımcı Lider":"green","Büyük":"","Üye":"" };
+let MEMBERS = [];
+
 function paintClan(data){
   const info = data.info;
+  MEMBERS = data.members;
+  DETAIL.style.display = "";
   document.getElementById("clanHead").innerHTML = `
     <div class="flex between center wrap gap-16">
       <div class="flex center gap-12">
-        <span class="clan-crest" style="width:44px;height:52px">${ICONS.crest}</span>
+        ${clanCrest(info.badge, 56)}
         <div>
           <h2 style="margin:0;font-size:1.4rem">${info.name} <span class="tag">${info.tag}</span></h2>
-          <span class="muted" style="font-size:.85rem">${info.type||"Davetle"} · ${info.region||"Türkiye"}</span>
+          <span class="muted" style="font-size:.85rem">${clanTypeTR(info.type)} · ${info.region||"—"}</span>
+          ${info.description ? `<p class="muted" style="font-size:.82rem;margin:6px 0 0;max-width:52ch">${info.description}</p>` : ""}
         </div>
       </div>
       <div class="flex gap-16 wrap">
-        <div class="stat-tile"><div class="k">Klan Skoru</div><div class="v trophy">${(info.score||0).toLocaleString("tr-TR")}</div></div>
-        <div class="stat-tile"><div class="k">Üye</div><div class="v">${info.members||data.members.length}/50</div></div>
-        <div class="stat-tile"><div class="k">Gerekli Kupa</div><div class="v">${(info.required||0).toLocaleString("tr-TR")}</div></div>
+        <div class="stat-tile"><div class="k">Klan Skoru</div><div class="v trophy">${nfTR(info.score)}</div></div>
+        <div class="stat-tile"><div class="k">Savaş Kupası</div><div class="v">${nfTR(info.warTrophies)}</div></div>
+        <div class="stat-tile"><div class="k">Üye</div><div class="v">${info.members||MEMBERS.length}/50</div></div>
+        <div class="stat-tile"><div class="k">Gerekli Kupa</div><div class="v">${nfTR(info.required)}</div></div>
+        <div class="stat-tile"><div class="k">Haftalık Bağış</div><div class="v">${nfTR(info.donations)}</div></div>
       </div>
     </div>`;
-  document.getElementById("memberBody").innerHTML = data.members.map(m=>`
+  document.getElementById("memberFilter").value = "";
+  paintMembers();
+}
+
+/* Members are filtered in the browser: the whole 50-player list is already in
+   hand, so name search inside a clan costs no extra API call. */
+function paintMembers(){
+  const q = (document.getElementById("memberFilter").value || "").toLocaleLowerCase("tr").trim();
+  const rows = !q ? MEMBERS : MEMBERS.filter(m =>
+    m.name.toLocaleLowerCase("tr").includes(q) || m.tag.toLowerCase().includes(q));
+  document.getElementById("memberBody").innerHTML = rows.map(m=>`
     <tr>
       <td class="rank">${m.no}</td>
-      <td><a class="player-link" href="oyuncu.html?tag=${encodeURIComponent(m.tag)}">${m.name}</a> <span class="tag">${m.tag}</span></td>
+      <td><a class="player-link" href="oyuncu.html?tag=${encodeURIComponent(m.tag)}">${esc(m.name)}</a> <span class="tag">${esc(m.tag)}</span>
+          ${/* Tek başına "Spirit Square" yazınca ne olduğu anlaşılmıyordu —
+                bu, oyuncunun bulunduğu arena. Adı da Türkçeleştirildi. */""}
+          ${m.arena ? `<div class="muted" style="font-size:.74rem" title="${LANG==="tr"?"Oyuncunun bulunduğu arena":"The player's current arena"}">Arena: ${esc(m.arena)}</div>` : ""}</td>
       <td><span class="badge ${roleColor[m.role]||''}">${m.role}</span></td>
-      <td><b>${m.level}</b></td>
-      <td class="trophy">${m.trophies.toLocaleString("tr-TR")}</td>
+      <td>${m.level ? `<b>${m.level}</b>` : `<span class="muted">—</span>`}</td>
+      <td class="trophy">${nfTR(m.trophies)}</td>
+      ${/* PoL medals reset to 0 each season, so 0 means "has not played ranked
+            this season" rather than a real score — show a dash, not a zero. */""}
+      <td>${m.medals
+            ? `<b>${polScore(m.medals, 15)}</b>${m.worldRank ? `<div class="muted" style="font-size:.72rem">Dünya #${nfTR(m.worldRank)}</div>` : ""}`
+            : `<span class="muted" title="Bu sezon Nihai Kademe oynamamış">—</span>`}</td>
       <td class="muted">${m.donations}</td>
-    </tr>`).join("");
+    </tr>`).join("") || `<tr><td colspan="7" class="muted text-center" style="padding:20px">Eşleşen üye yok.</td></tr>`;
+  document.getElementById("memberCount").textContent =
+    q ? `${MEMBERS.length} üyeden ${rows.length} tanesi gösteriliyor` : `${MEMBERS.length} üye`;
 }
-async function loadClan(q){
-  q = (q||"").trim();
-  // İsimle arama: '#' ile başlamıyorsa ve boş değilse klan adı araması yap
-  if (q && !q.startsWith("#")){
-    const results = await HypnoAPI.clansSearch(q);
-    paintApiStatus();
-    if (results === null){
-      // proxy kapalı → isimle arama yapılamıyor, demo klan göster
-      document.getElementById("clanHead").innerHTML = `<div class="notice">İsimle klan araması için sunucunun (proxy) çalışması gerekir. Aşağıda örnek (demo) klan gösteriliyor. Etiketle aramak için "#" ile başlayan klan etiketini girin.</div>`;
-      const data = await HypnoAPI.clan(CLAN_INFO.tag); paintClan(data); return;
-    }
-    if (!results.length){ document.getElementById("clanHead").innerHTML = `<div class="notice">“${q}” için klan bulunamadı.</div>`; document.getElementById("memberBody").innerHTML=""; return; }
-    // sonuç listesini göster
-    document.getElementById("clanHead").innerHTML = `<div class="card"><b>“${q}” için ${results.length} klan:</b>
-      <div class="mt-8">${results.map(c=>`<a class="lb-row" style="text-decoration:none;color:inherit" href="klan.html?tag=${encodeURIComponent(c.tag)}">
-        <span class="lb-main"><span class="n"><span class="clan-crest" style="width:20px;height:24px">${ICONS.crest}</span>${c.name}</span><span class="s">${c.tag} · ${c.members}/50 · ${c.region||""}</span></span>
-        <span class="lb-val trophyv">${(c.score||0).toLocaleString("tr-TR")} 🏆</span></a>`).join("")}</div></div>`;
-    document.getElementById("memberBody").innerHTML = "";
+
+async function runSearch(input){
+  const q = (input || "").trim();
+  document.getElementById("clanTag").value = q;
+  DETAIL.style.display = "none";
+  if (!q){
+    RES.innerHTML = notice(`<span>🔎</span><span>Bir klan <b>adı</b> (en az 3 harf) ya da <b>etiketi</b> girin.</span>`);
     return;
   }
-  const data = await HypnoAPI.clan(q || CLAN_INFO.tag);
-  paintClan(data);
+  if (looksLikeTag(q)) return openClan(normTag(q));
+
+  if (q.length < 3){
+    RES.innerHTML = notice(`<span>✏️</span><span>Klan adı araması için en az <b>3 harf</b> gerekiyor.</span>`);
+    return;
+  }
+
+  RES.innerHTML = spinnerBox(`“${q}” aranıyor…`);
+  const r = await HypnoAPI.clansSearch(q);
   paintApiStatus();
+  if (r === null){
+    RES.innerHTML = notice(`<span>⚠️</span><span>Sunucuya ulaşılamadı, arama yapılamıyor. Proxy çalışıyor mu? (<code>npm start</code>)</span>`);
+    return;
+  }
+  if (!r.items.length){
+    RES.innerHTML = notice(`<span>🔍</span><span><b>“${q}”</b> adıyla eşleşen klan bulunamadı.</span>`);
+    return;
+  }
+  RES.innerHTML = `<div class="res-list">
+    <div class="res-head"><b>“${q}” için ${r.items.length} klan</b>
+      <span class="muted" style="margin-left:auto">Clash Royale API klan araması</span></div>
+    ${r.items.map(clanResultRow).join("")}
+  </div>`;
 }
+
+async function openClan(tag){
+  RES.innerHTML = spinnerBox(`${tag} yükleniyor…`);
+  const data = await HypnoAPI.clan(tag);
+  paintApiStatus();
+  if (data.offline){
+    RES.innerHTML = notice(`<span>⚠️</span><span>Sunucuya ulaşılamadı. Proxy çalışıyor mu? (<code>npm start</code>)</span>`);
+    return;
+  }
+  /* 404 = gerçekten yok; 403/429/5xx = biz çekemedik. İkisini ayırıyoruz,
+     yoksa API'ye erişemediğimizde var olan klan yokmuş gibi görünüyor. */
+  if (data.notFound && data.status !== 404){
+    RES.innerHTML = notice(`<span>⚠️</span><span><b>Veri alınamadı.</b> Klan bilgisi Clash Royale API'sinden çekilemedi${data.status?` (hata ${data.status})`:""} — bu, klanın olmadığı anlamına gelmez. Birazdan tekrar deneyin.</span>`, "warn");
+    return;
+  }
+  if (data.notFound){
+    RES.innerHTML = notice(`<span>🔍</span><span><b>${esc(tag)}</b> etiketiyle bir klan bulunamadı. Etiketi kontrol edin — harfler <b>0289PYLQGRJCUV</b> arasından gelir (O, I, S yoktur).</span>`);
+    return;
+  }
+  RES.innerHTML = "";
+  paintClan(data);
+}
+
 (function(){
-  const p = new URLSearchParams(location.search).get("tag");
-  if (p) document.getElementById("clanTag").value = p;
-  loadClan(p);
+  const params = new URLSearchParams(location.search);
+  runSearch(params.get("q") || params.get("tag") || "");
 })();
 window.onLangChange = paintApiStatus;
+window.repaint = () => { const q = document.getElementById('clanTag').value; if (q) runSearch(q); };
 </script>
 </body>
 </html>

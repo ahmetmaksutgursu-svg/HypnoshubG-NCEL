@@ -1,0 +1,23 @@
+{
+  "name": "hypnoshub",
+  "version": "1.0.0",
+  "description": "HYPNOSHUB — Clash Royale analiz platformu (Türkçe)",
+  "private": true,
+  "type": "commonjs",
+  "_not": [
+    "Bu dosya kökte duruyor çünkü Railway/Render gibi sağlayıcılar depoyu",
+    "klonlayıp KÖKTE package.json arıyor. Gerçek sunucu server/ içinde;",
+    "buradaki komutlar oraya yönlendiriyor. Böylece sağlayıcıda 'root",
+    "directory' ayarı yapmaya gerek kalmıyor.",
+    "",
+    "--max-old-space-size: oyuncu ad indeksi bellekte milyonlarca satır",
+    "tutuyor. Küçük bir sunucuda indeksi CRAWL_CLANS=0 ile kapatın, o zaman",
+    "bu bayrak da gereksiz kalır."
+  ],
+  "scripts": {
+    "start": "node --max-old-space-size=6144 server/server.js",
+    "dev": "node --max-old-space-size=6144 --watch server/server.js",
+    "postinstall": "npm --prefix server install --omit=dev"
+  },
+  "engines": { "node": ">=18" }
+}

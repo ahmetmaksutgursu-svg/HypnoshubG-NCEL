@@ -2,8 +2,10 @@
 <html lang="tr" data-theme="light">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Eğlence — HYPNOSCOUT</title>
+<!-- viewport-fit=cover: bu olmadan env(safe-area-inset-*) HER ZAMAN 0 döner,
+     yani alt çubuğun iPhone çentik/ana-ekran çubuğu payı hiç uygulanmıyordu. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Eğlence — HYPNOSHUB</title>
 <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
@@ -11,14 +13,32 @@
 
 <section class="page-strip">
   <div class="container">
-    <p class="eyebrow">🎉 EĞLENCE</p>
-    <h1>Oyunlar & Eğlence</h1>
+    <p class="eyebrow">🎉 <span data-i18n="chrome.fun">EĞLENCE</span></p>
+    <h1 data-i18n="fun.title">Oyunlar &amp; Eğlence</h1>
     <p>Kart sıralama oyunu, rastgele meta deste çarkı ve yakında gelecek yeni eğlenceler burada.</p>
   </div>
 </section>
 
+<!-- OYUN SEÇİCİ -->
+<section class="section" id="picker">
+  <div class="container">
+    <!-- Tablo açılmadan önce oyunlar puan yazmıyor; bunu saklamak yerine
+         burada söylüyoruz (bkz. puanUyarisi). -->
+    <div id="puanUyari"></div>
+    <div class="pick-grid" id="pickGrid"></div>
+  </div>
+</section>
+
+<!-- geri dön çubuğu (bir oyun açıkken görünür) -->
+<div class="game-bar" id="gameBar" style="display:none">
+  <div class="container">
+    <button class="btn btn-ghost" onclick="closeGame()">← <span id="backTxt">Oyunlara dön</span></button>
+    <b id="gameTitle"></b>
+  </div>
+</div>
+
 <!-- KART SIRALAMA OYUNU -->
-<section class="section">
+<section class="section game-sec" id="siralama">
   <div class="container game-wrap">
     <h2 class="section-title" style="margin-bottom:14px">🎲 Kart Sıralama <span class="accent">Oyunu</span></h2>
     <div class="scenario-bar">
@@ -42,7 +62,7 @@
 </section>
 
 <!-- RASTGELE META DESTE ÇARKI -->
-<section class="section" id="cark" style="padding-top:0">
+<section class="section game-sec" id="cark" style="padding-top:0">
   <div class="container">
     <div class="text-center" style="margin-bottom:20px">
       <p class="eyebrow">ÇARKI ÇEVİR, META DESTESİNİ KEŞFET</p>
@@ -58,9 +78,10 @@
         <div class="gen-btn-col">
           <button class="big-green-btn" id="spinBtn" onclick="spinWheel()">RASTGELE META DESTESİ OLUŞTUR</button>
           <p class="muted" style="font-size:.86rem;margin:0">Çark, güncel meta destelerinden birini rastgele seçer. Sonuç; kartlar, kopyalama linki ve oynanış ipucuyla birlikte gösterilir.</p>
-          <span class="api-status" data-api-status><span class="led"></span>Demo veri</span>
+          <span class="api-status" data-api-status><span class="led"></span>Veri alınamadı</span>
         </div>
       </div>
+      <div id="wheelMsg"></div>
       <div class="deck-result" id="deckResult">
         <h3><span>GÜNÜN META DESTESİ:</span> <span class="name" id="deckName"></span></h3>
         <div class="deck-meta">
@@ -74,7 +95,7 @@
 </section>
 
 <!-- CENABET BUTON -->
-<section class="section" style="padding-top:0">
+<section class="section game-sec" id="cenabet" style="padding-top:0">
   <div class="container game-wrap">
     <div class="card text-center" style="padding:26px">
       <h2 class="section-title" style="font-size:1.5rem">🤪 Cenabet Deste</h2>
@@ -91,13 +112,111 @@
   </div>
 </section>
 
+<!-- GÜNÜN KARTI -->
+<section class="section game-sec" id="gunun" style="padding-top:0">
+  <div class="container game-wrap">
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="quiz-top gunun">
+        <span class="quiz-ic">🎯</span>
+        <div class="quiz-t"><h2>GÜNÜN KARTI</h2><span>Herkese aynı kart · 6 hak · günde 1 kez</span></div>
+        <span class="quiz-left" id="gnLeft">—</span>
+      </div>
+      <div class="quiz-body" id="gnBody"></div>
+    </div>
+  </div>
+</section>
+
+<!-- DESTE DÜELLOSU -->
+<section class="section game-sec" id="duello" style="padding-top:0">
+  <div class="container game-wrap">
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="quiz-top duello">
+        <span class="quiz-ic">⚔️</span>
+        <div class="quiz-t"><h2>DESTE DÜELLOSU</h2><span>Hangisi daha çok kazanıyor? · günde 10 tur</span></div>
+        <span class="quiz-left" id="duLeft">—</span>
+      </div>
+      <div class="quiz-body" id="duBody"></div>
+    </div>
+  </div>
+</section>
+
+<!-- EKSİK KARTI BUL -->
+<section class="section game-sec" id="eksik" style="padding-top:0">
+  <div class="container game-wrap">
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="quiz-top eksik">
+        <span class="quiz-ic">🧩</span>
+        <div class="quiz-t"><h2>EKSİK KARTI BUL</h2><span>Meta destesinin 7 kartı açık · günde 3 hak</span></div>
+        <span class="quiz-left" id="ekLeft">—</span>
+      </div>
+      <div class="quiz-body" id="ekBody"></div>
+    </div>
+  </div>
+</section>
+
+<!-- KART KAPIŞMASI -->
+<section class="section game-sec" id="kapisma" style="padding-top:0">
+  <div class="container game-wrap">
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="quiz-top kapisma">
+        <span class="quiz-ic">🥊</span>
+        <div class="quiz-t"><h2>KART KAPIŞMASI</h2><span>İki kart, tek istatistik · günde 3 hak</span></div>
+        <span class="quiz-left" id="kpLeft">—</span>
+      </div>
+      <div class="quiz-body" id="kpBody"></div>
+    </div>
+  </div>
+</section>
+
+<!-- TOKMAK YARIŞMASI -->
+<section class="section game-sec" id="yarisma" style="padding-top:0">
+  <div class="container game-wrap">
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="quiz-top">
+        <span class="quiz-ic"><img src="assets/img/hammer-logo.jpg" alt=""></span>
+        <div class="quiz-t">
+          <h2>TOKMAK YARIŞMASI</h2>
+          <span>13 soru · barajlar 2 ve 7 · günde 3 hak</span>
+        </div>
+        <span class="quiz-left" id="qzLeft">—</span>
+      </div>
+      <div class="quiz-body" id="qzBody"></div>
+      <div class="quiz-ladder" id="qzLadder"></div>
+    </div>
+  </div>
+</section>
+
+<!-- DESTE JENERATÖRÜ -->
+<section class="section game-sec" id="deste" style="padding-top:0">
+  <div class="container game-wrap">
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="quiz-top deste">
+        <span class="quiz-ic">🧪</span>
+        <div class="quiz-t"><h2>DESTE JENERATÖRÜ</h2><span>8 yuva · her yuvada 3 aday · toplam 24 kart</span></div>
+        <span class="quiz-left" id="djLeft">—</span>
+      </div>
+      <div class="quiz-body" id="djBody"></div>
+    </div>
+  </div>
+</section>
+
+<!-- KART TAHMİN OYUNU -->
+<section class="section game-sec" id="tahmin" style="padding-top:0">
+  <div class="container game-wrap">
+    <div class="card" style="padding:26px">
+      <div class="text-center">
+        <h2 class="section-title" style="font-size:1.5rem">🔮 Kart Tahmin Oyunu</h2>
+        <p class="muted" style="margin:0 0 18px">Aklından bir Clash Royale kartı tut. Sorularımı yanıtla, kartını bulayım.</p>
+      </div>
+      <div id="guessBox"></div>
+    </div>
+  </div>
+</section>
+
 <!-- YAKINDA -->
 <section class="section" style="padding-top:0">
   <div class="container">
     <div class="tile-grid">
-      <div class="tile soon"><span class="t-ic">❓</span><span class="t-tx"><span class="tt">Tahmin Oyunu</span><span class="ts">Yakında</span></span></div>
-      <div class="tile soon"><span class="t-ic">❓</span><span class="t-tx"><span class="tt">Deste Düellosu</span><span class="ts">Yakında</span></span></div>
-      <div class="tile soon"><span class="t-ic">❓</span><span class="t-tx"><span class="tt">Kart Bilgi Yarışması</span><span class="ts">Yakında</span></span></div>
       <div class="tile soon"><span class="t-ic">❓</span><span class="t-tx"><span class="tt">Sürpriz</span><span class="ts">Yakında</span></span></div>
     </div>
   </div>
@@ -112,7 +231,19 @@ document.getElementById("hubIcon").innerHTML = ICONS.hammer;
 
 /* ============ Kart Sıralama Oyunu ============ */
 const SCENARIOS = [
-  "Kavgaya giderken yanımda çağıracağım kartlar",
+  /* --- ciddi / oyuncu gözüyle --- */
+  "En iyi Clash Royale kartları",
+  "Bugünün metasında en güçlü kartlar",
+  "Tek başına maç kazandıran kartlar",
+  "En çok sinir eden kartlar",
+  "Görseli en güzel kartlar",
+  "En değersiz, asla destene koymayacağın kartlar",
+  "Yeni başlayana tavsiye edeceğin kartlar",
+  "Buff gelse hemen meta olacak kartlar",
+  "Nerf yemeyi en çok hak eden kartlar",
+  "Sesi ve animasyonu en tatmin edici kartlar",
+  /* --- eğlence --- */
+  "Kavgaya giderken yanına alacağın kartlar",
   "Sınavda kopya çekerken yanımda isteyeceğim kartlar",
   "Zombi kıyametinde ekibime alacağım kartlar",
   "Beni ders çalışmaya ikna edecek kartlar",
@@ -121,13 +252,38 @@ const SCENARIOS = [
   "Düğünde yanımda olsun istediğim kartlar",
   "Gece korkunca arayacağım kartlar",
   "Ada karşı takım kursam alacağım kartlar",
+  "Ev arkadaşı olsa en iyi geçineceğim kartlar",
+  "Maç yayınında yanımda yorum yapsın istediğim kartlar",
+  "Bir sırrımı emanet edebileceğim kartlar",
+  "Beni okula bırakacak kartlar",
+  "Yemek yapsa en lezzetli olacak kartlar",
+  "Sahilde tatilde en çok yakışacak kartlar",
+  "Halı sahada takımıma alacağım kartlar",
+  "Askere gitsem yanımda olsun istediğim kartlar",
+  "Patronum olsa dayanabileceğim kartlar",
 ];
 const SLOTS = 8;
 let pool = [], current = null, slots = [], scenario = "";
 // Sadece KARAKTERLER (bina/büyü hariç): kart id'si 26xxxxxx olanlar birimdir.
 function allKeys(){ return Object.keys(CARD_DB).filter(k => !k.startsWith("api_") && CARD_DB[k].id>=26000000 && CARD_DB[k].id<27000000); }
 function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
-function newScenario(){ scenario = SCENARIOS[Math.floor(Math.random()*SCENARIOS.length)]; document.getElementById("scenario").textContent = scenario; }
+/* Senaryo seçimi TORBA usulü. Eskiden her tıklamada bağımsız rastgele
+   seçim yapılıyordu; 9 senaryoyla 2-3 tıkta aynısının gelmesi kaçınılmazdı
+   (kullanıcı da bunu fark etti). Artık karıştırılmış bir torbadan
+   çekiyoruz: torba bitmeden hiçbir senaryo tekrar etmiyor. Torba yeniden
+   karışırken de en son gösterilen senaryonun hemen başa gelmemesi için
+   yer değiştiriyor — yani art arda asla aynısı çıkmıyor. */
+let scenarioBag = [];
+function newScenario(){
+  if (!scenarioBag.length){
+    scenarioBag = shuffle([...SCENARIOS]);
+    const son = scenarioBag.length - 1;
+    if (scenarioBag.length > 1 && scenarioBag[son] === scenario)
+      [scenarioBag[0], scenarioBag[son]] = [scenarioBag[son], scenarioBag[0]];
+  }
+  scenario = scenarioBag.pop();
+  document.getElementById("scenario").textContent = scenario;
+}
 function newGame(){
   if (!scenario) newScenario();
   pool = shuffle(allKeys()).slice(0, SLOTS + 6);
@@ -142,12 +298,12 @@ function drawNext(){
   current = pool.pop();
   document.getElementById("drawCard").innerHTML = renderCard(current);
   document.getElementById("remain").textContent = `Kalan yerleştirme: ${emptyLeft}`;
-  document.getElementById("hint").textContent = `“${CARD_DB[current].name}” kartını hangi sıraya koyarsın?`;
+  document.getElementById("hint").textContent = `“${cardNameOf(current)}” kartını hangi sıraya koyarsın?`;
 }
 function placeAt(i){ if (!current || slots[i]) return; slots[i]=current; current=null; renderSlots(); drawNext(); }
 function renderSlots(){
   document.getElementById("rankList").innerHTML = slots.map((k,i)=>{
-    if (k) return `<div class="rank-slot filled"><span class="pos">${i+1}</span><span class="slot-card">${renderCard(k)}</span><span class="slot-name">${CARD_DB[k].name}</span></div>`;
+    if (k) return `<div class="rank-slot filled"><span class="pos">${i+1}</span><span class="slot-card">${renderCard(k)}</span><span class="slot-name">${cardNameOf(k)}</span></div>`;
     return `<div class="rank-slot empty" onclick="placeAt(${i})"><span class="pos">${i+1}</span><span class="slot-empty-txt">Buraya yerleştir</span></div>`;
   }).join("");
 }
@@ -156,8 +312,8 @@ function finish(){
   document.getElementById("shareBtn").style.display = "inline-flex";
 }
 function shareResult(btn){
-  const lines = slots.map((k,i)=>`${i+1}. ${k?CARD_DB[k].name:"—"}`).join("\n");
-  copyText(`${scenario}:\n${lines}\n\nSen de dene → HYPNOSCOUT`, btn);
+  const lines = slots.map((k,i)=>`${i+1}. ${k?cardNameOf(k):"—"}`).join("\n");
+  copyText(`${scenario}:\n${lines}\n\nSen de dene → HYPNOSHUB`, btn);
 }
 
 /* ============ Meta Deste Çarkı ============ */
@@ -170,7 +326,19 @@ function pickWheelDecks(){
 }
 function polar(cx,cy,r,a){ const rad=a*Math.PI/180; return [cx+r*Math.sin(rad), cy-r*Math.cos(rad)]; }
 function buildWheel(){
-  if (!META_LIST.length) return;
+  /* Çark canlı meta destelerinden kuruluyor. Veri yoksa boş bir daire
+     bırakmak yerine sebebini yazıyoruz — örnek deste koymuyoruz. */
+  if (!META_LIST.length){
+    const msg = document.getElementById("wheelMsg");
+    if (msg) msg.innerHTML = apiDownBox("reloadFun");
+    const btn = document.getElementById("spinBtn");
+    if (btn) btn.disabled = true;
+    return;
+  }
+  const msg = document.getElementById("wheelMsg");
+  if (msg) msg.innerHTML = "";
+  const spin = document.getElementById("spinBtn");
+  if (spin) spin.disabled = false;
   wheelDecks = pickWheelDecks();
   const n=wheelDecks.length, seg=360/n, cx=100, cy=100, R=96;
   const colors = ["#2563eb","#475569","#12885a","#1d4ed8","#3b82f6","#0ea5a4","#64748b","#1e40af"];
@@ -202,7 +370,7 @@ function showDeck(d){
   document.getElementById("deckName").textContent = d.name;
   document.getElementById("deckUsage").textContent = d.usage!=null ? "%"+d.usage : "—";
   document.getElementById("deckElixir").textContent = deckElixir(d.cards);
-  document.getElementById("deckCards").innerHTML = d.cards.map(c=>renderCard(c,{level:14,evo:(d.evo||[]).includes(c)})).join("");
+  document.getElementById("deckCards").innerHTML = d.cards.map(c=>renderCard(c,{level:GAME_MAX_LEVEL,evo:(d.evo||[]).includes(c)})).join("");
   document.getElementById("deckResult").classList.add("show");
   const link = copyDeckLink(d.cards);
   const copyBtn = link
@@ -216,28 +384,1198 @@ function showDeck(d){
       ${d.usage!=null?`<span>Kullanım: <b>%${d.usage}</b></span>`:""}
       <span>Ort. İksir: <b>💧 ${deckElixir(d.cards)}</b></span>
     </div>
-    <div class="card-grid eight">${d.cards.map(c=>renderCard(c,{level:14,evo:(d.evo||[]).includes(c)})).join("")}</div>
+    <div class="card-grid eight">${d.cards.map(c=>renderCard(c,{level:GAME_MAX_LEVEL,evo:(d.evo||[]).includes(c)})).join("")}</div>
     ${d.tip?`<div class="modal-tip"><b>Oynanış İpucu:</b> ${d.tip}</div>`:""}
     <div class="flex gap-8 wrap" style="margin-top:16px">${copyBtn}</div>
   `);
 }
 
-/* ============ Cenabet Deste ============ */
+/* ============ Cenabet Deste ============
+   Random, but a LEGAL random: the game gives a deck three special slots, and
+   this one always spends them the same way — two evolutions and one champion —
+   so the result is a deck you could actually build. The eight cards are dealt
+   one at a time rather than appearing at once, which is the whole point of a
+   button you press for the reveal. */
+const CEN_EVOS = 2, CEN_CHAMPS = 1, CEN_DEAL_MS = 320;
+let cenTimers = [];
+
+function cenLive(){
+  // Live cards when the proxy answered, the bundled set otherwise.
+  const live = Object.keys(CARD_DB).filter(k => k.startsWith("api_") && CARD_DB[k].name);
+  return live.length ? live : Object.keys(CARD_DB).filter(k => !k.startsWith("api_"));
+}
+
 function cenabet(){
-  const all = Object.keys(CARD_DB).filter(k=>!k.startsWith("api_"));
-  const pick = shuffle([...all]).slice(0,8);
+  cenTimers.forEach(clearTimeout); cenTimers = [];
+  const all = cenLive();
+  const isChamp = (k) => CARD_DB[k].rarity === "champion" || CARD_DB[k].hero;
+  const canEvo  = (k) => !isChamp(k) && CARD_DB[k].canEvo;
+
+  const evos   = shuffle(all.filter(canEvo)).slice(0, CEN_EVOS);
+  const champs = shuffle(all.filter(isChamp)).slice(0, CEN_CHAMPS);
+  const used   = new Set([...evos, ...champs]);
+  const rest   = shuffle(all.filter(k => !used.has(k) && !isChamp(k)))
+                   .slice(0, 8 - evos.length - champs.length);
+  // Special slots first, exactly as the game orders them.
+  const pick = [...evos, ...champs, ...rest];
+  const evoSet = new Set(evos);
+
+  const res = document.getElementById("cenabetResult");
+  const grid = document.getElementById("cenCards");
+  res.style.display = "block";
+  grid.innerHTML = "";
+  document.getElementById("cenElixir").textContent = "💧 …";
+  document.getElementById("cenActions").innerHTML = "";
+  document.getElementById("cenabetBtn").disabled = true;
+
+  pick.forEach((k, i) => {
+    cenTimers.push(setTimeout(() => {
+      const cell = document.createElement("div");
+      cell.className = "cen-deal";
+      cell.innerHTML = renderCard(k, { evo: evoSet.has(k) });
+      grid.appendChild(cell);
+      if (i === pick.length - 1) cenFinish(pick);
+    }, i * CEN_DEAL_MS));
+  });
+}
+
+function cenFinish(pick){
   document.getElementById("cenElixir").textContent = "💧 " + deckElixir(pick);
-  document.getElementById("cenCards").innerHTML = pick.map(c=>renderCard(c,{level:14})).join("");
+  document.getElementById("cenabetBtn").disabled = false;
   const link = copyDeckLink(pick);
   document.getElementById("cenActions").innerHTML = link
-    ? `<button class="btn btn-primary" onclick="copyText('${link}',this)">${ICONS.copy}<span>Desteyi Kopyala</span></button><a class="btn btn-ghost" href="${link}">Oyunda Aç</a>`
-    : `<span class="muted" style="font-size:.82rem">Kopyalama linki canlı API bağlıyken oluşur.</span>`;
-  document.getElementById("cenabetResult").style.display = "block";
+    ? `<button class="btn btn-primary" onclick="copyText('${link}',this)">${ICONS.copy}<span>${LANG==="tr"?"Desteyi Kopyala":"Copy Deck"}</span></button><a class="btn btn-ghost" href="${link}">${t("word.open")}</a>`
+    : `<span class="muted" style="font-size:.82rem">${LANG==="tr"?"Kopyalama linki canlı API bağlıyken oluşur.":"The copy link needs the live API."}</span>`;
+}
+
+/* Giriş yapılınca ya da çıkılınca oyunlar kendini tazelesin — yoksa
+   "giriş gerekli" yazısı sayfa yenilenene kadar ekranda kalıyordu. */
+function refreshGames(){ qzInit(); gnInit(); duInit(); ekInit(); kpInit(); djInit(); paintPicker(); }
+window.onAuthChange = refreshGames;
+
+/* ============ OYUN SEÇİCİ ============
+   Bütün oyunlar alt alta dizilince sayfa okunmaz bir listeye dönüyordu.
+   Artık önce bir seçim ekranı var; seçilen oyun tek başına, tam genişlikte
+   açılıyor. Adres çubuğundaki #gunun gibi bağlantılar doğrudan o oyunu açar,
+   yani menüdeki kısayollar çalışmaya devam eder. */
+const GAMES = [
+  { id:"gunun",    ic:"🎯", name:"Günün Kartı",         desc:"Herkese aynı kart, 6 hak. Az denemede bul, çok puan al.", pts:"günde 1 · 12 puana kadar" },
+  { id:"yarisma",  ic:"🎓", name:"Tokmak Yarışması",     desc:"13 soru, barajlar 2 ve 7. Çekilirsen bildiğin kadar.",    pts:"günde 3 · 13 puana kadar" },
+  { id:"duello",   ic:"⚔️", name:"Deste Düellosu",       desc:"İki meta destesi — hangisi daha çok kazanıyor?",          pts:"günde 10 · tur başına 1" },
+  { id:"eksik",    ic:"🧩", name:"Eksik Kartı Bul",      desc:"Meta destesinin 7 kartı açık — 8.'sini dört şıktan bul.", pts:"günde 3 · tur başına 3" },
+  { id:"kapisma",  ic:"🥊", name:"Kart Kapışması",       desc:"İki kart yan yana — can, hasar ya da vuruş hızı: hangisi üstün?", pts:"günde 3 · 3 soru × 1 puan" },
+  { id:"deste",    ic:"🧪", name:"Deste Jeneratörü",     desc:"8 yuva, her yuvada 3 aday. Seçe seçe kendi desteni kur." },
+  { id:"siralama", ic:"🎲", name:"Kart Sıralama Oyunu",  desc:"Senaryoya göre kartları sırala, sonucu paylaş." },
+  { id:"tahmin",   ic:"🔮", name:"Kart Tahmin Oyunu",    desc:"Bir kart tut, sorularla bulayım." },
+  { id:"cark",     ic:"🎡", name:"Rastgele Deste Çarkı", desc:"Çarkı çevir, günün meta destesini gör." },
+  { id:"cenabet",  ic:"🤪", name:"Cenabet Buton",        desc:"Kafadan rastgele bir deste. Mantık arama." },
+];
+
+function paintPicker(){
+  document.getElementById("pickGrid").innerHTML = GAMES.map(g => `
+    <button class="pick-card ${g.pts ? "scored" : ""}" onclick="openGame('${g.id}')">
+      <span class="pick-ic">${g.ic}</span>
+      <span class="pick-tx">
+        <span class="pick-n">${g.name}${g.pts ? `<span class="pts-badge">${t("fun.pts")}</span>` : ""}</span>
+        <span class="pick-d">${g.desc}</span>
+        ${g.pts ? `<span class="pick-p">${g.pts}</span>` : ""}
+      </span>
+    </button>`).join("");
+}
+
+function openGame(id){
+  const g = GAMES.find(x => x.id === id);
+  if (!g) return closeGame();
+  document.getElementById("picker").style.display = "none";
+  document.querySelectorAll(".game-sec").forEach(s => s.style.display = s.id === id ? "" : "none");
+  const bar = document.getElementById("gameBar");
+  bar.style.display = "";
+  document.getElementById("gameTitle").textContent = `${g.ic} ${g.name}`;
+  if (location.hash !== "#" + id) history.replaceState(null, "", "#" + id);
+  window.scrollTo({ top: 0, behavior: "instant" });
+}
+
+function closeGame(){
+  document.getElementById("picker").style.display = "";
+  document.querySelectorAll(".game-sec").forEach(s => s.style.display = "none");
+  document.getElementById("gameBar").style.display = "none";
+  history.replaceState(null, "", location.pathname);
+  window.scrollTo({ top: 0, behavior: "instant" });
+}
+
+/* ============ ORTAK: puan veren oyunlar ============
+   Üçünde de doğru cevap sunucuda; buradaki kod yalnızca soruyu
+   gösterip yanıtı iletir. */
+async function gmApi(path, body){
+  const r = await fetch(API_BASE + "/games" + path, {
+    method: body ? "POST" : "GET", credentials: "same-origin",
+    headers: body ? { "Content-Type": "application/json" } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  return { ok: r.ok, status: r.status, ...(await r.json().catch(() => ({}))) };
+}
+function gmLoginBox(msg){
+  return `<div class="quiz-mid"><p>${msg}</p>
+    <div class="flex gap-8"><button class="btn btn-primary" onclick="openAuth('login')">Giriş Yap</button>
+    <button class="btn btn-ghost" onclick="openAuth('register')">Kayıt Ol</button></div></div>`;
+}
+async function gmStatus(){
+  const s = await gmApi("/status");
+  const set = (id, g) => { const el = document.getElementById(id);
+    if (el) el.textContent = s.loggedIn ? `${s.games[g].left}/${s.games[g].perDay} hak` : "giriş gerekli"; };
+  set("gnLeft", "gunun"); set("duLeft", "duello"); set("ekLeft", "eksik"); set("kpLeft", "kapisma");
+  return s;
+}
+
+/* ============ HAKKIN BİTTİĞİNDE ============
+   Eskiden sadece "yarın gel" yazıyordu; oyuncu ne kadar bekleyeceğini
+   bilmiyordu. Haklar gece yarısı yenileniyor, o yüzden sunucu her
+   sınır cevabında yenilenme anını da veriyor ve burada geri sayıyoruz.
+   Sayaç saniye saniye işliyor, sıfırlanınca oyun kendiliğinden açılıyor. */
+function kalanSure(ms){
+  const sn = Math.max(0, Math.round(ms / 1000));
+  const s = Math.floor(sn / 3600), d = Math.floor((sn % 3600) / 60), k = sn % 60;
+  if (s > 0) return `${s} saat ${d} dakika`;
+  if (d > 0) return `${d} dakika ${k} saniye`;
+  return `${k} saniye`;
+}
+
+/* Aynı anda tek bir sayaç yeter; oyun değiştirilince öncekini durduruyoruz. */
+let GERI_SAYIM = null;
+function bitmisKutu(baslik, resetAt, yenile){
+  if (GERI_SAYIM) { clearInterval(GERI_SAYIM); GERI_SAYIM = null; }
+  const hedef = Number(resetAt) || 0;
+  const html = `<div class="quiz-mid">
+      <p><b>${baslik}</b></p>
+      ${hedef ? `<p class="cd-line">Yeni hakların <b><span id="cdVal">${kalanSure(hedef - Date.now())}</span></b> sonra açılıyor.</p>
+                 <p class="muted" style="font-size:.78rem">Haklar her gece yarısı yenilenir.</p>`
+              : `<p class="muted">Yarın tekrar gel.</p>`}
+    </div>`;
+  if (hedef) {
+    GERI_SAYIM = setInterval(() => {
+      const el = document.getElementById("cdVal");
+      if (!el) { clearInterval(GERI_SAYIM); GERI_SAYIM = null; return; }
+      const kalan = hedef - Date.now();
+      if (kalan <= 0) {                       // gün döndü, oyunu tazele
+        clearInterval(GERI_SAYIM); GERI_SAYIM = null;
+        if (typeof yenile === "function") yenile();
+        return;
+      }
+      el.textContent = kalanSure(kalan);
+    }, 1000);
+  }
+  return html;
+}
+
+/* ============ 1) GÜNÜN KARTI ============ */
+const GN = { id: null, tries: 0, names: [], hints: [] };
+
+async function gnInit(){
+  const s = await gmStatus();
+  const body = document.getElementById("gnBody");
+  if (!s.loggedIn){ body.innerHTML = gmLoginBox("Günün kartını oynamak için hesabın olmalı."); return; }
+  if (s.games.gunun.left <= 0){
+    body.innerHTML = bitmisKutu("Bugünün kartını çoktan oynadın.", s.resetAt, gnInit);
+    return;
+  }
+  body.innerHTML = `<div class="quiz-mid">
+    <p>Bugün <b>herkese aynı kart</b> geliyor. 6 hakkın var; her yanlışta bir ipucu açılır.</p>
+    <p class="muted">1. denemede bilirsen <b>12 puan</b>, sonra 10, 8, 6, 4, 2.</p>
+    <button class="btn btn-primary quiz-start" onclick="gnStart()">Başla</button></div>`;
+}
+
+async function gnStart(){
+  const body = document.getElementById("gnBody");
+  body.innerHTML = spinnerBox("Günün kartı alınıyor…");
+  const r = await gmApi("/gunun/start", {});
+  if (!r.ok){ body.innerHTML = notice(`<span>ℹ️</span><span>${r.message || "Başlatılamadı."}</span>`); return; }
+  GN.id = r.sessionId; GN.tries = 0; GN.names = r.names; GN.hints = [];
+  gnPaint();
+  gmStatus();
+}
+
+function gnPaint(msg){
+  document.getElementById("gnBody").innerHTML = `
+    <div class="gn-wrap">
+      <div class="gn-tries">${[0,1,2,3,4,5].map(i =>
+        `<span class="gn-dot ${i < GN.tries ? "used" : ""}"></span>`).join("")}
+        <span class="gn-left">${6 - GN.tries} hak</span></div>
+      ${GN.hints.length ? `<div class="gn-hints">${GN.hints.map(h =>
+        `<span class="gn-hint"><b>${h.k}:</b> ${esc(h.v)}</span>`).join("")}</div>` : ""}
+      ${msg ? `<p class="gn-msg">${msg}</p>` : ""}
+      <div class="search-box gn-box" style="border-radius:12px">
+        <input id="gnIn" list="gnList" placeholder="Kart adı yaz…" autocomplete="off"
+               onkeydown="if(event.key==='Enter')gnGuess()">
+        <button class="search-go" onclick="gnGuess()">Tahmin</button>
+      </div>
+      <datalist id="gnList">${GN.names.map(n => `<option value="${esc(n)}">`).join("")}</datalist>
+    </div>`;
+  setTimeout(() => document.getElementById("gnIn")?.focus(), 40);
+}
+
+async function gnGuess(){
+  const input = document.getElementById("gnIn");
+  const guess = input.value.trim();
+  if (!guess) return;
+  if (!GN.names.some(n => n.localeCompare(guess, "tr", { sensitivity:"base" }) === 0)){
+    gnPaint(`<span class="bad">“${esc(guess)}” diye bir kart yok — listeden seç.</span>`); return;
+  }
+  const r = await gmApi("/gunun/guess", { sessionId: GN.id, guess });
+  if (!r.ok && r.status !== 200){ gnPaint(`<span class="bad">${r.message || "Hata"}</span>`); return; }
+  GN.tries = r.tries;
+  if (r.finished){
+    document.getElementById("gnBody").innerHTML = `
+      <div class="quiz-mid">
+        <div class="quiz-end ${r.points ? "good" : "bad"}">${r.points} <span>puan</span></div>
+        <p>${r.message}</p>
+        <a class="btn btn-ghost" href="index.html#board">Tokmakçılar tablosu</a>
+      </div>`;
+    gmStatus();
+    return;
+  }
+  if (r.hint) GN.hints.push(r.hint);
+  gnPaint(`<span class="bad">${esc(guess)} değil.</span>`);
+}
+
+/* ============ 2) DESTE DÜELLOSU ============ */
+let DU = { id: null };
+
+async function duInit(){
+  const s = await gmStatus();
+  const body = document.getElementById("duBody");
+  if (!s.loggedIn){ body.innerHTML = gmLoginBox("Düelloya girmek için hesabın olmalı."); return; }
+  if (s.games.duello.left <= 0){
+    body.innerHTML = bitmisKutu("Bugünlük düello hakkın bitti.", s.resetAt, duInit); return;
+  }
+  body.innerHTML = `<div class="quiz-mid">
+    <p>İki meta destesi göstereceğim; <b>galibiyet oranı yüksek</b> olanı seç.</p>
+    <p class="muted">Doğru tur başına 1 puan · günde 10 tur</p>
+    <button class="btn btn-primary quiz-start" onclick="duStart()">Başla</button></div>`;
+}
+
+async function duStart(){
+  const body = document.getElementById("duBody");
+  body.innerHTML = spinnerBox("Desteler seçiliyor…");
+  const r = await gmApi("/duello/start", {});
+  if (!r.ok){ body.innerHTML = notice(`<span>ℹ️</span><span>${r.message || "Başlatılamadı."}</span>`); return; }
+  DU.id = r.sessionId;
+  const deck = (d) => {
+    const keys = [], evo = [], hero = [], champ = [];
+    d.cards.forEach(c => { const k = registerApiCard(c); keys.push(k);
+      if (c.evo) evo.push(k); if (c.hero) hero.push(k); if (c.champion) champ.push(k); });
+    return `<button class="du-deck" onclick='duAnswer(${jsArg(d.key)})'>
+      <div class="du-name">${nameDeck(keys)}</div>
+      <div class="mini-cards">${keys.slice(0,4).map(k=>renderCard(k,{evo:evo.includes(k),heroSlot:hero.includes(k),hero:champ.includes(k)})).join("")}</div>
+      <div class="mini-cards">${keys.slice(4,8).map(k=>renderCard(k,{evo:evo.includes(k),heroSlot:hero.includes(k),hero:champ.includes(k)})).join("")}</div>
+      <div class="du-meta">💧 ${deckElixir(keys)} · ${nfTR(d.battles)} maç</div></button>`;
+  };
+  document.getElementById("duBody").innerHTML =
+    `<p class="du-q">Hangisinin <b>galibiyet oranı</b> daha yüksek?</p>
+     <div class="du-row">${r.decks.map(deck).join("<span class='du-vs'>VS</span>")}</div>`;
+}
+
+async function duAnswer(key){
+  document.querySelectorAll(".du-deck").forEach(b => b.disabled = true);
+  const r = await gmApi("/duello/answer", { sessionId: DU.id, key });
+  if (!r.ok && r.status !== 200) return;
+  document.querySelectorAll(".du-deck").forEach((b) => {
+    const k = b.getAttribute("onclick").match(/"([^"]+)"/)?.[1];
+    if (k === r.winner) b.classList.add("right"); else b.classList.add("lost");
+    const m = b.querySelector(".du-meta");
+    if (m && r.rates[k] != null) m.innerHTML += ` · <b>%${r.rates[k]}</b> galibiyet`;
+  });
+  const box = document.createElement("div");
+  box.className = "quiz-mid"; box.style.marginTop = "16px";
+  box.innerHTML = `<p class="${r.correct?"gn-ok":"gn-no"}">${r.correct?`Doğru! <b>+${r.points} puan</b>`:"Yanlış."}</p>
+    ${r.left>0?`<button class="btn btn-primary" onclick="duStart()">Sonraki tur (${r.left} hak)</button>`
+              :`<p class="muted">Bugünlük hakkın bitti.</p>`}`;
+  document.getElementById("duBody").appendChild(box);
+  gmStatus();
+}
+
+/* ============ EKSİK KARTI BUL ============
+   Gerçek bir meta destesinin yedi kartı açık, sekizincisi gizli.
+   Dört şıktan doğrusunu bul.
+
+   Doğru cevap istemciye gelmiyor: gizli kartın kimliği sunucudaki
+   oturumda duruyor. Sayfanın kaynağına bakarak bulmak mümkün değil. */
+const EK = { id: null };
+
+async function ekInit(){
+  const s = await gmStatus();
+  const body = document.getElementById("ekBody");
+  if (!body) return;
+  if (!s.loggedIn){ body.innerHTML = gmLoginBox("Bu oyuna girmek için hesabın olmalı."); return; }
+  if (s.games.eksik.left <= 0){
+    body.innerHTML = bitmisKutu("Bugünlük “Eksik Kartı Bul” hakkın bitti.", s.resetAt, ekInit);
+    return;
+  }
+  body.innerHTML = `<div class="quiz-mid">
+    <p>Güncel bir <b>meta destesinin 7 kartını</b> göstereceğim. Eksik olan 8. kart hangisi?</p>
+    <p class="muted">Doğru cevap <b>3 puan</b> · günde 3 hak</p>
+    <button class="btn btn-primary quiz-start" onclick="ekStart()">Başla</button></div>`;
+}
+
+async function ekStart(){
+  const body = document.getElementById("ekBody");
+  body.innerHTML = spinnerBox("Deste seçiliyor…");
+  const r = await gmApi("/eksik/start", {});
+  if (!r.ok){
+    body.innerHTML = r.error === "limit"
+      ? bitmisKutu(r.message || "Bugünlük hakkın bitti.", r.resetAt, ekInit)
+      : notice(`<span>ℹ️</span><span>${r.message || "Başlatılamadı."}</span>`);
+    return;
+  }
+  EK.id = r.sessionId;
+
+  /* Kartları ortak kart deposuna kaydedip normal kart görselleriyle
+     çiziyoruz — oyun içindeki görünümün aynısı. */
+  const kayit = (c) => registerApiCard(c);
+  const acik = r.cards.map(kayit);
+  const sik  = r.options.map(kayit);
+
+  body.innerHTML = `
+    <p class="du-q">Bu destede <b>eksik olan kart</b> hangisi?</p>
+    <div class="ek-deck">
+      <div class="mini-cards">${acik.slice(0,4).map(k=>renderCard(k)).join("")}</div>
+      <div class="mini-cards">${acik.slice(4,7).map(k=>renderCard(k)).join("")}
+        <div class="ek-slot" title="Eksik kart">?</div></div>
+    </div>
+    <p class="muted text-center" style="font-size:.8rem;margin:0 0 14px">
+      Bu deste %${(r.winrate ?? 0).toFixed(1)} kazanıyor · ${nfTR(r.battles || 0)} maç</p>
+    <div class="ek-opts">${sik.map((k, i) =>
+      `<button class="ek-opt" data-id="${r.options[i].id}" onclick="ekAnswer(${r.options[i].id})">
+         ${renderCard(k)}<span class="ek-name">${esc(cardName(CARD_DB[k]))}</span></button>`).join("")}</div>`;
+}
+
+async function ekAnswer(id){
+  document.querySelectorAll(".ek-opt").forEach(b => b.disabled = true);
+  const r = await gmApi("/eksik/answer", { sessionId: EK.id, id });
+  if (!r.ok && r.status !== 200) return;
+  document.querySelectorAll(".ek-opt").forEach((b) => {
+    const bid = Number(b.getAttribute("data-id"));
+    if (bid === r.answer) b.classList.add("right");
+    else if (bid === id) b.classList.add("wrong");
+  });
+  const box = document.createElement("div");
+  box.className = "quiz-mid"; box.style.marginTop = "16px";
+  box.innerHTML = `<p class="${r.correct?"gn-ok":"gn-no"}">${r.correct?`Doğru! <b>+${r.points} puan</b>`:"Yanlış."}</p>
+    ${r.left>0 ? `<button class="btn btn-primary" onclick="ekStart()">Sonraki tur (${r.left} hak)</button>`
+               : bitmisKutu("Bugünlük hakkın bitti.", r.resetAt, ekInit)}`;
+  document.getElementById("ekBody").appendChild(box);
+  gmStatus();
+}
+
+/* ============ KART KAPIŞMASI ============
+   İki kart yan yana, tek istatistik. Üç tur; her turda farklı bir soru
+   (can / hasar / vuruş hızı) ve tur başına 1 puan.
+
+   Değerler 11. seviyeye göre — enderlikler arasında karşılaştırmanın adil
+   olduğu tek ortak seviye, çünkü şampiyonlar zaten 11'den başlıyor.
+   Doğru cevabı sunucu biliyor; tur bitince iki değeri birden gösteriyoruz
+   ki oyuncu farkı görsün. */
+/* ============ DESTE JENERATÖRÜ ============
+   Sekiz yuva, her yuvada üç aday; oyuncu birer birer seçerek destesini
+   kuruyor. PUANSIZ ve GİRİŞSİZ — kazanılacak bir şey yok, korunacak
+   cevap da yok, o yüzden gmStatus/oturum işine hiç girmiyor.
+
+   24 kartın hepsi sunucudan tek seferde geliyor ve hepsi farklı; bir
+   kart iki yuvada birden çıkmıyor, yani deste 8 farklı kart oluyor. */
+const DJ = { yuvalar: [], adim: 0, secim: [] };
+
+async function djInit(){
+  const body = document.getElementById("djBody");
+  if (!body) return;
+  const sol = document.getElementById("djLeft");
+  if (sol) sol.textContent = "sınırsız";
+  body.innerHTML = `<div class="quiz-mid">
+    <p>Sana <b>8 yuva</b> vereceğim; her yuvada <b>3 aday kart</b> olacak.<br>
+       Her yuvadan birini seç, sonunda kendi desten çıksın.</p>
+    <p class="muted">1 evrim · 1 kahraman · 1 kahraman ya da evrim · 1 atak kartı<br>
+       1 büyük büyü · 1 küçük büyü · 1 bina · 1 ucuz döngü kartı</p>
+    <p class="muted" style="font-size:.78rem">Puan yok, hak yok — istediğin kadar oyna.</p>
+    <button class="btn btn-primary quiz-start" onclick="djStart()">Desteyi Kurmaya Başla</button></div>`;
+}
+
+async function djStart(){
+  const body = document.getElementById("djBody");
+  body.innerHTML = spinnerBox("Kartlar seçiliyor…");
+  const r = await gmApi("/deste/start");
+  if (!r.ok || !Array.isArray(r.slots)){
+    body.innerHTML = notice(`<span>⚠️</span><span>${esc(r.message || "Kartlar alınamadı.")}</span>`, "warn");
+    return;
+  }
+  /* Kartları site geneli kart deposuna kaydediyoruz: böylece renderCard
+     evrim çerçevesini, şampiyon altınını ve Türkçe adı kendiliğinden
+     doğru basıyor, ayrıca sonunda "desteyi kopyala" bağlantısı çalışıyor. */
+  DJ.yuvalar = r.slots.map((y) => ({
+    ...y,
+    cards: y.cards.map((c) => ({
+      ...c,
+      key: registerApiCard({ id:c.id, name:c.name, elixirCost:c.elixir,
+                             icon:c.icon, evoIcon:c.evoIcon, heroImg:c.heroImg, rarity:c.rarity }),
+    })),
+  }));
+  DJ.adim = 0; DJ.secim = [];
+  djPaint();
+}
+
+/* Kartı yuvadaki ROLÜNE göre çiz. İlk üç yuva özel yuvalar; 4–8 arasında
+   kart evrim sanatı taşısa bile düz çizilir, çünkü o yuvalar sıradan deste
+   kartları için. */
+function djKart(c){
+  return renderCard(c.key, {
+    evo: c.rol === "evrim",
+    heroSlot: c.rol === "kahraman",
+    hero: c.rol === "kahraman" ? false : c.rarity === "champion",
+  });
+}
+/* Şeritteki küçük resim de aynı role uysun. */
+function djKucukGorsel(c){
+  if (c.rol === "kahraman" && c.heroImg) return c.heroImg;
+  if (c.rol === "evrim" && c.evoIcon) return c.evoIcon;
+  return c.icon;
+}
+
+/* Seçilenlerin şeridi: hangi yuvalar doldu, hangisi sırada. */
+function djSerit(){
+  return `<div class="dj-strip">${DJ.yuvalar.map((y, i) => {
+    const s = DJ.secim[i];
+    const simdi = i === DJ.adim;
+    return `<span class="dj-step${s ? " ok" : ""}${simdi ? " now" : ""}" title="${esc(y.ad)}">
+      ${s ? `<img src="${esc(djKucukGorsel(s))}" alt="${esc(s.name)}">` : y.ic}
+    </span>`;
+  }).join("")}</div>`;
+}
+
+function djPaint(){
+  const y = DJ.yuvalar[DJ.adim];
+  const body = document.getElementById("djBody");
+  if (!y) return djBitir();
+  body.innerHTML = `
+    ${djSerit()}
+    <div class="dj-head">
+      <span class="dj-step-no">${DJ.adim + 1}/${DJ.yuvalar.length}. yuva</span>
+      <span class="dj-slot"><b>${y.ic} ${esc(y.ad)}</b><span>${esc(y.not)}</span></span>
+    </div>
+    <div class="dj-choices">
+      ${y.cards.map((c, i) => `
+        <button class="dj-pick" onclick="djSec(${i})" title="${esc(c.name)}">
+          ${djKart(c)}
+          <span class="dj-name">${esc(c.name)}</span>
+        </button>`).join("")}
+    </div>
+    <div class="dj-acts">
+      ${DJ.adim > 0 ? `<button class="btn btn-ghost" onclick="djGeri()">← Bir önceki yuva</button>` : ""}
+      <button class="btn btn-ghost" onclick="djStart()">🔄 Kartları yenile</button>
+    </div>`;
+}
+
+function djSec(i){
+  const y = DJ.yuvalar[DJ.adim];
+  if (!y || !y.cards[i]) return;
+  DJ.secim[DJ.adim] = y.cards[i];
+  DJ.adim++;
+  if (DJ.adim >= DJ.yuvalar.length) djBitir(); else djPaint();
+}
+function djGeri(){
+  if (DJ.adim <= 0) return;
+  DJ.adim--; DJ.secim.length = DJ.adim;
+  djPaint();
+}
+
+function djBitir(){
+  const keys = DJ.secim.map((c) => c.key);
+  const link = copyDeckLink(keys);
+  /* Oyunun kendi kuralı: aynı destede en fazla 2 evrim ve 1 kahraman
+     yuvası olabilir. Üçüncü yuva "kahraman ya da evrim" olduğu için
+     bunu aşmak mümkün — aşıldıysa söylüyoruz, sessizce geçmiyoruz. */
+  const evrimSayi = DJ.secim.filter((c) => c.rol === "evrim").length;
+  const kahramanSayi = DJ.secim.filter((c) => c.rol === "kahraman").length;
+  const uyari = (evrimSayi > 2 || kahramanSayi > 1)
+    ? notice(`<span>ℹ️</span><span>Bu deste oyunda bu hâliyle kurulamaz: en fazla
+        <b>2 evrim</b> ve <b>1 kahraman</b> yuvası var, sen ${evrimSayi} evrim ve
+        ${kahramanSayi} kahraman seçtin. Eğlence için sorun değil — üçüncü yuvada
+        diğerini seçersen kurulabilir olur.</span>`, "warn")
+    : "";
+
+  document.getElementById("djBody").innerHTML = `
+    <div class="dj-done">
+      <h3>Desten hazır 🧪</h3>
+      <div class="dj-deck">${DJ.secim.map(djKart).join("")}</div>
+      <div class="dj-meta">
+        <span class="badge gold">💧 ${deckElixir(keys)} ortalama iksir</span>
+        ${DJ.yuvalar.map((y, i) => `<span class="dj-tag">${y.ic} ${esc(DJ.secim[i].name)}</span>`).join("")}
+      </div>
+      ${uyari}
+      <div class="dj-acts">
+        ${link ? `<button class="btn btn-gold" onclick="openDeck(${jsArg(link)},this)">${ICONS.copy}Desteyi Kopyala</button>` : ""}
+        <button class="btn btn-primary" onclick="djStart()">🔄 Yeni Deste Kur</button>
+      </div>
+    </div>`;
+}
+
+const KP = { id:null, tur:0, rounds:[], dogru:0, mesgul:false };
+
+/* Sunucu ham değer gönderiyor: vuruş hızı milisaniye, diğerleri sayı. */
+function kpDeger(birim, v){
+  if (birim === "sn") return (v/1000).toFixed(1).replace(".", ",") + " sn";
+  return nfTR(v);
+}
+const KP_ETIKET = { hp:"can", dmg:"hasar", sn:"vuruş aralığı" };
+
+async function kpInit(){
+  const s = await gmStatus();
+  const body = document.getElementById("kpBody");
+  if (!body) return;
+  if (!s.loggedIn){ body.innerHTML = gmLoginBox("Bu oyuna girmek için hesabın olmalı."); return; }
+  if (s.games.kapisma.left <= 0){
+    body.innerHTML = bitmisKutu("Bugünlük “Kart Kapışması” hakkın bitti.", s.resetAt, kpInit);
+    return;
+  }
+  body.innerHTML = `<div class="quiz-mid">
+    <p>İki kart göstereceğim; <b>hangisinin daha üstün</b> olduğunu seç.</p>
+    <p class="muted">3 soru — can, hasar ve vuruş hızı. Değerler <b>11. seviyeye</b> göre.<br>
+       Her doğru <b>1 puan</b> · günde 3 hak</p>
+    <button class="btn btn-primary quiz-start" onclick="kpStart()">Başla</button></div>`;
+}
+
+async function kpStart(){
+  const body = document.getElementById("kpBody");
+  body.innerHTML = spinnerBox("Kartlar seçiliyor…");
+  const r = await gmApi("/kapisma/start", {});
+  if (!r.ok){
+    body.innerHTML = r.error === "limit"
+      ? bitmisKutu(r.message || "Bugünlük hakkın bitti.", r.resetAt, kpInit)
+      : notice(`<span>ℹ️</span><span>${r.message || "Başlatılamadı."}</span>`);
+    return;
+  }
+  KP.id = r.sessionId; KP.rounds = r.rounds; KP.tur = 0; KP.dogru = 0; KP.mesgul = false;
+  kpPaint();
+}
+
+function kpPaint(msg){
+  const t = KP.rounds[KP.tur];
+  const kart = (c, yan) => `
+    <button class="kp-card" data-id="${c.id}" data-yan="${yan}" onclick="kpAnswer(${c.id})">
+      <img src="${esc(c.icon)}" alt="" loading="lazy">
+      <span class="kp-n">${esc(c.name)}</span>
+      <span class="kp-el">💧 ${c.elixir}</span>
+      <span class="kp-v"></span>
+    </button>`;
+  document.getElementById("kpBody").innerHTML = `
+    <div class="kp-head">
+      <span class="kp-step">${KP.tur + 1}/${KP.rounds.length}. soru</span>
+      <span class="kp-score">${KP.dogru} doğru</span>
+    </div>
+    <p class="du-q">${esc(t.soru)}</p>
+    <p class="muted text-center" style="font-size:.78rem;margin:-6px 0 14px">
+      Karşılaştırma <b>11. seviye</b> değerleriyle</p>
+    <div class="kp-arena">
+      ${kart(t.a, "a")}
+      <span class="kp-vs">VS</span>
+      ${kart(t.b, "b")}
+    </div>
+    <div id="kpAfter">${msg || ""}</div>`;
+}
+
+async function kpAnswer(id){
+  if (KP.mesgul) return;
+  KP.mesgul = true;
+  document.querySelectorAll(".kp-card").forEach(b => b.disabled = true);
+
+  const r = await gmApi("/kapisma/answer", { sessionId: KP.id, round: KP.tur, id });
+  if (!r.ok && r.status !== 200){ KP.mesgul = false; return; }
+  KP.dogru = r.dogru;
+
+  const birim = KP.rounds[KP.tur].birim;
+  document.querySelectorAll(".kp-card").forEach((b) => {
+    const bid = Number(b.getAttribute("data-id"));
+    const v = r.values[bid];
+    if (v != null) b.querySelector(".kp-v").textContent = kpDeger(birim, v);
+    if (bid === r.answer) b.classList.add("right");
+    else if (bid === id) b.classList.add("wrong");
+  });
+
+  const son = KP.tur >= KP.rounds.length - 1;
+  const bas = r.correct ? `<p class="gn-ok">Doğru! <b>+1 puan</b></p>` : `<p class="gn-no">Yanlış.</p>`;
+  const alt = son
+    ? `<div class="quiz-mid" style="margin-top:6px">
+         <p><b>${r.dogru}/${r.toplam} doğru — ${r.points} puan.</b></p>
+         ${r.left > 0
+           ? `<button class="btn btn-primary" onclick="kpStart()">Yeni oyun (${r.left} hak)</button>`
+           : bitmisKutu("Bugünlük hakkın bitti.", r.resetAt, kpInit)}</div>`
+    : `<div class="quiz-mid" style="margin-top:6px">
+         <button class="btn btn-primary" onclick="kpNext()">Sonraki soru</button></div>`;
+  document.getElementById("kpAfter").innerHTML = bas + alt;
+  gmStatus();
+}
+
+function kpNext(){ KP.tur++; KP.mesgul = false; kpPaint(); }
+
+/* ============ TOKMAK YARIŞMASI ============
+   13 soru, barajlar 2 ve 7, günde 3 hak.
+
+   Doğru şık istemciye HİÇ gelmez — sunucu her cevabı kendisi
+   değerlendirir. Bu yüzden sayfanın kaynağına bakarak cevapları
+   görmek mümkün değil; puan tablosunun anlamı da buna bağlı. */
+/* `kilit` = yeni soru çizildikten sonra şıkların kapalı kaldığı süre, `ara` =
+   doğru cevaptan sonra yeni soruya geçmeden önceki bekleme. İkisini de SUNUCU
+   söylüyor (bkz. quiz.js): bot koruması cevap süresini ölçerken aynı sayıları
+   kullanıyor, iki tarafta ayrı ayrı yazılı kalırsa biri değişince ölçüm kayar. */
+const QZ = { id: null, step: 0, total: 13, checkpoints: [2, 7], safe: 0, busy: false,
+             kilit: 400, ara: 750 };
+
+async function qzApi(path, body){
+  const r = await fetch(API_BASE + "/quiz" + path, {
+    method: body ? "POST" : "GET", credentials: "same-origin",
+    headers: body ? { "Content-Type": "application/json" } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  return { ok: r.ok, status: r.status, ...(await r.json().catch(() => ({}))) };
+}
+
+/* Puan merdiveni: hangi basamaktayız, barajlar nerede. */
+function qzLadder(){
+  const el = document.getElementById("qzLadder");
+  if (!QZ.step){ el.innerHTML = ""; return; }
+  let out = "";
+  for (let n = QZ.total; n >= 1; n--){
+    const cp = QZ.checkpoints.includes(n);
+    const done = n < QZ.step, now = n === QZ.step;
+    out += `<span class="ql ${now?"now":done?"done":""} ${cp?"cp":""}">${n}${cp?" 🛡️":""}</span>`;
+  }
+  el.innerHTML = `<div class="ql-row">${out}</div>`;
+}
+
+async function qzStatus(){
+  const s = await qzApi("/status");
+  const el = document.getElementById("qzLeft");
+  el.textContent = s.loggedIn ? `${s.left}/${s.dailyLimit} hak` : "giriş gerekli";
+  return s;
+}
+
+async function qzInit(){
+  const s = await qzStatus();
+  const body = document.getElementById("qzBody");
+  QZ.step = 0; qzLadder();
+  if (!s.loggedIn){
+    body.innerHTML = `<div class="quiz-mid">
+      <p>Yarışmaya girip <b>Tokmakçılar</b> tablosuna puan yazmak için hesabın olmalı.</p>
+      <button class="btn btn-primary" onclick="openAuth('login')">Giriş Yap</button>
+      <button class="btn btn-ghost" onclick="openAuth('register')">Kayıt Ol</button></div>`;
+    return;
+  }
+  if (s.left <= 0){
+    body.innerHTML = `<div class="quiz-mid">
+      <p><b>Bugünlük hakkın doldu.</b> (${s.dailyLimit}/${s.dailyLimit})</p>
+      <p class="muted">Yarın yeniden 3 hakkın olacak.</p></div>`;
+    return;
+  }
+  body.innerHTML = `<div class="quiz-mid">
+    <p>13 soru, her doğru bir basamak. <b>2.</b> ve <b>7.</b> soru baraj —
+       geçtikten sonra elenirsen barajın puanını alırsın.</p>
+    <p class="muted">İstediğin an <b>çekilebilirsin</b>; o zaman bildiğin soru kadar puan alırsın.</p>
+    <button class="btn btn-primary quiz-start" onclick="qzStart()">Yarışmaya Başla</button></div>`;
+}
+
+async function qzStart(){
+  const body = document.getElementById("qzBody");
+  body.innerHTML = spinnerBox("Sorular hazırlanıyor…");
+  const r = await qzApi("/start", {});
+  if (!r.ok){ body.innerHTML = notice(`<span>⚠️</span><span>${r.message || "Başlatılamadı."}</span>`); return; }
+  QZ.id = r.sessionId; QZ.step = r.step; QZ.total = r.total; QZ.checkpoints = r.checkpoints; QZ.safe = 0;
+  if (r.kilitMs) QZ.kilit = r.kilitMs;
+  document.getElementById("qzLeft").textContent = `${r.left}/3 hak`;
+  qzPaint(r.question, r.options);
+}
+
+function qzPaint(question, options){
+  QZ.busy = false;
+  qzLadder();
+  const cp = QZ.checkpoints.includes(QZ.step);
+  document.getElementById("qzBody").innerHTML = `
+    <div class="quiz-q">
+      <div class="quiz-meta">
+        <span class="quiz-step">${QZ.step}. soru</span>
+        <span class="quiz-worth">${QZ.step} puan</span>
+        ${cp ? `<span class="quiz-cp">🛡️ BARAJ</span>` : ""}
+        ${QZ.safe ? `<span class="quiz-safe">güvencen: ${QZ.safe}</span>` : ""}
+      </div>
+      <p class="quiz-text">${question}</p>
+      <div class="quiz-opts locked">
+        ${options.map((o, i) => `<button class="quiz-opt" data-i="${i}" disabled
+            onclick='qzAnswer(${jsArg(o)}, this)'>
+            <span class="qo-l">${"ABCD"[i]}</span><span>${esc(o)}</span></button>`).join("")}
+      </div>
+      ${QZ.step > 1 ? `<button class="btn btn-ghost quiz-quit" onclick="qzWithdraw()">
+        Çekil ve ${QZ.step - 1} puanı al</button>` : ""}
+    </div>`;
+  /* Şıklar kısa bir an kapalı açılıyor. İki işi var: bir önceki sorudaki çift
+     tıklamanın buraya sıçramasını engelliyor ve bot korumasına "gerçek arayüz
+     bundan hızlı cevap üretemez" diyebileceğimiz sert bir taban veriyor. */
+  setTimeout(() => {
+    const kutu = document.querySelector(".quiz-opts.locked");
+    if (!kutu) return;                       // soru bu arada değiştiyse dokunma
+    kutu.classList.remove("locked");
+    kutu.querySelectorAll(".quiz-opt").forEach((b) => { b.disabled = false; });
+  }, QZ.kilit);
+}
+
+async function qzAnswer(choice, btn){
+  if (QZ.busy) return;
+  QZ.busy = true;
+  document.querySelectorAll(".quiz-opt").forEach((b) => b.disabled = true);
+  btn.classList.add("picked");
+
+  const r = await qzApi("/answer", { sessionId: QZ.id, choice });
+  /* Bot cezası: tur burada biter, hesap zaten askıya alındı. Ayrı ele
+     alınıyor çünkü normal hata mesajı gibi geçiştirilecek bir şey değil. */
+  if (r.error === "bot"){
+    document.getElementById("qzBody").innerHTML =
+      notice(`<span>🚫</span><span>${r.message || "Tur iptal edildi."}</span>`, "warn");
+    QZ.step = 0; qzLadder();
+    setTimeout(() => { if (typeof loadMe === "function") loadMe(); }, 400);
+    return;
+  }
+  if (!r.ok && r.status !== 200){
+    document.getElementById("qzBody").innerHTML = notice(`<span>⚠️</span><span>${r.message || "Hata."}</span>`);
+    return;
+  }
+  // Doğru şıkkı işaretle: yanlışsa hangisi olduğunu göster.
+  document.querySelectorAll(".quiz-opt").forEach((b) => {
+    const txt = b.textContent.trim().slice(1).trim();
+    if (txt === r.answer) b.classList.add("right");
+  });
+  if (!r.correct) btn.classList.add("wrong");
+
+  if (r.araMs) QZ.ara = r.araMs;
+  if (r.kilitMs) QZ.kilit = r.kilitMs;
+  setTimeout(() => {
+    if (r.finished) return qzEnd(r);
+    QZ.step = r.step; QZ.safe = r.safe || 0;
+    qzPaint(r.question, r.options);
+  }, r.correct ? QZ.ara : 1600);
+}
+
+async function qzWithdraw(){
+  if (QZ.busy) return;
+  QZ.busy = true;
+  const r = await qzApi("/withdraw", { sessionId: QZ.id });
+  qzEnd(r);
+}
+
+function qzEnd(r){
+  QZ.step = 0; qzLadder();
+  const good = r.reason === "complete" || r.points > 0;
+  document.getElementById("qzBody").innerHTML = `
+    <div class="quiz-mid">
+      <div class="quiz-end ${good ? "good" : "bad"}">${r.points} <span>puan</span></div>
+      <p>${r.message || ""}</p>
+      <p class="muted">${r.answered} soru bildin.</p>
+      <button class="btn btn-primary" onclick="qzInit()">Tekrar</button>
+      <a class="btn btn-ghost" href="index.html#board">Tokmakçılar tablosu</a>
+    </div>`;
+  qzStatus();
+}
+
+/* ============ Kart Tahmin Oyunu ============
+   Twenty-questions over the card list, but the questions are multiple choice,
+   not yes/no. A yes/no "bu kart ender mi?" is worth one bit where naming the
+   tier outright is worth 2.3, and it is also ambiguous: the player cannot tell
+   whether it means the Ender tier specifically or "rare" in the everyday
+   sense. Listing every option removes the ambiguity and narrows far faster.
+   (Tier adları oyunun kendi Türkçesinden: Sıradan / Ender / Destansı /
+   Efsanevi / Şampiyon — TID_RARITY_* satırları.)
+
+   At each step we ask whichever question leaves the smallest worst-case group,
+   so a wrong-looking answer never strands the game. "Bilmiyorum" retires the
+   question without filtering, so an unsure answer can never eliminate the
+   right card. */
+const RARITY_TR = { common:"Sıradan", rare:"Ender", epic:"Destansı", legendary:"Efsanevi", champion:"Şampiyon" };
+const KIND_TR = { Troop:"Asker", Building:"Bina", Spell:"Büyü" };
+
+/* A question is {id, text, opts:[{label, test}]}. */
+function guessQuestions(){
+  const qs = [];
+
+  qs.push({ id:"kind", text:"Bu kart ne <b>tür</b> bir kart?", opts: [
+    { label:"⚔️ Asker", test:c => c.type === "Troop" },
+    { label:"🏛️ Bina",  test:c => c.type === "Building" },
+    { label:"✨ Büyü",  test:c => c.type === "Spell" },
+  ]});
+
+  qs.push({ id:"rarity", text:"Kartın <b>enderlik seviyesi</b> hangisi?", opts:
+    Object.entries(RARITY_TR).map(([r, tr]) => ({ label: tr, test: c => c.rarity === r }))
+  });
+
+  qs.push({ id:"evo", text:"Bu kartın oyunda <b>evrimi</b> var mı?", opts: [
+    { label:"Evet, evrimi var", test:c => !!c.canEvo },
+    { label:"Hayır, yok",       test:c => !c.canEvo },
+  ]});
+
+  /* Traits only exist for units, so these questions are offered but will be
+     skipped automatically once the candidates are all spells or buildings —
+     bestQuestion() drops anything that no longer separates them. A card with
+     no traits matches no option and therefore survives every trait question,
+     which is what keeps a gap in the data from losing the player's card. */
+  const tr = (c) => c.traits || {};
+  /* Building-only units (Golem, Balloon, Hog Rider) are excluded from the air
+     question: they never attack a unit at all, so "hava vurur mu" has no
+     sensible answer, and the source data marks some of them attacks_air
+     anyway. The building-only question below separates them instead. */
+  const hitsUnits = (c) => !!c.traits && c.type === "Troop" && !tr(c).onlyBuildings;
+  qs.push({ id:"air", text:"<b>Hava</b> birimlerini vurabiliyor mu?", opts: [
+    { label:"Evet, havayı vurur", test:c => hitsUnits(c) && tr(c).air },
+    { label:"Hayır, sadece yer",  test:c => hitsUnits(c) && !tr(c).air },
+  ]});
+  qs.push({ id:"fly", text:"Kendisi <b>uçuyor</b> mu?", opts: [
+    { label:"Evet, uçar",  test:c => !!tr(c).flying },
+    { label:"Hayır, yerde", test:c => c.type === "Troop" && !!c.traits && !tr(c).flying },
+  ]});
+  qs.push({ id:"squad", text:"Kartı oynayınca <b>kaç birim</b> çıkıyor?", opts: [
+    { label:"Tek birim",       test:c => !!c.traits && (tr(c).count||0) <= 1 },
+    { label:"Birden fazla",    test:c => (tr(c).count||0) >= 2 },
+  ]});
+  qs.push({ id:"onlyb", text:"Sadece <b>binaları</b> mı hedefler? (Dev, Hog gibi)", opts: [
+    { label:"Evet, sadece bina", test:c => !!tr(c).onlyBuildings },
+    { label:"Hayır, her şeyi",   test:c => c.type === "Troop" && !!c.traits && !tr(c).onlyBuildings },
+  ]});
+  qs.push({ id:"speed", text:"<b>Hareket hızı</b> nasıl?", opts: [
+    { label:"🐢 Yavaş",  test:c => { const s = tr(c).speed||0; return s > 0 && s <= 45; } },
+    { label:"🚶 Normal", test:c => tr(c).speed === 60 },
+    { label:"🏃 Hızlı",  test:c => (tr(c).speed||0) >= 90 },
+  ]});
+  qs.push({ id:"reach", text:"<b>Yakın dövüş</b> mü, <b>menzilli</b> mi?", opts: [
+    { label:"🗡️ Yakın dövüş", test:c => { const r = tr(c).range||0; return r > 0 && r <= 1200; } },
+    { label:"🏹 Menzilli",     test:c => (tr(c).range||0) > 1200 },
+  ]});
+
+  /* Aşağıdakiler sonradan eklendi. Önceki dokuz soru 122 kartı her zaman
+     ayıramıyordu; tür/enderlik/iksir tükenince motorun elinde soracak bir
+     şey kalmıyor, körlemesine tahmine düşüyordu. Hepsi oyuncunun gözle
+     bildiği, evet/hayır ile net cevaplanan özellikler. */
+  const varMi = (alan) => (c) => !!c.traits && !!tr(c)[alan];
+  const yokMu = (alan) => (c) => !!c.traits && !tr(c)[alan];
+
+  qs.push({ id:"area", text:"Vuruşu <b>alan hasarı</b> veriyor mu? (etrafındakilere de değer)", opts: [
+    { label:"Evet, alan hasarı", test:varMi("area") },
+    { label:"Hayır, tek hedef",  test:yokMu("area") },
+  ]});
+  qs.push({ id:"death", text:"<b>Öldüğünde</b> arkasında birim bırakıyor mu?", opts: [
+    { label:"Evet, bırakıyor", test:varMi("deathSpawn") },
+    { label:"Hayır",           test:yokMu("deathSpawn") },
+  ]});
+  qs.push({ id:"spawner", text:"Durduğu yerde <b>sürekli birim üretiyor</b> mu?", opts: [
+    { label:"Evet, üretiyor", test:varMi("spawner") },
+    { label:"Hayır",          test:yokMu("spawner") },
+  ]});
+  qs.push({ id:"shield", text:"<b>Kalkanı</b> var mı?", opts: [
+    { label:"Evet, kalkanlı", test:varMi("shield") },
+    { label:"Hayır",          test:yokMu("shield") },
+  ]});
+  qs.push({ id:"charge", text:"<b>Hızlanarak</b> ilk vuruşunu daha sert mi yapıyor? (Prens gibi)", opts: [
+    { label:"Evet, hızlanır", test:varMi("charge") },
+    { label:"Hayır",          test:yokMu("charge") },
+  ]});
+  qs.push({ id:"hitspd", text:"<b>Vuruş hızı</b> nasıl?", opts: [
+    { label:"⚡ Çok seri (1 sn altı)", test:c => { const h = tr(c).hitSpeed||0; return h > 0 && h < 1000; } },
+    { label:"⏱️ Orta (1–1,5 sn)",      test:c => { const h = tr(c).hitSpeed||0; return h >= 1000 && h <= 1500; } },
+    { label:"🐌 Yavaş (1,5 sn üstü)",  test:c => (tr(c).hitSpeed||0) > 1500 },
+  ]});
+
+  /* --- BİNALARA özel --- */
+  qs.push({ id:"b_atk", text:"Bu bina <b>kendisi saldırıyor</b> mu?", opts: [
+    { label:"Evet, ateş eder",     test:c => tr(c).kind === "building" && tr(c).saldirir },
+    { label:"Hayır, birim üretir", test:c => tr(c).kind === "building" && !tr(c).saldirir },
+  ]});
+  qs.push({ id:"b_death", text:"Bina <b>yıkılınca patlayıp</b> hasar veriyor mu?", opts: [
+    { label:"Evet, patlar", test:c => tr(c).kind === "building" && tr(c).deathDamage },
+    { label:"Hayır",        test:c => tr(c).kind === "building" && !tr(c).deathDamage },
+  ]});
+
+  /* --- BÜYÜLERE özel --- */
+  qs.push({ id:"s_dmg", text:"Bu büyü <b>hasar mı veriyor</b>, yoksa sadece <b>etki mi</b> yapıyor?", opts: [
+    { label:"💥 Hasar verir",  test:c => tr(c).kind === "spell" && tr(c).hasar },
+    { label:"✨ Etki yapar",   test:c => tr(c).kind === "spell" && !tr(c).hasar },
+  ]});
+  qs.push({ id:"s_dur", text:"Etkisi <b>anlık</b> mı, bir <b>süre devam</b> mı ediyor?", opts: [
+    { label:"⚡ Anlık",        test:c => tr(c).kind === "spell" && !tr(c).surekli },
+    { label:"⏳ Süre boyunca", test:c => tr(c).kind === "spell" && tr(c).surekli },
+  ]});
+  qs.push({ id:"s_sum", text:"Bu büyü sahaya <b>birim çağırıyor</b> mu?", opts: [
+    { label:"Evet, çağırır", test:c => tr(c).kind === "spell" && tr(c).cagirir },
+    { label:"Hayır",         test:c => tr(c).kind === "spell" && !tr(c).cagirir },
+  ]});
+  qs.push({ id:"s_rad", text:"<b>Etki alanı</b> ne kadar geniş?", opts: [
+    { label:"🎯 Dar",   test:c => { const r = tr(c).kind === "spell" ? (tr(c).radius||0) : 0; return r > 0 && r <= 2500; } },
+    { label:"⭕ Orta",  test:c => { const r = tr(c).kind === "spell" ? (tr(c).radius||0) : 0; return r > 2500 && r <= 3500; } },
+    { label:"🌐 Geniş", test:c => (tr(c).kind === "spell" ? (tr(c).radius||0) : 0) > 3500 },
+  ]});
+
+  return qs;
+}
+
+/* Questions built from what is still on the table.
+
+   The fixed list above runs out: nine questions cannot always separate 122
+   cards, and when they did the engine had to start guessing blind — which is
+   what made a wrong guess necessary for nearly a third of cards. Elixir cost
+   is universal, exact, and something every player knows, so it can be split
+   again and again at the median of the survivors until only one cost is left.
+   Each split gets its own id, so a repeat of the SAME split is never asked. */
+function splitQuestions(cand){
+  const qs = [];
+  const costs = [...new Set(cand.map(c => c.elixir || 0))].sort((a, b) => a - b);
+  if (costs.length > 1){
+    const cut = costs[Math.ceil(costs.length / 2)] ?? costs[costs.length - 1];
+    qs.push({ id:"elx>=" + cut, text:`<b>İksir maliyeti ${cut} veya daha fazla</b> mı?`, opts: [
+      { label:`Evet, ${cut}+`,        test:c => (c.elixir||0) >= cut },
+      { label:`Hayır, ${cut}'ten az`, test:c => (c.elixir||0) < cut },
+    ]});
+    // Also offer "is it exactly N?" for the most common remaining cost.
+    const tally = new Map();
+    cand.forEach(c => tally.set(c.elixir||0, (tally.get(c.elixir||0)||0) + 1));
+    const [top] = [...tally.entries()].sort((a, b) => b[1] - a[1])[0];
+    qs.push({ id:"elx==" + top, text:`<b>İksir maliyeti tam olarak ${top}</b> mı?`, opts: [
+      { label:`Evet, ${top}`, test:c => (c.elixir||0) === top },
+      { label:"Hayır",        test:c => (c.elixir||0) !== top },
+    ]});
+  }
+  return qs;
+}
+
+/* Last resort, when nothing about the card itself separates what is left.
+
+   Some cards are genuinely indistinguishable on the attributes we hold — the
+   newest troops have no entry in the community stat data at all, so after
+   kind, rarity, elixir and evolution there is nothing left to ask.
+
+   This used to split on the card's English initial, which assumed the player
+   reads English and knows the English name — neither is a fair assumption.
+   Instead it now shows the surviving cards and asks the player to point at
+   theirs, which needs no language at all and ends the game in one step. */
+/* ÜST SINIR YOK — bilerek.
+
+   Eskiden bu liste yalnızca 2-12 aday arasında çıkıyordu. Daha fazlası
+   kaldığında motorun elinde soracak bir şey kalmıyor, `bestQuestion()`
+   null dönüyor ve oyun ELİNDE 20 KART VARKEN tahmine geçip listedeki ilk
+   kartı söylüyordu — "2 soruda saçma bir cevap" bundandı. Uzun liste
+   biraz kalabalık görünür ama yanlış cevaptan iyidir; kaydırılabilir. */
+function shortlistQuestion(cand){
+  if (cand.length < 2) return [];
+  return [{
+    id: "pick:" + cand.map(c => c.key).join(","),
+    shortlist: true,
+    text: `Bu kartlardan <b>hangisi</b> senin kartın?`,
+    opts: cand.map((c) => ({
+      label: cardName(c), key: c.key, test: (x) => x.key === c.key,
+    })),
+  }];
+}
+
+/* Below this many candidates a guess is worth making; above it, keep asking.
+   The old engine guessed as soon as no yes/no question happened to split the
+   set, which is where "3 soru sorup kafadan sallıyor" came from. */
+const GUESS_AT = 1;
+
+const GG = { pool:[], cand:[], asked:new Set(), qs:[], turn:0, rejected:new Set(), current:null };
+
+function guessStart(){
+  // Only real cards, and only ones we can name and picture.
+  GG.pool = Object.keys(CARD_DB)
+    .filter(k => k.startsWith("api_") && CARD_DB[k].name)
+    .map(k => ({ key:k, ...CARD_DB[k] }));
+  if (!GG.pool.length) GG.pool = Object.keys(CARD_DB).filter(k => !k.startsWith("api_")).map(k => ({ key:k, ...CARD_DB[k] }));
+  GG.cand = [...GG.pool];
+  GG.asked = new Set();
+  GG.rejected = new Set();
+  GG.qs = guessQuestions();
+  GG.turn = 0;
+  guessStep();
+}
+
+/* Pick the question with the smallest worst-case remaining group. Options that
+   match nothing are dropped, and a question whose options no longer separate
+   the candidates at all is skipped. */
+function bestQuestion(){
+  const pick = (list) => {
+    let best = null, bestWorst = Infinity;
+    for (const q of list){
+      if (GG.asked.has(q.id)) continue;
+      const groups = q.opts.map(o => GG.cand.filter(c => o.test(c)).length);
+      const covered = groups.reduce((a, b) => a + b, 0);
+      const live = groups.filter(n => n > 0).length;
+      // Needs at least two non-empty answers, and must not leave everyone unmatched.
+      if (live < 2 || covered === 0) continue;
+      // Candidates matching no option survive whatever is answered, so they
+      // count against every branch — that is the true worst case.
+      const unmatched = GG.cand.length - covered;
+      const worst = Math.max(...groups) + unmatched;
+      if (worst >= GG.cand.length) continue;             // learns nothing
+      if (worst < bestWorst){ bestWorst = worst; best = q; }
+    }
+    return best;
+  };
+  // Real questions about the card first; the shortlist only if nothing else works.
+  return pick(GG.qs.concat(splitQuestions(GG.cand))) || pick(shortlistQuestion(GG.cand));
+}
+
+function guessStep(){
+  const box = document.getElementById("guessBox");
+  if (GG.cand.length === 0){
+    box.innerHTML = `
+      <div class="text-center">
+        <p style="font-size:1.05rem;font-weight:800;margin:0 0 6px">Pes ettim! 🤷</p>
+        <p class="muted" style="margin:0 0 18px">Verdiğin yanıtlara uyan kart kalmadı — bir yerde ters bir cevap olmuş olabilir.</p>
+        <button class="btn btn-primary" onclick="guessStart()">Yeniden Başlat</button>
+      </div>`;
+    return;
+  }
+  /* Tahmin YALNIZCA tek aday kaldığında. Birden fazla aday varken asla
+     tahmin yürütmüyoruz: eskiden soru bulunamayınca körlemesine bir kart
+     söyleniyordu ve çoğu zaman yanlış çıkıyordu. Soru bitse bile elimizde
+     kart listesi göstermek gibi bir çıkış var (shortlistQuestion). */
+  const q = GG.cand.length > 1 ? bestQuestion() : null;
+  if (!q && GG.cand.length > 1){
+    // Buraya normalde düşülmez; düşülürse yine tahmin etme, listeyi göster.
+    GG.current = shortlistQuestion(GG.cand)[0];
+    if (!GG.current) return guessGuess();
+    return guessRender(GG.current);
+  }
+  if (!q) return guessGuess();
+  GG.current = q;
+  guessRender(q);
+}
+
+/* Soruyu ekrana çizer. guessStep'ten ayrıldı: soru bitince devreye giren
+   kart listesi de aynı çizimi kullanıyor. */
+function guessRender(q){
+  const box = document.getElementById("guessBox");
+  GG.turn++;
+  const opts = q.opts
+    .map((o, i) => ({ o, i, n: GG.cand.filter(c => o.test(c)).length }))
+    .filter(x => x.n > 0);                        // never offer a dead answer
+  // The shortlist is answered by looking at the cards, so it draws them.
+  const body = q.shortlist
+    ? `<div class="guess-picks">${opts.map(x =>
+        `<button class="guess-pick" onclick="guessAnswer(${x.i})">
+           <span class="gp-art">${renderCard(x.o.key)}</span>
+           <span class="gp-name">${esc(x.o.label)}</span>
+         </button>`).join("")}</div>`
+    : `<div class="guess-opts">${opts.map(x =>
+        `<button class="btn btn-primary" onclick="guessAnswer(${x.i})">${x.o.label}</button>`).join("")}</div>`;
+  box.innerHTML = `
+    <div class="text-center">
+      <div class="muted" style="font-size:.8rem;margin-bottom:6px">${GG.turn}. soru · ${GG.cand.length} kart eleniyor</div>
+      <p style="font-size:1.15rem;font-weight:800;margin:0 0 18px">${q.text}</p>
+      ${body}
+      <div class="flex gap-8" style="justify-content:center;margin-top:16px">
+        ${q.shortlist ? "" : `<button class="btn btn-ghost" onclick="guessAnswer(null)">🤔 Bilmiyorum</button>`}
+        <button class="btn btn-ghost" style="padding:7px 12px;font-size:.82rem" onclick="guessStart()">Yeniden Başlat</button>
+      </div>
+    </div>`;
+}
+
+function guessAnswer(idx){
+  const q = GG.current;
+  GG.asked.add(q.id);
+  // "Bilmiyorum" only retires the question; it must not eliminate anything.
+  if (idx !== null) GG.cand = GG.cand.filter(c => q.opts[idx].test(c));
+  guessStep();
+}
+
+function guessGuess(){
+  const pick = GG.cand.find(c => !GG.rejected.has(c.key)) || GG.cand[0];
+  if (!pick) { GG.cand = []; return guessStep(); }
+  GG.guessed = pick;
+  document.getElementById("guessBox").innerHTML = `
+    <div class="text-center">
+      <p class="muted" style="margin:0 0 4px">${GG.turn} soruda tek kart kaldı</p>
+      <p style="font-size:1.25rem;font-weight:900;margin:0 0 14px">Kartın <span style="color:var(--blue-600)">${cardName(pick)}</span> mı?</p>
+      <div style="width:132px;margin:0 auto 16px">${renderCard(pick.key)}</div>
+      <div class="flex gap-8 wrap" style="justify-content:center">
+        <button class="btn btn-primary" onclick="guessRight()">Evet, bildin! 🎉</button>
+        <button class="btn btn-ghost" onclick="guessWrong()">Hayır, yanlış</button>
+      </div>
+    </div>`;
+}
+
+function guessRight(){
+  document.getElementById("guessBox").innerHTML = `
+    <div class="text-center">
+      <p style="font-size:1.3rem;font-weight:900;margin:0 0 6px">🎉 ${GG.turn} soruda bildim!</p>
+      <div style="width:132px;margin:12px auto 18px">${renderCard(GG.guessed.key)}</div>
+      <button class="btn btn-primary" onclick="guessStart()">Tekrar Oyna</button>
+    </div>`;
+}
+
+/* A wrong guess is not the end: drop that card and keep narrowing what is
+   left, or start over. */
+function guessWrong(){
+  GG.rejected.add(GG.guessed.key);
+  GG.cand = GG.cand.filter(c => c.key !== GG.guessed.key);
+  const left = GG.cand.length;
+  document.getElementById("guessBox").innerHTML = `
+    <div class="text-center">
+      <p style="font-size:1.05rem;font-weight:800;margin:0 0 6px">Olamaz, ${cardName(GG.guessed)} değilmiş 😅</p>
+      <p class="muted" style="margin:0 0 18px">${left ? `Geriye ${left} kart kaldı. Devam edeyim mi?` : "Elemeye uyan başka kart kalmadı."}</p>
+      <div class="flex gap-8 wrap" style="justify-content:center">
+        ${left ? `<button class="btn btn-primary" onclick="guessStep()">Devam Et</button>` : ""}
+        <button class="btn btn-ghost" onclick="guessStart()">Yeniden Başlat</button>
+      </div>
+    </div>`;
 }
 
 /* boot */
 newGame();
-(async function(){ META_LIST = await HypnoAPI.meta(); buildWheel(); paintApiStatus(); if(location.hash==="#cark") document.getElementById("cark").scrollIntoView(); })();
+async function loadFun(){
+  /* Kartlar ÖNCE: deste adları ve kart görselleri Türkçe ad haritasına
+     (CARD_NAME_TR) bakıyor, meta önce gelirse harita henüz boş oluyordu. */
+  await HypnoAPI.cards();          // fills CARD_DB with the live card list
+  // meta() veri yoksa null döner; çark boş dizi ile "veri yok" uyarısına düşer.
+  META_LIST = (await HypnoAPI.meta()) || [];
+  buildWheel();
+  guessStart();
+  refreshGames();
+  paintApiStatus();
+  puanUyarisi();
+}
+
+/* Tokmakçılar tablosu açılış tarihinden önceyse oyunlar oynanıyor ama puan
+   YAZMIYOR (server/board.js). Oyun ekranı "12 puan!" derken tablonun kapalı
+   olduğunu söylememek kullanıcıyı yanıltır — uyarıyı sayfanın en üstüne
+   koyuyoruz. Tablo açıksa hiçbir şey çizilmiyor. */
+async function puanUyarisi(){
+  const el = document.getElementById("puanUyari");
+  if (!el) return;
+  const d = await fetch(API_BASE + "/board/weekly", { credentials: "same-origin" })
+    .then(r => r.ok ? r.json() : null).catch(() => null);
+  if (!d || d.acik !== false) { el.innerHTML = ""; return; }
+  const tr = LANG === "tr";
+  const a = new Date(d.acilis || d.week?.start);
+  const gun = a.toLocaleDateString(tr ? "tr-TR" : "en-GB", { day: "numeric", month: "long" });
+  el.innerHTML = notice(`<span>⏳</span><span>${tr
+    ? `<b>Tokmakçılar tablosu ${gun} tarihinde açılıyor.</b> O güne kadar oyunları
+       oynayabilirsin ama <b>kazandığın puanlar tabloya yazılmaz</b> — yarış herkes için
+       aynı anda başlasın diye.`
+    : `<b>The leaderboard opens on ${gun}.</b> You can play until then, but points are not
+       recorded yet so everyone starts together.`}</span>`, "warn");
+}
+function reloadFun(){ loadFun(); }
+
+(async function(){
+  await loadFun();
+  // #gunun gibi bir bağlantıyla gelindiyse doğrudan o oyunu aç.
+  const h = location.hash.replace("#", "");
+  if (h && GAMES.some(g => g.id === h)) openGame(h); else closeGame();
+})();
+/* Menüden aynı sayfadaki başka bir oyuna tıklanınca da geçiş olsun. */
+window.addEventListener("hashchange", () => {
+  const h = location.hash.replace("#", "");
+  if (h && GAMES.some(g => g.id === h)) openGame(h); else closeGame();
+});
+window.repaint = () => { renderSlots(); buildWheel(); guessStart(); paintPicker(); };
 </script>
 </body>
 </html>

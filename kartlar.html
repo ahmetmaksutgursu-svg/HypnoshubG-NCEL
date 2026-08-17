@@ -2,8 +2,10 @@
 <html lang="tr" data-theme="light">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kartlar — HYPNOSCOUT</title>
+<!-- viewport-fit=cover: bu olmadan env(safe-area-inset-*) HER ZAMAN 0 döner,
+     yani alt çubuğun iPhone çentik/ana-ekran çubuğu payı hiç uygulanmıyordu. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Kartlar — HYPNOSHUB</title>
 <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
@@ -11,24 +13,32 @@
 
 <section class="page-strip">
   <div class="container">
-    <p class="eyebrow" data-i18n="cards.sub">Tüm Clash Royale kartları — nadirlik ve iksir maliyetine göre</p>
+    <p class="eyebrow" data-i18n="cards.sub">Tüm Clash Royale kartları — enderlik ve iksir maliyetine göre</p>
     <h1 data-i18n="cards.title">KARTLAR</h1>
-    <p><span class="api-status" data-api-status><span class="led"></span>Demo veri</span></p>
+    <p><span class="api-status" data-api-status><span class="led"></span>Veri alınamadı</span></p>
   </div>
 </section>
 
 <section class="section">
   <div class="container">
     <div class="flex gap-8 wrap" id="filters" style="margin-bottom:14px">
-      <button class="btn btn-primary" data-r="all" onclick="filterCards('all',this)">Tümü</button>
-      <button class="btn btn-ghost" data-r="common" onclick="filterCards('common',this)">Sıradan</button>
-      <button class="btn btn-ghost" data-r="rare" onclick="filterCards('rare',this)">Nadir</button>
-      <button class="btn btn-ghost" data-r="epic" onclick="filterCards('epic',this)">Destansı</button>
-      <button class="btn btn-ghost" data-r="legendary" onclick="filterCards('legendary',this)">Efsanevi</button>
-      <button class="btn btn-ghost" data-r="champion" onclick="filterCards('champion',this)">Şampiyon</button>
+      <button class="btn btn-primary" data-r="all" onclick="filterCards('all',this)" data-i18n="word.all">Tümü</button>
+      <button class="btn btn-ghost" data-r="common" onclick="filterCards('common',this)" data-i18n="rarity.common">Sıradan</button>
+      <button class="btn btn-ghost" data-r="rare" onclick="filterCards('rare',this)" data-i18n="rarity.rare">Ender</button>
+      <button class="btn btn-ghost" data-r="epic" onclick="filterCards('epic',this)" data-i18n="rarity.epic">Destansı</button>
+      <button class="btn btn-ghost" data-r="legendary" onclick="filterCards('legendary',this)" data-i18n="rarity.legendary">Efsanevi</button>
+      <button class="btn btn-ghost" data-r="champion" onclick="filterCards('champion',this)" data-i18n="rarity.champion">Şampiyon</button>
+      <button class="btn btn-ghost" data-r="evo" onclick="filterCards('evo',this)" data-i18n="tag.evo">Evrim</button>
+      <button class="btn btn-ghost" data-r="hero" onclick="filterCards('hero',this)" data-i18n="cards.heroFilter">🦸 Kahramanlar</button>
     </div>
-    <p class="muted" style="font-size:.84rem;margin:0 0 16px">Bir karta tıkla → o kartın kullanıldığı güncel meta desteleri gör.</p>
-    <div class="card-grid" id="cardGrid" style="grid-template-columns:repeat(8,1fr)"></div>
+    <p class="muted" style="font-size:.84rem;margin:0 0 16px" id="gridHint" data-i18n="cards.hint">Bir karta tıkla → o kartın kullanıldığı güncel meta desteleri gör.</p>
+    <!-- Sütun sayısı CSS'te (.card-grid.tumu). Buradaki satır içi stilde
+         `repeat(8,1fr)` yazıyordu ve satır içi stil medya sorgularını
+         ezdiği için mobilde de sekiz sütun kalıyordu: 390 piksellik ekranda
+         kart 33 piksele düşüyor, 22 piksellik iksir rozeti kartın %66'sını
+         kaplıyor ve resim görünmüyordu. -->
+    <div class="card-grid tumu" id="cardGrid"></div>
+    <div id="heroView" style="display:none"></div>
     <p class="muted mt-16 text-center" style="font-size:.82rem" id="cardCount"></p>
   </div>
 </section>
@@ -38,15 +48,108 @@
 <script src="assets/js/app.js"></script>
 <script>
 mountChrome("kartlar.html");
+const TRC = () => LANG === "tr";
 let KEYS = [], META = [], RARITY = "all";
 
 function rarOf(k){ return (CARD_DB[k]?.rarity || "").toLowerCase(); }
 function elx(k){ return CARD_DB[k]?.elixir || 0; }
 
+/* Neither "evo" nor "hero" is a rarity:
+     evo  → every card that has an evolution, drawn with its evolution artwork
+     hero → the character renders (the unit itself, not the card frame),
+            champions first. See renderHeroes(). */
 function render(){
-  const list = KEYS.filter(k => RARITY==="all" || rarOf(k)===RARITY).sort((a,b)=> elx(a)-elx(b) || CARD_DB[a].name.localeCompare(CARD_DB[b].name));
-  document.getElementById("cardGrid").innerHTML = list.map(k => renderCard(k, { onClick:`showCardDecks('${k}')` })).join("");
-  document.getElementById("cardCount").textContent = `${list.length} kart`;
+  const isEvoView = RARITY === "evo";
+  const grid = document.getElementById("cardGrid");
+  const heroView = document.getElementById("heroView");
+  const hint = document.getElementById("gridHint");
+
+  if (RARITY === "hero"){
+    grid.style.display = "none";
+    heroView.style.display = "";
+    hint.textContent = t("cards.heroHint");
+    renderHeroes();
+    return;
+  }
+  grid.style.display = "";
+  heroView.style.display = "none";
+  hint.textContent = t("cards.hint");
+
+  const list = KEYS
+    .filter(k => RARITY==="all" || (isEvoView ? CARD_DB[k]?.canEvo : rarOf(k)===RARITY))
+    .sort((a,b)=> elx(a)-elx(b) || cardNameOf(a).localeCompare(cardNameOf(b)));
+  grid.innerHTML =
+    list.map(k => renderCard(k, { evo: isEvoView, onClick:`showCardDecks('${k}')` })).join("");
+  document.getElementById("cardCount").textContent = `${list.length} ${t("unit.card")}`;
+}
+
+/* Character renders come from the proxy (/api/heroes), which matches card
+   names against RoyaleAPI's art index. Cards with no render of their own fall
+   back to their card artwork rather than borrowing another unit's picture. */
+let HEROES = null;
+async function renderHeroes(){
+  const box = document.getElementById("heroView");
+  if (!HEROES){
+    box.innerHTML = spinnerBox("Karakter görselleri yükleniyor…");
+    HEROES = await HypnoAPI.heroes();
+    paintApiStatus();
+  }
+  if (!HEROES || (!HEROES.champions.length && !HEROES.heroes.length)){
+    box.innerHTML = notice(`<span>⚠️</span><span>Karakter görselleri alınamadı. Proxy çalışıyor mu? (<code>npm start</code>)</span>`);
+    document.getElementById("cardCount").textContent = "";
+    return;
+  }
+  /* Champions are NOT here — they are their own rarity and have the "Şampiyon"
+     filter. This section is the hero artwork of ordinary cards. */
+  /* Two ways a hero can be drawn.
+
+     If the real in-game portrait has been placed in assets/img/heroes/, it is
+     shown as-is: it already carries its own gold frame, its own gem and its own
+     name plate, so the site must not draw a second frame around it.
+
+     Otherwise we fall back to the character render inside a CSS-built gold
+     frame. Those portraits are not published anywhere (see the note in
+     assets/img/heroes/OKUBENI.md), so the fallback is what a missing file
+     looks like — not an error. */
+  const tile = (h) => {
+    const nm = cardNameOf("api_" + h.id) || h.name;
+    const open = `onclick="showCardDecks('api_${h.id}')" title="${t("tag.champ")} ${nm}"`;
+    if (h.portrait) return `
+      <button class="hero-tile hero-real" ${open}>
+        <span class="hero-shot"><img src="${h.portrait}" alt="${nm}" loading="lazy"
+              onerror="this.closest('.hero-tile').classList.add('broken')"></span>
+        <span class="hero-cost">${h.elixir ?? "—"} 💧</span>
+      </button>`;
+    return `
+      <button class="hero-tile hero-gold" ${open}>
+        <span class="hero-crown">◆</span>
+        <span class="hero-art${h.art ? " portrait" : ""}">
+          <img src="${h.art || h.cardArt}" alt="${nm}" loading="lazy"
+               onerror="this.onerror=null;this.parentElement.classList.remove('portrait');this.src='${h.cardArt}'">
+        </span>
+        <span class="hero-name">${nm}</span>
+        <span class="hero-cost">${h.elixir ?? "—"} 💧</span>
+      </button>`;
+  };
+
+  box.innerHTML = `<div class="hero-grid">${HEROES.heroes.map(tile).join("")}</div>`;
+  const c = HEROES.counts;
+  const missing = c.missingPortraits || [];
+  /* Say plainly how many real portraits are in place, and name the files that
+     are still missing — they cannot be downloaded, they have to be dropped in. */
+  document.getElementById("cardCount").innerHTML = TRC()
+    ? `Oyundaki ${c.heroes} kahraman, oyundaki sırayla. `
+      + (missing.length
+          ? `<b>${c.portraits}/${c.heroes}</b> gerçek kahraman fotoğrafı yerinde. `
+            + `Kalanlar için görselleri <code>assets/img/heroes/</code> klasörüne koyun `
+            + `(bu portreler hiçbir yerde yayınlanmadığı için indirilemiyor): <code>${missing.join("</code>, <code>")}</code>. `
+            + `Eksik olanlar şimdilik karakter görseliyle gösteriliyor.`
+          : `16/16 gerçek kahraman fotoğrafı yerinde.`)
+    : `${c.heroes} heroes, in the game's own order. `
+      + (missing.length
+          ? `<b>${c.portraits}/${c.heroes}</b> real portraits in place; drop the rest into `
+            + `<code>assets/img/heroes/</code>: <code>${missing.join("</code>, <code>")}</code>.`
+          : `All 16 real portraits in place.`);
 }
 function filterCards(r, btn){
   RARITY = r;
@@ -54,40 +157,82 @@ function filterCards(r, btn){
   btn.classList.remove("btn-ghost"); btn.classList.add("btn-primary");
   render();
 }
-function showCardDecks(key){
-  const c = CARD_DB[key];
-  const decks = decksUsingCard(key, META);
-  const body = decks.length
-    ? decks.slice(0,8).map(d=>{
-        const link = copyDeckLink(d.cards);
-        return `<div style="border-top:1px solid var(--border);padding:12px 0">
-          <div class="flex between center" style="margin-bottom:8px">
-            <b>${d.name}</b>
-            <span class="flex gap-8 center">${d.usage!=null?`<span class="badge">%${d.usage}</span>`:""}<span class="elixir-badge">💧 ${deckElixir(d.cards)}</span></span>
-          </div>
-          <div class="flex between center gap-8 wrap">
-            ${deckIcons(d.cards, d.evo||[])}
-            ${link?`<a class="btn btn-primary" style="padding:7px 12px" href="${link}">${ICONS.copy}<span>Kopyala</span></a>`:""}
-          </div>
-        </div>`;}).join("")
-    : `<p class="muted">Bu kartın kullanıldığı güncel meta destesi bulunamadı. Canlı API bağlıyken zirve oyuncuların desteleri taranır.</p>`;
-  openModal(`
+/* Decks that play this card. The top-16 meta list covers only the most popular
+   decks, so most cards matched nothing; this asks the proxy to search the whole
+   sample (300+ decks) instead. */
+async function showCardDecks(key){
+  /* The hero grid is fetched independently of the card list, so a click could
+     land before /api/cards had registered anything — CARD_DB[key] came back
+     undefined and the handler threw, which is why clicking a hero looked like
+     it did nothing. Wait for the card list, and if the card still is not
+     known, fall back to what the hero row already told us. */
+  if (!CARD_DB[key]){
+    openModal(spinnerBox(TRC() ? "Kart bilgisi yükleniyor…" : "Loading card…"));
+    await HypnoAPI.cards();
+  }
+  let c = CARD_DB[key];
+  if (!c && HEROES){
+    const h = HEROES.heroes.find((x) => "api_" + x.id === key);
+    if (h) c = { id: h.id, name: h.name, elixir: h.elixir, rarity: h.rarity, imgUrl: h.cardArt, heroImg: h.portrait };
+  }
+  if (!c){
+    openModal(notice(`<span>⚠️</span><span>${TRC() ? "Kart bilgisi alınamadı." : "Could not load this card."}</span>`));
+    return;
+  }
+  const head = `
     <button class="btn btn-ghost icon-btn modal-close" onclick="closeModal()">${ICONS.x}</button>
     <div class="flex center gap-12" style="margin-bottom:6px">
-      <span style="width:64px">${renderCard(key)}</span>
-      <div><h3 style="margin:0">${c.name}</h3><span class="muted">${c.elixir} iksir · ${c.rarity||"—"}</span></div>
+      <span style="width:64px">${RARITY === "hero" && c.heroImg
+        ? `<img src="${c.heroImg}" alt="" style="width:100%;border-radius:10px">`
+        : CARD_DB[key] ? renderCard(key) : `<img src="${c.imgUrl}" alt="" style="width:100%;border-radius:10px">`}</span>
+      <div><h3 style="margin:0">${cardName(c)}</h3><span class="muted">${c.elixir} ${t("unit.elixir")} · ${t("rarity."+(c.rarity||"")) || c.rarity || "—"}</span></div>
     </div>
-    <p class="eyebrow" style="margin-top:14px">BU KARTIN KULLANILDIĞI META DESTELERİ</p>
-    ${body}
-  `);
+    <p class="eyebrow" style="margin-top:14px">${t("cards.deckHead")}</p>`;
+  openModal(head + spinnerBox("Desteler aranıyor…"));
+
+  const r = await HypnoAPI.decksForCard(c.id);
+  const decks = (r && r.items || []).map(d => {
+    const keys = [], evo = [], champ = [];
+    const hero=[]; d.cards.forEach(x => { const k = registerApiCard(x); keys.push(k); if (x.evo) evo.push(k); if (x.hero) hero.push(k); if (x.champion) champ.push(k); });
+    return { ...d, keys, evo, champ, hero, name: nameDeck(keys) };
+  });
+
+  const body = decks.length
+    ? decks.map(d=>{
+        const link = copyDeckLink(d.keys);
+        return `<div style="border-top:1px solid var(--border);padding:12px 0">
+          <div class="flex between center wrap gap-8" style="margin-bottom:8px">
+            <b>${d.name}</b>
+            <span class="flex gap-8 center">
+              ${d.winrate!=null?`<span class="badge wr-badge ${d.winrate>=55?"good":d.winrate<45?"bad":""}">%${d.winrate} galibiyet</span>`:""}
+              <span class="badge">%${d.usage} kullanım</span>
+              <span class="muted" style="font-size:.76rem">${nfTR(d.battles)} maç</span>
+              <span class="elixir-badge">💧 ${deckElixir(d.keys)}</span>
+            </span>
+          </div>
+          <div class="flex between center gap-8 wrap">
+            ${deckIcons(d.keys, d.evo, "", d.hero||[])}
+            ${link?`<a class="btn btn-primary" style="padding:7px 12px" href="${link}">${ICONS.copy}<span>Kopyala</span></a>`:""}
+          </div>
+        </div>`;}).join("") +
+      `<p class="muted" style="font-size:.76rem;margin-top:10px">
+         Sezon ${r.season} · ${nfTR(r.searched)} destenin ${nfTR(r.total)} tanesinde bu kart var.</p>`
+    : `<p class="muted">Bu sezonun sıralı maç kayıtlarında bu kartı oynayan deste bulunamadı${r&&r.searched?` (${nfTR(r.searched)} deste tarandı)`:""}.</p>`;
+
+  openModal(head + body);
 }
 (async function(){
-  META = await HypnoAPI.meta();
-  KEYS = await HypnoAPI.cards();
-  paintApiStatus();
+  KEYS = await HypnoAPI.cards();      // fast: needed before anything is clickable
   render();
+  META = await HypnoAPI.meta();       // slow: rebuilt from battle logs
+  paintApiStatus();
+  // ?view=hero (or any filter name) deep-links straight to that section.
+  const want = new URLSearchParams(location.search).get("view");
+  const btn = want && document.querySelector(`#filters .btn[data-r="${want}"]`);
+  if (btn) filterCards(want, btn); else render();
 })();
 window.onLangChange = paintApiStatus;
+window.repaint = () => { HEROES = null; render(); };
 </script>
 </body>
 </html>

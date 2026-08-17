@@ -1,12 +1,13 @@
 {
-  "name": "hypnoscout-proxy",
+  "name": "hypnoshub-proxy",
   "version": "1.0.0",
-  "description": "Clash Royale API proxy for the HYPNOSCOUT frontend",
+  "description": "Clash Royale API proxy for the HYPNOSHUB frontend",
   "main": "server.js",
   "type": "commonjs",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js"
+    "_comment": "Ad indeksi milyonlarca satir tutuyor (192k klan kadrosu ~5-6M oyuncu); varsayilan yigin yetmez.",
+    "start": "node --max-old-space-size=6144 server.js",
+    "dev": "node --max-old-space-size=6144 --watch server.js"
   },
   "engines": { "node": ">=18" },
   "dependencies": {

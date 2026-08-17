@@ -2,8 +2,10 @@
 <html lang="tr" data-theme="light">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Global Sıralamalar — HYPNOSCOUT</title>
+<!-- viewport-fit=cover: bu olmadan env(safe-area-inset-*) HER ZAMAN 0 döner,
+     yani alt çubuğun iPhone çentik/ana-ekran çubuğu payı hiç uygulanmıyordu. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Global Sıralamalar — HYPNOSHUB</title>
 <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
@@ -11,9 +13,11 @@
 
 <section class="page-strip">
   <div class="container">
-    <p class="eyebrow" data-i18n="ranks.sub">Aktif sezon — en iyi 100 oyuncu</p>
-    <h1 data-i18n="ranks.title">GLOBAL SIRALAMALAR</h1>
-    <p><span class="api-status" data-api-status style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2);color:#eaf0fb"><span class="led"></span>Demo veri</span></p>
+    <!-- Başlık sekmeye göre değişiyor (bkz. paintHead). data-i18n YOK:
+         dil değişince i18n bu iki satırı geri yazıp sekmeyi eziyordu. -->
+    <p class="eyebrow" id="rankEyebrow">Aktif sezon — en iyi 100 oyuncu</p>
+    <h1 id="rankTitle">GLOBAL SIRALAMALAR</h1>
+    <p><span class="api-status" data-api-status style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2);color:#eaf0fb"><span class="led"></span>Veri alınamadı</span></p>
   </div>
 </section>
 
@@ -21,7 +25,8 @@
   <div class="container">
     <div class="flex between center wrap gap-12" style="margin-bottom:6px">
       <div class="tabs" id="rankTabs">
-        <button class="active" data-mode="pol">🏆 Nihai Kademe</button>
+        <button class="active" data-mode="pol" onclick="setMode('pol',this)">🏆 Nihai Kademe</button>
+        <button data-mode="tr" onclick="setMode('tr',this)">🇹🇷 Türkiye</button>
       </div>
       <div class="search-box" style="border-radius:12px;max-width:420px;flex:1">
         <input id="lbSearch" type="text" placeholder="Oyuncu veya klan ara..." style="flex:1;min-width:0" oninput="filterRanks()">
@@ -36,13 +41,25 @@
           <th data-i18n="col.player">OYUNCU</th>
           <th id="thPts"><span data-i18n="col.points">PUAN</span></th>
           <th data-i18n="col.clan">KLAN</th>
-          <th data-i18n="ranks.deck">AKTİF DESTE</th>
+          <th data-i18n="ranks.deck">SON MAÇTAKİ DESTE</th>
         </tr></thead>
         <tbody id="rankBody"></tbody>
       </table>
     </div>
     <div class="pager" id="pager"></div>
     <p class="muted mt-8 text-center" style="font-size:.82rem" id="rankCount"></p>
+
+    <!-- PRO BAŞVURUSU — oyuncular buradan etiketini bırakır -->
+    <div class="card pro-apply" id="proApply" style="margin-top:26px">
+      <div class="card-head"><span class="dot">🏅</span><h3>PRO Başvurusu</h3></div>
+      <p class="muted" style="font-size:.86rem;margin:0 0 14px">
+        İyi bir oyuncu ya da yayıncıysan <b>#etiketini</b> bırak; inceleyip uygun görürsek
+        adının yanında <span class="protag">PRO</span> rozeti çıkar.
+        <b>3000 madalyon</b> ve üzerini gören herkes zaten otomatik olarak PRO olur —
+        başvurmana gerek kalmaz.
+      </p>
+      <div id="proApplyBody"></div>
+    </div>
   </div>
 </section>
 
@@ -53,19 +70,61 @@
 mountChrome("siralamalar.html");
 document.getElementById("lbSearchBtn").innerHTML = ICONS.search;
 
-const MODE = "pol";
-let CACHE = { pol:null };
+/* Türkiye'nin konum kimliği (/api/locations → "Turkey", TR).
+   Yerel tablo Nihai Kademe'den geliyor: Kupa Yolu'nun ülke listesi
+   (/locations/{id}/rankings/players) bu sezon boş dönüyor — ölçüldü. */
+const TR_LOC = 57000239;
+
+let MODE = "pol";
+let CACHE = { pol:null, tr:null };
 const PER_PAGE = 20;
 let PAGE = 1;
 
+const BASLIK = {
+  pol: { tr:["Aktif sezon — en iyi 100 oyuncu","GLOBAL SIRALAMALAR"],
+         en:["Current season — top 100 players","GLOBAL RANKINGS"] },
+  tr:  { tr:["Aktif sezon — Türkiye'nin en iyi 100 oyuncusu","TÜRKİYE SIRALAMASI"],
+         en:["Current season — Turkey's top 100 players","TURKEY RANKINGS"] },
+};
+function paintHead(){
+  const [ey, ti] = BASLIK[MODE][LANG === "tr" ? "tr" : "en"];
+  document.getElementById("rankEyebrow").textContent = ey;
+  document.getElementById("rankTitle").textContent = ti;
+}
+
+async function setMode(mode, btn){
+  MODE = mode; PAGE = 1;
+  document.querySelectorAll("#rankTabs button").forEach(b => b.classList.toggle("active", b === btn));
+  paintHead();
+  document.getElementById("lbSearch").value = "";
+  // Her sekme kendi verisini bir kez çekip saklıyor; geri dönüş bedava.
+  if (CACHE[mode]) paintPage(); else await loadRanks();
+}
+
+/* The deck column shows what the player actually played last, so the tooltip
+   says when — and flags the rare case where their most recent game was not a
+   ranked one. */
+function deckTip(r){
+  const when = r.deckAt ? relativeTime(crTime(r.deckAt)) : "";
+  const base = LANG==="tr" ? "Son maçta kullandığı deste" : "Deck used in their last battle";
+  const mode = r.deckRanked ? "" : (LANG==="tr" ? " (sıralı değil)" : " (unranked)");
+  return base + mode + (when ? " · " + when : "");
+}
+
 function rowHtml(r){
   const medal = r.rank<=3 ? `<span class="rank-badge g${r.rank}">${r.rank}</span>` : `<span class="rank">${r.rank}</span>`;
-  const deck = r.deck && r.deck.length ? deckIcons(r.deck, r.evo||[]) : `<span class="muted" style="font-size:.78rem">—</span>`;
+  /* Desteyi oyunda açan düğme — ortak yardımcı (app.js/deckCopyBtn).
+     Aynı düğme son maçlar ve profil savaş geçmişinde de var. */
+  const kopya = deckCopyBtn(r.deck);
+  const deck = r.deck && r.deck.length
+    ? `<span class="deck-cell" title="${deckTip(r)}">${deckIcons(r.deck, r.evo||[], "", r.hero||[])}</span>${kopya}`
+    : `<span class="muted" style="font-size:.78rem">${LANG==="tr"?"Maç kaydı yok":"No battle record"}</span>`;
   return `<tr>
     <td>${medal}</td>
-    <td><a class="player-link" href="oyuncu.html?tag=${encodeURIComponent(r.tag)}">${r.name}</a> <span class="tag">${r.tag}</span></td>
-    <td class="trophy">${(r.trophies||0).toLocaleString("tr-TR")}</td>
-    <td>${clanChip(r.clan)}</td>
+    <td><a class="player-link" href="oyuncu.html?tag=${encodeURIComponent(r.tag)}">${esc(r.name)}</a>${verifyTick(r)} <span class="tag">${esc(r.tag)}</span>
+        ${r.level?`<div class="muted" style="font-size:.72rem">Sv. ${r.level}</div>`:""}</td>
+    <td class="medals">${polScore(r.trophies, 17)}</td>
+    <td>${clanChip(r.clan, r.clanBadge, r.clanTag)}</td>
     <td>${deck}</td>
   </tr>`;
 }
@@ -75,6 +134,15 @@ function filteredRows(){
   return !q ? base : base.filter(r => r.name.toLowerCase().includes(q) || (r.tag||"").toLowerCase().includes(q) || (r.clan||"").toLowerCase().includes(q));
 }
 function paintPage(){
+  /* Veri hiç gelmediyse (proxy kapalı / API hata verdi) tabloyu boş
+     bırakmak yerine sebebi yazıyoruz. Örnek satır basmıyoruz: sıralama
+     uydurma olursa kullanıcı gerçek sanır. */
+  if (!CACHE[MODE]){
+    document.getElementById("rankBody").innerHTML = apiDownRow(5, "reloadRanks");
+    document.getElementById("pager").innerHTML = "";
+    document.getElementById("rankCount").textContent = "";
+    return;
+  }
   const rows = filteredRows();
   const pages = Math.max(1, Math.ceil(rows.length / PER_PAGE));
   if (PAGE > pages) PAGE = pages;
@@ -107,15 +175,96 @@ function renderPager(pages){
 function gotoPage(p){ PAGE = p; paintPage(); document.querySelector(".table-wrap").scrollIntoView({behavior:"smooth", block:"start"}); }
 function filterRanks(){ PAGE = 1; paintPage(); }
 
-(async function(){
-  const params = new URLSearchParams(location.search);
-  CACHE.pol = await HypnoAPI.pol();
-  const pg = parseInt(params.get("page"));
-  if (pg) PAGE = pg;
+async function loadRanks(){
+  const bekle = MODE === "tr"
+    ? (LANG==="tr" ? "Türkiye sıralaması yükleniyor…" : "Loading Turkey rankings…")
+    : (LANG==="tr" ? "Sıralama yükleniyor…" : "Loading rankings…");
+  document.getElementById("rankBody").innerHTML = `<tr><td colspan="5">${spinnerBox(bekle)}</td></tr>`;
+  CACHE[MODE] = await HypnoAPI.pol(MODE === "tr" ? TR_LOC : null);
   paintApiStatus();
   paintPage();
+}
+function reloadRanks(){ CACHE[MODE] = null; loadRanks(); }
+
+/* ---------- PRO başvurusu ----------
+   Kararı yönetici veriyor; buradaki iş yalnızca etiketi iletmek ve
+   başvurunun durumunu göstermek. Sunucu etiketin gerçekten var
+   olduğunu da doğruluyor, o yüzden burada tekrar kontrol etmiyoruz. */
+const PRO_DURUM = { bekliyor: ["⏳", "İnceleniyor"], kabul: ["✅", "Kabul edildi"], red: ["❌", "Reddedildi"] };
+
+async function proApi(path, body){
+  const r = await fetch(API_BASE + "/pro" + path, {
+    method: body ? "POST" : "GET", credentials: "same-origin",
+    headers: body ? { "Content-Type": "application/json" } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  return { ok: r.ok, status: r.status, ...(await r.json().catch(() => ({}))) };
+}
+
+async function proApplyInit(){
+  const box = document.getElementById("proApplyBody");
+  if (!box) return;
+  if (!ME){
+    box.innerHTML = `<div class="flex gap-8 wrap">
+      <button class="btn btn-primary" onclick="openAuth('login')">Giriş Yap</button>
+      <button class="btn btn-ghost" onclick="openAuth('register')">Kayıt Ol</button>
+      <span class="muted" style="align-self:center;font-size:.84rem">Başvuru için hesabın olmalı.</span></div>`;
+    return;
+  }
+  const r = await proApi("/mine");
+  const son = r.items && r.items[0];
+  if (son && son.status === "bekliyor"){
+    box.innerHTML = notice(`<span>⏳</span><span><b>${esc(son.tag)}</b> için başvurun alındı, inceleniyor.</span>`);
+    return;
+  }
+  const gecmis = son
+    ? `<p class="muted" style="font-size:.8rem;margin:10px 0 0">Son başvurun: <b>${esc(son.tag)}</b> — ${PRO_DURUM[son.status]?.[0] || ""} ${PRO_DURUM[son.status]?.[1] || son.status}</p>`
+    : "";
+  box.innerHTML = `
+    <div class="pro-form">
+      <input id="paTag" placeholder="#ETİKETİN" maxlength="16" autocomplete="off">
+      <select id="paKind">
+        <option value="pro">PRO (iyi oyuncu)</option>
+        <option value="yayinci">Yayıncı</option>
+      </select>
+      <input id="paNote" placeholder="Kısa not — kanal linki, takım, derece… (isteğe bağlı)" maxlength="300">
+      <button class="btn btn-primary" onclick="proApplySend(this)">Başvur</button>
+    </div>
+    <div id="paMsg"></div>${gecmis}`;
+}
+
+async function proApplySend(btn){
+  const msg = document.getElementById("paMsg");
+  btn.disabled = true;
+  const r = await proApi("/apply", {
+    tag: document.getElementById("paTag").value,
+    kind: document.getElementById("paKind").value,
+    note: document.getElementById("paNote").value,
+  });
+  btn.disabled = false;
+  if (!r.ok){ msg.innerHTML = notice(`<span>⚠️</span><span>${esc(r.message || "Başvuru gönderilemedi.")}</span>`, "warn"); return; }
+  document.getElementById("proApplyBody").innerHTML =
+    notice(`<span>✅</span><span>Başvurun alındı — <b>${esc(r.app.playerName || r.app.tag)}</b>. İncelendikten sonra sonuç burada görünecek.</span>`);
+}
+window.onAuthChange = proApplyInit;
+
+(async function(){
+  const params = new URLSearchParams(location.search);
+  // ?mode=tr ile doğrudan Türkiye sekmesine bağlanılabilsin.
+  const m = params.get("mode") === "tr" ? "tr" : "pol";
+  if (m !== "pol"){
+    MODE = m;
+    document.querySelectorAll("#rankTabs button").forEach(b =>
+      b.classList.toggle("active", b.dataset.mode === m));
+  }
+  const pg = parseInt(params.get("page"));
+  if (pg) PAGE = pg;
+  paintHead();
+  await loadRanks();
+  proApplyInit();
 })();
-window.onLangChange = () => { paintApiStatus(); paintPage(); };
+window.onLangChange = () => { paintApiStatus(); paintHead(); paintPage(); };
+window.repaint = () => paintPage();
 </script>
 </body>
 </html>

@@ -2,8 +2,10 @@
 <html lang="tr" data-theme="light">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Oyuncu Profili — HYPNOSCOUT</title>
+<!-- viewport-fit=cover: bu olmadan env(safe-area-inset-*) HER ZAMAN 0 döner,
+     yani alt çubuğun iPhone çentik/ana-ekran çubuğu payı hiç uygulanmıyordu. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Oyuncu Profili — HYPNOSHUB</title>
 <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
@@ -11,12 +13,14 @@
 
 <section class="section">
   <div class="container">
-    <div class="search-box" style="border-radius:12px;max-width:520px;margin-bottom:20px">
-      <input id="pTag" type="text" placeholder="#298Q8YVGG" style="flex:1;min-width:0" onkeydown="if(event.key==='Enter')loadPlayer(this.value)">
-      <button class="search-go" onclick="loadPlayer(document.getElementById('pTag').value)"></button>
+    <div class="search-box" style="border-radius:12px;max-width:520px;margin-bottom:8px">
+      <input id="pTag" type="text" placeholder="Oyuncu adı veya etiketi (#298Q8YVGG)" style="flex:1;min-width:0" onkeydown="if(event.key==='Enter')runSearch(this.value)">
+      <button class="search-go" onclick="runSearch(document.getElementById('pTag').value)"></button>
     </div>
-    <div id="searchNote" style="display:none;max-width:640px;margin-bottom:16px"></div>
+    <p class="muted" style="font-size:.8rem;margin:0 0 6px">Etiket girerseniz doğrudan profile gidilir; isim girerseniz eşleşen oyuncular listelenir.</p>
+    <p class="search-tip" style="margin:0 0 18px">İsimle bulamadın mı? Oyun içindeki <b>#etiketini</b> yapıştır — kesin sonuç verir.</p>
 
+    <div id="results" style="margin-bottom:20px"></div>
     <div id="profile"></div>
   </div>
 </section>
@@ -26,50 +30,184 @@
 <script src="assets/js/app.js"></script>
 <script>
 mountChrome("");
-document.querySelector(".search-go[onclick^='loadPlayer']").innerHTML = ICONS.search;
-
-function bigGraph(vals){
-  const w=720,h=200,padX=32,padY=22;
-  const min=Math.min(...vals),max=Math.max(...vals),rng=(max-min)||1;
-  const pts=vals.map((v,i)=>[padX+i*(w-2*padX)/(vals.length-1), h-padY-((v-min)/rng)*(h-2*padY)]);
-  const d=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");
-  const area=`M${pts[0][0]} ${h-padY} `+pts.map(p=>"L"+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ")+` L${pts[pts.length-1][0]} ${h-padY} Z`;
-  return `<svg class="trophy-graph" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
-    <defs><linearGradient id="tg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2b807" stop-opacity=".35"/><stop offset="1" stop-color="#f2b807" stop-opacity="0"/></linearGradient></defs>
-    <path d="${area}" fill="url(#tg)"/>
-    <path d="${d}" fill="none" stroke="#f2b807" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
-    ${pts.map((p,i)=>{
-      const anchor = i===0 ? "start" : i===pts.length-1 ? "end" : "middle";
-      return `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.5" fill="#1e5ae0"/>
-      <text x="${p[0].toFixed(1)}" y="${(p[1]-9).toFixed(1)}" font-size="11" font-weight="700" fill="currentColor" text-anchor="${anchor}">${vals[i].toLocaleString("tr-TR")}</text>`;}).join("")}
-  </svg>`;
-}
+document.querySelector(".search-go[onclick^='runSearch']").innerHTML = ICONS.search;
+// The page's own box gets the same type-ahead as the header one.
+attachSuggest(document.getElementById("pTag"), () => "player");
 
 function nf(v){ return (v||0).toLocaleString("tr-TR"); }
-// map demo battle short deck keys → a full 8-card deck for display
-const DECK_BY_KEY = { hog:"HOG 2.6", golem:"GOLEM BEATDOWN", logbait:"LOG BAIT", pekka:"PEKKA BRIDGE SPAM", miner:"MINER POISON" };
-function fullDeck(key){
-  const name = DECK_BY_KEY[key];
-  const d = META_POOL.find(x=>x.name===name) || META_POOL[0];
-  return d.cards;
+
+/* ============================================================
+   GÜNCEL DESTENİN EVRİM / KAHRAMAN YUVALARI
+   ------------------------------------------------------------
+   Profil bunu söylemiyor: /players/{tag} içindeki `evolutionLevel`
+   "bu kartın evrimi AÇIK" demek, "bu kart yuvada" demek değil. Ölçtük —
+   üst seviye bir hesapta 122 kartın 54'ü işaretli ve tek bir destenin
+   4 kartı birden işaretli olabiliyor. Bu yüzden ekranda ÜÇ evrim
+   görünüyordu; oyunda öyle bir deste kurulamaz.
+
+   Savaş günlüğü ise kesin: orada yalnızca gerçekten yuvaya konan
+   kartlar işaretli. Aynı sekiz kartın oynandığı bir maç bulursak
+   yuvaları oradan alıyoruz — tahmin yok. Bulamazsak normalizePlayer'ın
+   tahminine düşüyoruz ve bunu ekranda da söylüyoruz.
+   ============================================================ */
+function desteYuvalari(p, savaslar){
+  const anahtar = [...(p.cards || [])].sort().join("|");
+  for (const b of savaslar || []){
+    if (!b.myDeck || b.myDeck.length !== (p.cards || []).length) continue;
+    if ([...b.myDeck].sort().join("|") !== anahtar) continue;
+    return { evo: b.myEvo || [], hero: b.myHero || [], kesin: true, ago: b.ago || "" };
+  }
+  return { evo: p.evo || [], hero: p.hero || [], kesin: false, ago: "" };
 }
 
-function paintPlayer(p){
+/* ============================================================
+   LİG GEÇMİŞİ
+   ------------------------------------------------------------
+   Buradaki kart eskiden "Kupa Geçmişi" idi ve hiçbir zaman dolmuyordu:
+   API kupa geçmişi diye bir seri vermiyor, o yüzden kutu hep "canlı API
+   verisi ile dolar" yazıp boş duruyordu. Elimizde GERÇEKTEN olan üç kayıt
+   var — bu sezon, geçen sezon ve en iyi sezon — ve üçü de Nihai Kademe
+   ligini söylüyor. Grafik onları ölçüyor.
+
+   Çubuğun boyu LİG numarasına göre; madalyon varsa yazıyla ekleniyor.
+   Tek ölçek kullanmak şart: madalyonla lig numarasını aynı çubukta
+   karıştırmak yanıltıcı olurdu, çünkü alt liglerde madalyon hiç tutulmuyor.
+   ============================================================ */
+function ligGecmisi(p){
+  const satirlar = [
+    /* `gecmis` yalnızca "En iyi"de: o kayıt yıllar öncesinden, kapanmış on
+       ligli ölçekten kalmış olabilir. Bu sezon ve geçen sezon her zaman
+       bugünkü ölçekte. */
+    { ad: LANG==="tr" ? "Bu sezon"    : "This season", s: p.polSimdi },
+    { ad: LANG==="tr" ? "Geçen sezon" : "Last season", s: p.polGecen },
+    { ad: LANG==="tr" ? "En iyi"      : "Best",        s: p.polEnIyi, vurgu: true, gecmis: true },
+  ].filter(r => r.s && r.s.leagueNumber);
+
+  if (!satirlar.length)
+    return notice(`<span>🏅</span><span><b>${esc(p.name)}</b> ${LANG==="tr"
+      ? "Ligler'de (Nihai Kademe) hiç savaşmamış — gösterilecek bir lig geçmişi yok."
+      : "has never fought in the Leagues (Path of Legends) — there is no league history to show."}</span>`, "warn");
+
+  /* Çubuklar ne ölçüyor? TEK ölçek, iki katmanlı.
+
+     Eski hâli "hepsinde madalyon varsa madalyonu, yoksa ligi" ölçüyordu ve
+     karışık durumda yanlış görünüyordu: bir sezonu 6. ligde, ikisini 7. ligde
+     (1.865 ve 2.468 madalyonla) bitiren oyuncuda ortak ölçek LİG'e düşüyor,
+     iki nihai sezon da 7/7 olduğu için çubukları AYNI boyda çiziliyordu —
+     yani 600 madalyonluk fark ekranda hiç görünmüyordu.
+
+     Şimdi tek bir eksen var:
+       · Çubuğun ilk yarısı (0-%50) ulaşılan LİG. 7 ligin kaçına çıkıldıysa.
+       · İkinci yarısı (%50-100) NİHAİ ligde toplanan MADALYON; en çok
+         madalyonlu sezon çubuğu tam doldurur.
+     Böylece üst lig her zaman alt ligden uzun, madalyon çoksa çubuk da uzun.
+     Hiç madalyon yoksa ikinci katman kullanılmaz ve çubuk baştan sona ligi
+     ölçer, yoksa bütün çubuklar yarım kalırdı.
+
+     "En iyi" kaydı eski on ligli ölçekten 8/9/10 diyebiliyor; `ligBugun`
+     bunu bugünkü 5/6/7'ye çeviriyor (ölçülmüş eşleme, bkz. app.js) ve
+     adının yanına "eski ölçek" notu düşülüyor. */
+  const enCok = Math.max(...satirlar.map(r => r.s.trophies || 0), 0);
+  const madalyonVar = enCok > 0;
+  const LIG_PAYI = madalyonVar ? 50 : 100;     // ligin çubuktaki payı (%)
+  const tr = LANG === "tr";
+  const cubuk = satirlar.map(r => {
+    const c = ligCoz(r.s, !!r.gecmis);         // dönem çözümlemesi — bkz. app.js/ligCoz
+    const lig = Math.min(c.lig, UST_LIG);      // bugünkü 1-7 ölçeğinde
+    const yuzde = Math.max(8, Math.round(
+      r.s.trophies > 0
+        ? LIG_PAYI + (100 - LIG_PAYI) * (r.s.trophies / enCok)
+        : lig / UST_LIG * LIG_PAYI));
+    const eski = c.eski
+      ? ` <span class="lg-old" title="${tr?"Sezon o zaman on ligden oluşuyordu":"The season had ten leagues back then"}">${tr?"eski ölçek":"old scale"}</span>` : "";
+    /* Dönemi okunamayan kayıt. Uydurmuyoruz: bugünkü okumayı yazıp yanına
+       soru işareti koyuyoruz, ipucunda iki okumayı da veriyoruz. */
+    const supheli = !c.kesin && c.altLig !== c.lig
+      ? ` <span class="lg-quest" title="${tr
+          ? `Bu kayıtta sezonun tarihi yok. Bugünkü ölçekte ${ligAdiN(c.lig)}, kapanmış on ligli ölçekte ${ligAdiN(c.altLig)} demek — API ikisini ayırt etmemizi sağlamıyor.`
+          : `This record carries no season date. On today's scale it is ${ligAdiN(c.lig)}; on the retired ten-league scale it is ${ligAdiN(c.altLig)}. The API cannot tell them apart.`}">?</span>` : "";
+    const mad = r.s.trophies
+      ? `${nf(r.s.trophies)} ${tr?"madalyon":"medals"}${r.s.rank?` · #${nf(r.s.rank)}`:""}`
+      : `<span class="muted">${tr?"madalyon aşamasına gelmemiş":"below the medal league"}</span>`;
+    return `<div class="lg-row${r.vurgu?" best":""}">
+      <div class="lg-lbl">${r.ad}</div>
+      <div class="lg-track"><div class="lg-fill" style="width:${yuzde}%"></div>
+        <img class="lg-ic" src="${ligGorselN(lig)}" alt="" width="26" height="26" loading="lazy"></div>
+      <div class="lg-val"><b>${ligAdiN(lig)}${eski}${supheli}</b><span>${mad}</span></div>
+    </div>`;
+  }).join("");
+
+  /* Basamak şeridi: oyuncunun bu sezon yedi ligin kaçıncısında olduğunu
+     tek bakışta gösteriyor. Sadece bu sezon bir lig varsa çiziliyor. */
+  const simdi = ligBugun(p.polSimdi?.leagueNumber || 0);
+  const serit = simdi ? `<div class="lg-strip">
+      ${Array.from({length: UST_LIG}, (_, i) => {
+        const k = i + 1, buLig = k === Math.min(simdi, UST_LIG);
+        return `<span class="lg-step${k <= Math.min(simdi, UST_LIG) ? " on" : ""}${buLig ? " now" : ""}"
+                  title="${esc(ligAdi(k))}${buLig ? (LANG==="tr" ? " — bu sezonki ligi" : " — league this season") : ""}">${k}</span>`;
+      }).join("")}
+    </div>` : "";
+
+  const altYazi = LANG === "tr"
+    ? (madalyonVar
+        ? "Çubuğun ilk yarısı ulaşılan ligi, ikinci yarısı Nihai Şampiyon'da toplanan madalyonu ölçüyor — en çok madalyonlu sezon tam dolu."
+        : "Çubuklar ulaşılan ligi ölçüyor — o sezonlarda madalyon tutulmamış.")
+    : (madalyonVar
+        ? "The first half of each bar is the league reached, the second half the medals earned in the top league — the best season fills it."
+        : "Bars measure the league reached — medals were not tracked in those seasons.");
+
+  return serit + `<div class="lg-bars">${cubuk}</div>
+    <p class="lg-note">${altYazi}</p>`;
+}
+
+function paintPlayer(p, savaslar){
+  const YUVA = desteYuvalari(p, savaslar);
   const total = (p.wins||0)+(p.losses||0);
   const wr = total ? ((p.wins/total)*100).toFixed(1) : "—";
-  const collection = (p.collection && p.collection.length) ? p.collection : p.cards;
+  // Levels travel alongside the list they belong to, so the two never desync.
+  const hasCollection = p.collection && p.collection.length;
+  const collection = hasCollection ? p.collection : p.cards;
+  const colLevels  = hasCollection ? (p.colLevels || []) : (p.levels || []);
+  const colMaxed   = hasCollection ? (p.colMaxed  || []) : (p.maxed  || []);
+  /* Başlıktaki rozet: taç emojisi yerine oyuncunun BULUNDUĞU LİG.
+     Ligi yoksa (hiç sıralamalı oynamamış) taç kalıyor. */
+  const lig = p.polLeague || 0;
+  const avatar = lig
+    ? `<div class="avatar lig" title="${esc(ligAdi(lig))}"><img src="${ligGorsel(lig)}" alt="${esc(ligAdi(lig))}"
+         onerror="this.parentElement.classList.remove('lig');this.parentElement.textContent='👑'"></div>`
+    : `<div class="avatar" title="${LANG==="tr"?"Nihai Kademe'de hiç oynamamış":"Never played ranked"}">👑</div>`;
+
+  /* Sayaçlar. Madalyonu olmayan bir oyuncuya madalyon yazmıyoruz — eskiden
+     madalyon 0 olunca Kupa Yolu sayısı "Nihai Kademe" etiketiyle basılıyor
+     ve oyuncu sıralamanın tepesindeymiş gibi görünüyordu. */
+  const sayaclar = p.polRating
+    ? `<div><b>${nf(p.polRating)}</b><span data-i18n="profile.pol">Nihai Kademe</span></div>
+       <div><b>${p.polRank?("#"+nf(p.polRank)):"—"}</b><span data-i18n="profile.polrank">Dünya Sırası</span></div>
+       <div><b>${nf(p.trophies)}</b><span data-i18n="profile.tr">Kupa Yolu</span></div>`
+    : `<div><b class="sm">${lig ? esc(ligAdi(lig)) : "—"}</b><span data-i18n="profile.league">Lig</span></div>
+       <div><b>${nf(p.trophies)}</b><span data-i18n="profile.tr">Kupa Yolu</span></div>
+       <div><b>${nf(p.bestTrophies||p.trophies)}</b><span data-i18n="profile.best">En İyi (Kupa Yolu)</span></div>`;
+
   document.getElementById("profile").innerHTML = `
     <div class="profile-hero">
-      <div class="avatar">👑</div>
-      <div>
-        <h1>${p.name}</h1>
-        <div class="tag">${p.tag} · ${p.arena||"Efsanevi Arena"} · Sv. ${p.level||"—"} · ${p.clanRole||""} @ ${clanChip(p.clan)}</div>
+      ${avatar}
+      <div class="ph-body">
+        <h1>${esc(p.name)}${verifyTick({ verified: p.verified, note: p.verifiedNote, pro: p.pro, proRank: p.proRank })} ${favButton(p)}</h1>
+        ${/* Bu satır artık esnek bir sıra: klan arması metin satırının
+              üstüne çıkıp hizadan kaçıyordu, şimdi hepsi ortadan hizalı. */""}
+        <div class="tag">
+          <span>${p.tag}</span><i>·</i>
+          <span>${esc(p.arena||"—")}</span><i>·</i>
+          <span>Sv. ${p.level||"—"}</span>
+          ${p.clan && p.clan !== "—" ? `<i>·</i><span>${esc(p.clanRole||"")} @</span>${clanChip(p.clan, p.clanBadge, p.clanTag)}` : ""}
+        </div>
+        ${/* Savaş geçmişi sayfanın en altındaydı; koleksiyonun altına inmek
+              gerekiyordu. Bu düğme oraya tek tıkla götürüyor. */""}
+        <div class="hero-acts">
+          <button class="btn btn-ghost" onclick="jumpBattles()">⚔️ <span data-i18n="profile.battles">Son Savaşlar</span></button>
+        </div>
       </div>
-      <div class="p-stats">
-        <div><b>${nf(p.polRating||p.trophies)}</b><span data-i18n="profile.pol">Nihai Kademe</span></div>
-        <div><b>${p.polRank?("#"+nf(p.polRank)):"—"}</b><span data-i18n="profile.polrank">Dünya Sırası</span></div>
-        <div><b>${nf(p.trophies)}</b><span data-i18n="profile.tr">Kupa Yolu</span></div>
-      </div>
+      <div class="p-stats">${sayaclar}</div>
     </div>
 
     <!-- Genel istatistikler -->
@@ -88,64 +226,245 @@ function paintPlayer(p){
       <div class="card">
         <div class="card-head"><span class="dot">🃏</span><h3 data-i18n="profile.deck">Güncel Deste</h3><span class="badge gold" style="margin-left:auto">💧 ${deckElixir(p.cards)}</span></div>
         <div class="card-grid" style="grid-template-columns:repeat(4,1fr)">
-          ${p.cards.map((c,i)=>renderCard(c,{level:p.levels?p.levels[i]:null,max:p.maxed?p.maxed[i]:false,evo:(p.evo||[]).includes(c)})).join("")}
+          ${p.cards.map((c,i)=>renderCard(c,{
+            level: p.levels?p.levels[i]:null, max: p.maxed?p.maxed[i]:false,
+            evo: YUVA.evo.includes(c), heroSlot: YUVA.hero.includes(c),
+          })).join("")}
         </div>
-        ${copyDeckLink(p.cards) ? `<div class="flex gap-8" style="margin-top:14px"><button class="btn btn-gold" onclick="copyText('${copyDeckLink(p.cards)}',this)">${ICONS.copy}<span data-i18n="gen.copy">Desteyi Kopyala</span></button></div>` : ""}
+        ${YUVA.kesin
+          ? `<p class="muted" style="font-size:.76rem;margin:10px 0 0">Evrim ve kahraman yuvaları
+               <b>son maçtan</b> doğrulandı${YUVA.ago?` (${esc(YUVA.ago)})`:""}.</p>`
+          : `<p class="muted" style="font-size:.76rem;margin:10px 0 0">Evrim ve kahraman yuvaları
+               <b>tahmini</b>: Clash Royale profilde hangi kartın yuvada olduğunu söylemiyor,
+               yalnızca hangi evrimlerin açık olduğunu veriyor. Bu deste son maçlarda oynanırsa
+               kesinleşir.</p>`}
+        ${copyDeckLink(p.cards) ? `<div class="flex gap-8" style="margin-top:14px"><button class="btn btn-gold" onclick="openDeck(${jsArg(copyDeckLink(p.cards))},this)">${ICONS.copy}<span data-i18n="gen.copy">Desteyi Kopyala</span></button></div>` : ""}
       </div>
       <div class="card">
-        <div class="card-head"><span class="dot">📈</span><h3 data-i18n="profile.graph">Kupa Geçmişi</h3></div>
-        ${p.trophyHistory && p.trophyHistory.length ? bigGraph(p.trophyHistory) : `<p class="muted" style="font-size:.85rem">Kupa geçmişi grafiği canlı API verisi ile dolar.</p>`}
+        <div class="card-head"><span class="dot">🏅</span><h3 data-i18n="profile.leagues">Lig Geçmişi</h3></div>
+        ${ligGecmisi(p)}
       </div>
     </div>
 
-    <!-- Kart koleksiyonu -->
-    <div class="card" style="margin-top:20px">
-      <div class="card-head"><span class="dot">📇</span><h3 data-i18n="profile.collection">Kart Koleksiyonu</h3><span class="muted" style="margin-left:auto;font-size:.82rem">${collection.length} kart</span></div>
-      <div class="collection">
-        ${collection.map((c,i)=>renderCard(c,{level: p.cards.includes(c)&&p.levels?p.levels[p.cards.indexOf(c)]:14, max: false})).join("")}
+    <!-- Kart koleksiyonu — KAPALI başlıyor.
+         120+ kart her zaman açık durunca profilin geri kalanına inmek
+         uzun bir kaydırma gerektiriyordu; başlığa tıklayınca açılıyor. -->
+    <div class="card collapsible" id="colCard" style="margin-top:20px">
+      <button class="card-head as-toggle" aria-expanded="false" aria-controls="colBody" onclick="toggleCollection()">
+        <span class="dot">📇</span><h3 data-i18n="profile.collection">Kart Koleksiyonu</h3>
+        <span class="muted" style="margin-left:auto;font-size:.82rem">${collection.length} kart</span>
+        <span class="chev" aria-hidden="true">${ICONS.chevron}</span>
+      </button>
+      <div class="collection" id="colBody" hidden>
+        ${collection.map((c,i)=>renderCard(c,{ level: colLevels[i] ?? null, max: !!colMaxed[i] })).join("")}
       </div>
     </div>
 
-    <!-- Battle log -->
-    <div class="card" style="margin-top:20px">
-      <div class="card-head"><span class="dot">⚔️</span><h3 data-i18n="profile.battles">Son Savaşlar</h3></div>
-      ${(p.battles||[]).map(b=>{
-        const myDeck = b.myDeck || fullDeck(b.deck);
-        const opDeck = b.opDeck2 || fullDeck(b.oppDeck);
-        return `
-        <div style="border-bottom:1px solid var(--border);padding:14px 0">
-          <div class="flex center gap-12 wrap" style="margin-bottom:8px">
-            <span class="result-pill ${b.result}">${b.result==='win'?'GALİBİYET':'MAĞLUBİYET'}</span>
-            <b>${b.crowns} 👑</b>
-            <span class="badge">${b.type}</span>
-            <span style="margin-left:auto" class="tag">${t("profile.vs")} <b>${b.opp}</b> ${b.oppClan&&b.oppClan!=="—"?"· "+b.oppClan:""}</span>
-            <b style="color:${b.trophies.startsWith('+')?'var(--green-600)':b.trophies.startsWith('-')?'#d23c3c':'var(--text-muted)'};min-width:44px;text-align:right">${b.trophies}</b>
-          </div>
-          <div class="flex between wrap gap-12">
-            <div><div class="muted" style="font-size:.72rem;font-weight:800;margin-bottom:4px">SENİN DESTEN · 💧 ${deckElixir(myDeck)}</div>${deckIcons(myDeck)}</div>
-            <div style="text-align:right"><div class="muted" style="font-size:.72rem;font-weight:800;margin-bottom:4px">RAKİP · 💧 ${deckElixir(opDeck)}</div>${deckIcons(opDeck)}</div>
-          </div>
-        </div>`;}).join("") || `<p class="muted" style="font-size:.85rem">Savaş geçmişi canlı API bağlıyken görüntülenir.</p>`}
+    <!-- Battle log: filled in by loadBattles() once the profile is on screen -->
+    <div class="card" id="battleCard" style="margin-top:20px">
+      <div class="card-head"><span class="dot">⚔️</span><h3 data-i18n="profile.battles">Son Savaşlar</h3>
+        <span class="muted" id="blCount" style="margin-left:auto;font-size:.82rem"></span></div>
+      <div id="battleLog">${spinnerBox("Savaş geçmişi yükleniyor…")}</div>
     </div>`;
   applyLang(LANG);
 }
-async function loadPlayer(tag){
-  tag = (tag||"").trim();
-  const note = document.getElementById("searchNote");
-  if (tag && !tag.startsWith("#")){
-    note.style.display = "block";
-    note.innerHTML = `<div class="notice">Oyuncu araması yalnızca <b>etiketle</b> yapılabilir (ör. <b>#298Q8YVGG</b>) — Clash Royale API isimle oyuncu aramayı desteklemez. Klanı ise isimle arayabilirsiniz.</div>`;
-  } else if (note){ note.style.display = "none"; }
-  const p = await HypnoAPI.player(tag || SAMPLE_PLAYER.tag);
-  paintPlayer(p);
-  paintApiStatus();
+
+/* One row of the battle log. The medal ledger matches the Son Maçlar feed:
+   the count going in, the count coming out, and the swing. */
+function battleRow(b){
+  const RES = { win:["GALİBİYET","win"], loss:["MAĞLUBİYET","loss"], draw:["BERABERE","draw"] };
+  const [label, cls] = RES[b.result] || RES.draw;
+  /* Madalyon defteri YALNIZCA madalyonlu maçlarda. Alt liglerde API her
+     galibiyete sabit "+30" yazıyor ama bu madalyon değil, lig basamağı;
+     onu madalyon gibi basmak oyuncuyu Nihai Kademe'deymiş gibi
+     gösteriyordu (bkz. mapOwnBattle'daki ölçüm notu). */
+  const ledger = b.madalyonlu && b.before != null
+    ? (b.after != null
+        ? `<span class="mledger"><b>${nf(b.before)}</b><span class="arw">→</span><b>${nf(b.after)}</b>${polMedal(14)}</span>`
+        : `<span class="mledger"><b>${nf(b.before)}</b>${polMedal(14)}</span>`)
+    : "";
+  // Sıralamalı ama madalyonsuz maçta hangi ligde oynandığını yazıyoruz.
+  const ligEtiketi = b.ranked && !b.madalyonlu && b.lig
+    ? `<span class="badge" title="${LANG==="tr"?"Bu ligde madalyon tutulmuyor; galibiyet lig basamağı kazandırır":"Medals are not tracked in this league"}">${esc(ligAdi(b.lig))}</span>`
+    : "";
+  /* Rakibin rozetleri: resmi hesap tiki ve/veya dünya ilk 100 (PRO). */
+  const oppRozet = verifyTick({ verified: b.oppVerified, note: b.oppNote, pro: b.oppPro, proRank: b.oppProRank });
+  const oppName = b.oppTag
+    ? `<a href="oyuncu.html?tag=${encodeURIComponent(b.oppTag)}"><b>${esc(b.opp)}</b>${oppRozet}</a>`
+    : `<b>${esc(b.opp)}</b>${oppRozet}`;
+  return `
+    <div class="bl-row">
+      <div class="flex center gap-12 wrap" style="margin-bottom:8px">
+        <span class="result-pill ${cls}">${label}</span>
+        <b>${b.crowns} 👑</b>
+        <span class="badge ${b.madalyonlu?"gold":""}" title="${esc(battleTypeHint(b))}">${esc(battleTypeName(b))}</span>
+        ${ligEtiketi}
+        ${b.rank?`<span class="rank-chip" title="Maç oynandığındaki dünya sırası">#${nf(b.rank)}</span>`:""}
+        <span class="muted" style="font-size:.76rem">${b.ago}</span>
+        <span style="margin-left:auto" class="tag">${t("profile.vs")} ${oppName}${b.oppClan?" · "+esc(b.oppClan):""}</span>
+        ${ledger}${b.madalyonlu?polDelta(b.change,14):""}
+      </div>
+      <div class="flex between wrap gap-12">
+        <div><div class="bl-lbl">SENİN DESTEN · 💧 ${deckElixir(b.myDeck)}</div>
+          <span class="deck-cell">${deckIcons(b.myDeck,b.myEvo,"",b.myHero)}</span>${deckCopyBtn(b.myDeck)}</div>
+        <div style="text-align:right"><div class="bl-lbl">RAKİP · 💧 ${deckElixir(b.opDeck)}</div>
+          <span class="deck-cell">${deckIcons(b.opDeck,b.opEvo,"",b.opHero)}</span>${deckCopyBtn(b.opDeck)}</div>
+      </div>
+    </div>`;
 }
+
+/* Savaş geçmişine götür. Kart hâlâ yükleniyorsa da çalışır — oraya
+   gidince zaten spinner görünür ve liste gelince yerine oturur.
+   Kısa bir vurgu bırakıyoruz, yoksa sayfa "zıpladı" gibi duruyor. */
+function jumpBattles(){
+  const kart = document.getElementById("battleCard");
+  if (!kart) return;
+  kart.scrollIntoView({ behavior: "smooth", block: "start" });
+  kart.classList.remove("flash");
+  void kart.offsetWidth;                      // animasyonu baştan başlat
+  kart.classList.add("flash");
+  setTimeout(() => kart.classList.remove("flash"), 1600);
+}
+
+/* Koleksiyonu aç/kapa. `hidden` kullanıyoruz: kapalıyken kartlar
+   düzenden tamamen çıkıyor, yani sayfa da o kadar uzamıyor. */
+function toggleCollection(){
+  const kart = document.getElementById("colCard");
+  const govde = document.getElementById("colBody");
+  const dugme = kart?.querySelector(".as-toggle");
+  if (!govde || !dugme) return;
+  const acik = !govde.hidden;
+  govde.hidden = acik;
+  kart.classList.toggle("open", !acik);
+  dugme.setAttribute("aria-expanded", String(!acik));
+}
+
+/* Liste ARTIK dışarıdan geliyor: profil ekranı da aynı savaş günlüğüne
+   ihtiyaç duyuyor (deste yuvaları için), iki kez çekmenin anlamı yok. */
+function paintBattles(list){
+  const box = document.getElementById("battleLog");
+  if (!box) return;
+  if (!box.isConnected) return;                     // another profile loaded meanwhile
+  if (!list){
+    box.innerHTML = notice(`<span>⚠️</span><span>Savaş geçmişi alınamadı — Clash Royale sunucusu bu isteği yanıtlamadı.</span>`);
+    return;
+  }
+  if (!list.length){
+    box.innerHTML = `<p class="muted" style="font-size:.85rem">Bu hesabın son savaş kaydı boş. Clash Royale yalnızca <b>son ~25 maçı</b> ve yalnızca <b>birkaç gün</b> saklar; bu süre içinde oynanmamışsa liste boş döner.</p>`;
+    return;
+  }
+  box.innerHTML = list.map(battleRow).join("");
+  /* "Nihai Kademe" sayacı madalyonlu maçları sayar. Sıralamalı olup madalyon
+     tutulmayan alt lig maçları ayrı yazılıyor — ikisini toplamak, madalyon
+     kazanmamış oyuncuyu Nihai Kademe'de oynuyor gibi gösteriyordu. */
+  const madalyonlu = list.filter(b => b.madalyonlu).length;
+  const ligMaci = list.filter(b => b.ranked && !b.madalyonlu).length;
+  const parcalar = [`${list.length} maç`];
+  if (madalyonlu) parcalar.push(`${madalyonlu} tanesi Nihai Kademe`);
+  if (ligMaci) parcalar.push(`${ligMaci} tanesi lig maçı`);
+  document.getElementById("blCount").textContent = parcalar.join(" · ");
+}
+const RES = document.getElementById("results");
+const PROF = document.getElementById("profile");
+
+/*
+  A search is either a tag lookup or a name lookup, and a name lookup ALWAYS
+  ends in a list the visitor picks from. Nothing here ever falls back to a
+  sample profile: a wrong tag says "not found", it does not open somebody else.
+*/
+async function runSearch(input){
+  const q = (input || "").trim();
+  document.getElementById("pTag").value = q;
+  PROF.innerHTML = "";
+  if (!q){
+    RES.innerHTML = notice(`<span>🔎</span><span>Bir oyuncu <b>adı</b> ya da <b>etiketi</b> girin. Etiketi oyun içinde profilinizin altında bulabilirsiniz (ör. <b>#298Q8YVGG</b>).</span>`);
+    return;
+  }
+  if (looksLikeTag(q)) return openProfile(normTag(q));
+
+  RES.innerHTML = spinnerBox(`“${q}” aranıyor…`);
+  const r = await HypnoAPI.playersSearch(q);
+  paintApiStatus();
+
+  if (r.offline){
+    RES.innerHTML = notice(`<span>⚠️</span><span>Sunucuya ulaşılamadı, arama yapılamıyor. Proxy çalışıyor mu? (<code>npm start</code>)</span>`);
+    return;
+  }
+  if (r.ready === false){
+    const pct = r.progress && r.progress.total ? Math.round(r.progress.done / r.progress.total * 100) : 0;
+    RES.innerHTML = spinnerBox(`Oyuncu adı dizini hazırlanıyor (%${pct})… birkaç saniye içinde tekrar denenecek.`);
+    setTimeout(() => runSearch(q), 2500);
+    return;
+  }
+  /* Tarama sürerken bunu söylemek gerekiyor: "bulunamadı" ile "henüz
+     indekslenmedi" farklı şeyler ve kullanıcı ikincisinde biraz sonra
+     tekrar denemeli. */
+  const buyuyor = r.partial
+    ? `<br><span class="muted">Kadro taraması şu an sürüyor — indeks büyüdükçe sonuçlar artacak.</span>` : "";
+
+  if (!r.items.length){
+    RES.innerHTML = notice(
+      `<span>🔍</span><span><b>“${q}”</b> için sonuç yok.<br>
+       Clash Royale API'sinde <b>isimle oyuncu arama ucu yok</b>; bu liste, API'nin isim verdiği
+       iki yerden kuruluyor: <b>Nihai Kademe sıralamaları</b> ve <b>klan kadroları</b>
+       (${nfTR(r.indexed)} oyuncu). Hiçbir sıralamada olmayan ve indekslenmiş bir klanda da
+       bulunmayan bir oyuncuya yalnızca <b>etiketiyle</b> ulaşılabilir.${buyuyor}</span>`);
+    return;
+  }
+
+  const shown = r.items.length, total = r.total || shown;
+  RES.innerHTML = `<div class="res-list">
+      <div class="res-head">
+        <b>“${q}” için ${nfTR(total)} oyuncu</b>
+        ${total > shown ? `<span class="muted">— ilk ${shown} tanesi</span>` : ""}
+        <span class="muted" style="margin-left:auto">Kaynak: sıralamalar + klan kadroları · ${nfTR(r.indexed)} oyuncu</span>
+      </div>
+      ${r.items.map(playerResultRow).join("")}
+    </div>
+    <p class="muted" style="font-size:.78rem;margin-top:10px">
+      Aradığınız oyuncu listede yoksa indekste değildir; <b>etiketiyle</b> (#…) doğrudan arayabilirsiniz.${buyuyor}</p>`;
+}
+
+async function openProfile(tag){
+  RES.innerHTML = "";
+  PROF.innerHTML = spinnerBox(`${tag} yükleniyor…`);
+  /* Üçü de PARALEL. Savaş günlüğü artık profil çizilmeden önce gerekiyor:
+     destenin evrim/kahraman yuvalarını oradan doğruluyoruz. Eskiden günlük
+     profilden SONRA çekiliyordu; paralele almak toplam süreyi de kısaltıyor.
+     Lig rozetleri klasörü yerel okuma, ikisinin yanında hiç sayılır. */
+  const [p, savaslar] = await Promise.all([
+    HypnoAPI.player(tag), HypnoAPI.battlelog(tag), window.LIG_HAZIR,
+  ]);
+  paintApiStatus();
+  if (p.offline){
+    PROF.innerHTML = "";
+    RES.innerHTML = notice(`<span>⚠️</span><span>Sunucuya ulaşılamadı. Proxy çalışıyor mu? (<code>npm start</code>)</span>`);
+    return;
+  }
+  /* 404 ile 403/429/5xx'i ayırmak şart: ikisini de "oyuncu bulunamadı" diye
+     göstermek, API'ye erişemediğimizde var olan oyuncuyu yok gibi gösteriyordu.
+     (Örn. anahtar bu IP'ye yetkili değilse Supercell 403 döner.) */
+  if (p.notFound && p.status !== 404){
+    PROF.innerHTML = "";
+    RES.innerHTML = notice(`<span>⚠️</span><span><b>Veri alınamadı.</b> Oyuncu bilgisi Clash Royale API'sinden çekilemedi${p.status?` (hata ${p.status})`:""} — bu, oyuncunun olmadığı anlamına gelmez. Birazdan tekrar deneyin.${p.reason?`<br><span class="muted" style="font-size:.8rem">Sebep: ${esc(String(p.reason))}</span>`:""}</span>`, "warn");
+    return;
+  }
+  if (p.notFound){
+    PROF.innerHTML = "";
+    RES.innerHTML = notice(`<span>🔍</span><span><b>${esc(tag)}</b> etiketiyle bir oyuncu bulunamadı. Etiketi kontrol edin — harfler <b>0289PYLQGRJCUV</b> arasından gelir (O, I, S yoktur).</span>`);
+    return;
+  }
+  paintPlayer(p, savaslar);
+  paintFavBtn();                  // kalp dolu mu boş mu
+  paintBattles(savaslar);
+}
+
 (function(){
-  const q = new URLSearchParams(location.search).get("tag");
-  if (q) document.getElementById("pTag").value = q;
-  loadPlayer(q);
+  const params = new URLSearchParams(location.search);
+  runSearch(params.get("q") || params.get("tag") || "");
 })();
 window.onLangChange = paintApiStatus;
+window.repaint = () => { const q = document.getElementById('pTag').value; if (q) runSearch(q); };
 </script>
 </body>
 </html>

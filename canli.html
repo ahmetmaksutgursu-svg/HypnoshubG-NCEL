@@ -2,8 +2,10 @@
 <html lang="tr" data-theme="light">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Global Son Maçlar — HYPNOSCOUT</title>
+<!-- viewport-fit=cover: bu olmadan env(safe-area-inset-*) HER ZAMAN 0 döner,
+     yani alt çubuğun iPhone çentik/ana-ekran çubuğu payı hiç uygulanmıyordu. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Son Maçlar — HYPNOSHUB</title>
 <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
@@ -11,15 +13,15 @@
 
 <section class="page-strip">
   <div class="container">
-    <p class="eyebrow" data-i18n="live.sub">Nihai Kademe zirvesinden canlı maç akışı</p>
-    <h1 data-i18n="live.title">GLOBAL SON MAÇLAR</h1>
+    <p class="eyebrow" data-i18n="live.sub">Nihai Kademe ilk 100 oyuncusunun sıralı maçları</p>
+    <h1 data-i18n="live.title">SON MAÇLAR</h1>
   </div>
 </section>
 
 <section class="section">
   <div class="container">
     <div class="flex between center wrap gap-12" style="margin-bottom:16px">
-      <span class="api-status" data-api-status><span class="led"></span>Demo veri</span>
+      <span class="api-status" data-api-status><span class="led"></span>Veri alınamadı</span>
       <button class="btn btn-ghost" onclick="loadLive()"><span data-i18n="live.refresh">Yenile</span></button>
     </div>
     <div id="liveFeed"></div>
@@ -32,26 +34,51 @@
 <script>
 mountChrome("canli.html");
 
+/* Ranked matches are scored in Path of Legends medals, so the medal artwork
+   replaces the trophy emoji and each side shows its medal swing (+29 / -29).
+   The player name links to the profile via the battle's own `tag`. */
+/* One player's half of a match card. Three separate lines, in this order:
+   name (+ world rank at match time), clan, then the medal ledger
+   "before → after" with the signed change. They used to share a line and ran
+   into each other on narrow screens. */
 function side(pl, right){
-  const link = pl.tag ? `oyuncu.html?tag=${encodeURIComponent(pl.tag)}` : "#";
+  const link = pl.tag ? `oyuncu.html?tag=${encodeURIComponent(pl.tag)}` : "";
+  const rozet = verifyTick(pl);        // resmi hesap tiki + dünya ilk 100 (PRO)
+  const name = link
+    ? `<a class="player-link" href="${link}">${esc(pl.name)}</a>${rozet}`
+    : `<span title="Bu maç kaydında oyuncu etiketi yok">${esc(pl.name)}</span>${rozet}`;
+  const rank = pl.rank ? `<span class="rank-chip" title="Maç oynandığındaki dünya sırası">#${pl.rank}</span>` : "";
+  const clan = pl.clan && pl.clan !== '—'
+    ? (pl.clanTag
+        ? `<a class="pc-clan" href="klan.html?tag=${encodeURIComponent(pl.clanTag)}">${pl.clan}</a>`
+        : `<span class="pc-clan">${pl.clan}</span>`)
+    : `<span class="muted">${t("word.none")}</span>`;
+  /* Madalyon defteri sadece madalyonlu maçlarda basılır. `before` boşsa maç
+     alt liglerde oynanmış demektir; orada madalyon yoktur (bkz. mapBattle). */
+  const ledger = pl.before == null ? ""
+    : pl.after != null
+      ? `<span class="mledger"><b>${nfTR(pl.before)}</b><span class="arw">→</span><b>${nfTR(pl.after)}</b>${polMedal(14)}</span>`
+      : `<span class="mledger"><b>${nfTR(pl.before)}</b>${polMedal(14)}</span>`;
+  const defter = ledger ? `<div class="pdelta">${ledger}${polDelta(pl.change, 14)}</div>` : "";
   return `<div class="match-side ${right?'right':''}">
-    <div class="pn"><a class="player-link" href="${link}">${pl.name}</a></div>
-    <div class="pc">${pl.clan&&pl.clan!=='—'?pl.clan+' · ':''}🏆 ${(pl.trophies||0).toLocaleString("tr-TR")}</div>
-    <div class="decks">${deckIcons(pl.deck, pl.evo||[])}</div>
+    <div class="pn">${right?"":rank}${name}${right?rank:""}</div>
+    <div class="pc">${clan}</div>
+    ${defter}
+    <div class="decks">${deckIcons(pl.deck, pl.evo||[], "", pl.hero||[])}${deckCopyBtn(pl.deck)}</div>
   </div>`;
 }
 function matchHtml(m){
   const w1 = m.winner===1, w2 = m.winner===2;
   return `<div class="match-card">
     <div class="match-top">
-      <span class="mtype">${m.type||'Maç'}</span>
+      <span class="mtype" title="${esc(battleTypeHint(m))}">${esc(battleTypeName(m))}</span>
       ${m.ago?`<span class="mago">${m.ago}</span>`:''}
     </div>
     <div class="match-grid">
       ${side(m.p1,false)}
       <div class="match-score">
         <div class="sc"><span style="color:${w1?'var(--green-600)':'var(--text-muted)'}">${m.c1}</span><span class="l"> - </span><span style="color:${w2?'var(--green-600)':'var(--text-muted)'}">${m.c2}</span></div>
-        <div class="vs" data-i18n="live.vs">KARŞI</div>
+        <div class="vs">${t("live.vs")}</div>
         <div class="win-badge">${w1?m.p1.name:m.p2.name} 👑</div>
       </div>
       ${side(m.p2,true)}
@@ -61,12 +88,15 @@ function matchHtml(m){
 async function loadLive(){
   const feed = document.getElementById("liveFeed");
   feed.innerHTML = `<div class="text-center muted" style="padding:40px"><span class="spinner" style="border-color:rgba(30,90,224,.3);border-top-color:var(--blue-600)"></span></div>`;
-  const matches = await HypnoAPI.live();
-  feed.innerHTML = matches.map(matchHtml).join("");
+  const matches = await HypnoAPI.battles();
+  /* null = maçlar çekilemedi. Eskiden burada data.js'teki örnek maçlar
+     basılıyordu ve gerçek maç sanılıyordu; artık sebebini yazıyoruz. */
+  feed.innerHTML = matches ? matches.map(matchHtml).join("") : apiDownBox("loadLive");
   paintApiStatus();
 }
 loadLive();
 window.onLangChange = () => { paintApiStatus(); loadLive(); };
+window.repaint = () => loadLive();
 </script>
 </body>
 </html>

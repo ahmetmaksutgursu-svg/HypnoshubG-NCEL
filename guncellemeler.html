@@ -2,8 +2,10 @@
 <html lang="tr" data-theme="light">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Güncellemeler — HYPNOSCOUT</title>
+<!-- viewport-fit=cover: bu olmadan env(safe-area-inset-*) HER ZAMAN 0 döner,
+     yani alt çubuğun iPhone çentik/ana-ekran çubuğu payı hiç uygulanmıyordu. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Güncellemeler — HYPNOSHUB</title>
 <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
@@ -13,7 +15,7 @@
   <div class="container">
     <p class="eyebrow">SİTE GÜNCELLEMELERİ · CHANGELOG</p>
     <h1>GÜNCELLEMELER</h1>
-    <p>HYPNOSCOUT'a eklenen yenilikler ve düzenlemeler. (Oyun değil, sitenin güncellemeleri.)</p>
+    <p>HYPNOSHUB'a eklenen yenilikler ve düzenlemeler. (Oyun değil, sitenin güncellemeleri.)</p>
   </div>
 </section>
 
@@ -34,7 +36,7 @@ const UPDATES = [
   { date:"14 Ağustos 2026", tag:"MENÜ", tone:"", title:"Hamburger menü (☰)", body:"Sağ üstteki menüden oyuncu/klan araması, tüm liderlik tabloları ve eğlence bölümüne tek yerden erişim eklendi." },
   { date:"14 Ağustos 2026", tag:"VERİ", tone:"green", title:"Canlı meta ve sıralamalar", body:"Meta desteleri artık Nihai Kademe zirvesindeki oyuncuların gerçek destelerinden hesaplanıyor. Kartlarda evrim ve kahraman görselleri kullanılıyor." },
   { date:"13 Ağustos 2026", tag:"YENİ", tone:"", title:"Global Son Maçlar & YouTube", body:"Canlı maç akışı ve HYPNOS CR son videoları bölümü eklendi. Sıralamalar 20'şerli sayfalandı." },
-  { date:"12 Ağustos 2026", tag:"YENİ", tone:"green", title:"HYPNOSCOUT yayında!", body:"Oyuncu/klan araması, global sıralamalar ve meta deste kütüphanesi ile ilk sürüm yayınlandı." },
+  { date:"12 Ağustos 2026", tag:"YENİ", tone:"green", title:"HYPNOSHUB yayında!", body:"Oyuncu/klan araması, global sıralamalar ve meta deste kütüphanesi ile ilk sürüm yayınlandı." },
 ];
 document.getElementById("updates").innerHTML = UPDATES.map(u=>`
   <div class="card" style="margin-bottom:16px">

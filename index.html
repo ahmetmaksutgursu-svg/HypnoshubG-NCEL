@@ -2,8 +2,10 @@
 <html lang="tr" data-theme="light">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HYPNOSCOUT — Clash Royale Analiz Platformu</title>
+<!-- viewport-fit=cover: bu olmadan env(safe-area-inset-*) HER ZAMAN 0 döner,
+     yani alt çubuğun iPhone çentik/ana-ekran çubuğu payı hiç uygulanmıyordu. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>HYPNOSHUB — Clash Royale Analiz Platformu</title>
 <meta name="description" content="Clash Royale oyuncu, klan ve meta istatistiklerini keşfet. Sıralamalar, canlı maçlar, kartlar ve eğlence.">
 <link rel="stylesheet" href="assets/css/styles.css">
 </head>
@@ -13,33 +15,49 @@
 <!-- HERO + SEARCH -->
 <section class="hero">
   <div class="hero-watermark"><img src="assets/img/hammer-logo.jpg" alt=""></div>
-  <div class="container">
+  <div class="container hero-split">
+   <div class="hero-left">
     <p class="eyebrow" data-i18n="hero.eyebrow">CLASH ROYALE ANALİZ PLATFORMU</p>
     <h1><span data-i18n="hero.title">CLASH ROYALE İSTATİSTİKLERİNİ KEŞFET</span></h1>
     <p data-i18n="hero.sub">Oyuncuları ve klanları ara, meta desteleri incele, canlı maçları izle ve eğlenceli oyunlar oyna.</p>
 
     <div class="grid grid-2" style="margin-top:22px;max-width:820px">
       <div class="card" style="padding:16px">
-        <div class="flex center gap-8" style="margin-bottom:10px"><span style="font-size:1.1rem">👤</span><b>Oyuncu Ara</b></div>
+        <div class="flex center gap-8" style="margin-bottom:10px"><span style="font-size:1.1rem">👤</span><b data-i18n="home.searchP">Oyuncu Ara</b></div>
         <div class="search-box" style="border-radius:12px">
-          <input id="pIn" type="text" placeholder="#298Q8YVGG veya isim" style="flex:1;min-width:0" onkeydown="if(event.key==='Enter')go('oyuncu',this.value)">
-          <button class="search-go" onclick="go('oyuncu',document.getElementById('pIn').value)">Ara</button>
+          <input id="pIn" type="text" data-i18n-ph="home.phP" placeholder="Oyuncu adı veya #etiket" style="flex:1;min-width:0" onkeydown="if(event.key==='Enter')go('oyuncu',this.value)">
+          <button class="search-go" onclick="go('oyuncu',document.getElementById('pIn').value)" data-i18n="word.search">Ara</button>
         </div>
-        <span class="muted" style="font-size:.76rem">Etiket (#ABC) veya isimle</span>
+        <span class="muted" style="font-size:.76rem" data-i18n="home.hint">İsimle ara veya etiket (#ABC) yapıştır</span>
+        <span class="search-tip" data-i18n="home.hintTag">İsimle bulamadın mı? #etiketini yapıştır — kesin sonuç verir.</span>
       </div>
       <div class="card" style="padding:16px">
-        <div class="flex center gap-8" style="margin-bottom:10px"><span style="font-size:1.1rem">🛡️</span><b>Klan Ara</b></div>
+        <div class="flex center gap-8" style="margin-bottom:10px"><span style="font-size:1.1rem">🛡️</span><b data-i18n="home.searchC">Klan Ara</b></div>
         <div class="search-box" style="border-radius:12px">
-          <input id="cIn" type="text" placeholder="#9YQ2VG0P veya isim" style="flex:1;min-width:0" onkeydown="if(event.key==='Enter')go('klan',this.value)">
-          <button class="search-go" onclick="go('klan',document.getElementById('cIn').value)">Ara</button>
+          <input id="cIn" type="text" data-i18n-ph="home.phC" placeholder="Klan adı veya #etiket" style="flex:1;min-width:0" onkeydown="if(event.key==='Enter')go('klan',this.value)">
+          <button class="search-go" onclick="go('klan',document.getElementById('cIn').value)" data-i18n="word.search">Ara</button>
         </div>
-        <span class="muted" style="font-size:.76rem">Etiket (#ABC) veya isimle</span>
+        <span class="muted" style="font-size:.76rem" data-i18n="home.hint">İsimle ara veya etiket (#ABC) yapıştır</span>
       </div>
     </div>
 
     <div class="hero-stats">
-      <span class="api-status" data-api-status><span class="led"></span>Demo veri</span>
+      <span class="api-status" data-api-status><span class="led"></span>Veri alınamadı</span>
     </div>
+   </div>
+
+   <!-- TOKMAKÇILAR — haftalık puan tablosu -->
+   <aside class="board" id="board">
+     <div class="board-head">
+       <span class="board-ic"><img src="assets/img/hammer-logo.jpg" alt="" onerror="this.parentElement.textContent='🔨'"></span>
+       <div class="board-t">
+         <h2>TOKMAKÇILAR</h2>
+         <span class="board-sub" id="boardWeek">—</span>
+       </div>
+       <span class="board-badge" id="boardLeft">—</span>
+     </div>
+     <div id="boardBody"></div>
+   </aside>
   </div>
 </section>
 
@@ -58,14 +76,22 @@
 <section class="section-tight">
   <div class="container">
     <div class="tile-grid">
-      <a class="tile" href="siralamalar.html"><span class="t-ic">🏆</span><span class="t-tx"><span class="tt">Sıralamalar</span><span class="ts">Nihai Kademe & Kupa Yolu</span></span></a>
-      <a class="tile" href="klanlar.html"><span class="t-ic">🛡️</span><span class="t-tx"><span class="tt">Klan Liderlik</span><span class="ts">En iyi klanlar</span></span></a>
-      <a class="tile" href="canli.html"><span class="t-ic">🔴</span><span class="t-tx"><span class="tt">Canlı Maçlar</span><span class="ts">Zirveden akış</span></span></a>
-      <a class="tile" href="meta.html"><span class="t-ic">🃏</span><span class="t-tx"><span class="tt">Meta Desteler</span><span class="ts">Güncel meta</span></span></a>
-      <a class="tile" href="kartlar.html"><span class="t-ic">📇</span><span class="t-tx"><span class="tt">Kartlar</span><span class="ts">Tüm kartlar</span></span></a>
-      <a class="tile fun" href="eglence.html"><span class="t-ic">🎲</span><span class="t-tx"><span class="tt">Kart Sıralama Oyunu</span><span class="ts">Eğlence</span></span></a>
-      <a class="tile fun" href="eglence.html#cark"><span class="t-ic">🎡</span><span class="t-tx"><span class="tt">Rastgele Deste Çarkı</span><span class="ts">Eğlence</span></span></a>
-      <div class="tile soon"><span class="t-ic">❓</span><span class="t-tx"><span class="tt">Yeni Eğlenceler</span><span class="ts">Yakında</span></span></div>
+      <a class="tile" href="siralamalar.html"><span class="t-ic">🏆</span><span class="t-tx"><span class="tt" data-i18n="tile.ranks">Sıralamalar</span><span class="ts" data-i18n="tile.ranks.s">Nihai Kademe &amp; Kupa Yolu</span></span></a>
+      <a class="tile" href="klanlar.html"><span class="t-ic">🛡️</span><span class="t-tx"><span class="tt" data-i18n="tile.clans">Klan Liderlik</span><span class="ts" data-i18n="tile.clans.s">En iyi klanlar</span></span></a>
+      <a class="tile" href="canli.html"><span class="t-ic">🔴</span><span class="t-tx"><span class="tt" data-i18n="tile.live">Son Maçlar</span><span class="ts" data-i18n="tile.live.s">Nihai ilk 100</span></span></a>
+      <a class="tile" href="meta.html"><span class="t-ic">🃏</span><span class="t-tx"><span class="tt" data-i18n="tile.meta">Meta Desteler</span><span class="ts" data-i18n="tile.meta.s">Güncel meta</span></span></a>
+      <a class="tile" href="kartlar.html"><span class="t-ic">📇</span><span class="t-tx"><span class="tt" data-i18n="tile.cards">Kartlar</span><span class="ts" data-i18n="tile.cards.s">Tüm kartlar</span></span></a>
+      <a class="tile fun" href="eglence.html#siralama"><span class="t-ic">🎲</span><span class="t-tx"><span class="tt" data-i18n="fun.rank">Kart Sıralama Oyunu</span><span class="ts" data-i18n="tile.nopts">Puansız</span></span></a>
+      <a class="tile fun" href="eglence.html#deste"><span class="t-ic">🧪</span><span class="t-tx"><span class="tt" data-i18n="fun.deck">Deste Jeneratörü</span><span class="ts" data-i18n="tile.nopts">Puansız</span></span></a>
+      <a class="tile fun" href="eglence.html#cark"><span class="t-ic">🎡</span><span class="t-tx"><span class="tt" data-i18n="fun.wheel">Rastgele Deste Çarkı</span><span class="ts" data-i18n="tile.nopts">Puansız</span></span></a>
+      <a class="tile fun" href="eglence.html#cenabet"><span class="t-ic">🤪</span><span class="t-tx"><span class="tt" data-i18n="fun.cenabet">Cenabet Buton</span><span class="ts" data-i18n="tile.nopts">Puansız</span></span></a>
+      <a class="tile fun" href="eglence.html#gunun"><span class="t-ic">🎯</span><span class="t-tx"><span class="tt" data-i18n="fun.daily">Günün Kartı</span><span class="ts pts" data-i18n="tile.pts">Puanlı</span></span></a>
+      <a class="tile fun" href="eglence.html#duello"><span class="t-ic">⚔️</span><span class="t-tx"><span class="tt" data-i18n="fun.duel">Deste Düellosu</span><span class="ts pts" data-i18n="tile.pts">Puanlı</span></span></a>
+      <a class="tile fun" href="eglence.html#eksik"><span class="t-ic">🧩</span><span class="t-tx"><span class="tt" data-i18n="fun.missing">Eksik Kartı Bul</span><span class="ts pts" data-i18n="tile.pts">Puanlı</span></span></a>
+      <a class="tile fun" href="eglence.html#kapisma"><span class="t-ic">🥊</span><span class="t-tx"><span class="tt" data-i18n="fun.clash">Kart Kapışması</span><span class="ts pts" data-i18n="tile.pts">Puanlı</span></span></a>
+      <a class="tile fun" href="eglence.html#yarisma"><span class="t-ic">🎓</span><span class="t-tx"><span class="tt" data-i18n="fun.quiz">Tokmak Yarışması</span><span class="ts pts" data-i18n="tile.pts">Puanlı</span></span></a>
+      <a class="tile fun" href="eglence.html#tahmin"><span class="t-ic">🔮</span><span class="t-tx"><span class="tt" data-i18n="fun.guess">Kart Tahmin Oyunu</span><span class="ts" data-i18n="tile.nopts">Puansız</span></span></a>
+      <div class="tile soon"><span class="t-ic">❓</span><span class="t-tx"><span class="tt" data-i18n="tile.new">Yeni Eğlenceler</span><span class="ts" data-i18n="tag.soon">Yakında</span></span></div>
     </div>
   </div>
 </section>
@@ -78,7 +104,7 @@
         <p class="eyebrow" data-i18n="home.meta.sub">Zirve oyuncuların gerçek destelerinden</p>
         <h2 class="section-title" data-i18n="home.meta.title">Aktif Meta Desteleri</h2>
       </div>
-      <a class="btn btn-ghost" href="meta.html">Tümü →</a>
+      <a class="btn btn-ghost" href="meta.html" data-i18n="word.more">Tümü →</a>
     </div>
     <div class="grid grid-3" id="homeMetaDecks"></div>
   </div>
@@ -95,14 +121,14 @@
     </div>
     <div class="grid grid-2">
       <div class="lb-card">
-        <div class="lb-head"><span class="ic">⚔️</span><h3>EN İYİ OYUNCULAR</h3></div>
+        <div class="lb-head"><span class="ic">⚔️</span><h3 data-i18n="home.topPlayers">EN İYİ OYUNCULAR</h3></div>
         <div id="lbPlayers"></div>
-        <div class="lb-foot"><a class="btn btn-primary" href="siralamalar.html">Tüm en iyi oyuncuları görüntüle →</a></div>
+        <div class="lb-foot"><a class="btn btn-primary" href="siralamalar.html" data-i18n="home.allPlayers">Tüm en iyi oyuncuları görüntüle →</a></div>
       </div>
       <div class="lb-card">
-        <div class="lb-head"><span class="ic">🛡️</span><h3>KLAN LİDERLİK TABLOSU</h3></div>
+        <div class="lb-head"><span class="ic">🛡️</span><h3 data-i18n="home.topClans">KLAN LİDERLİK TABLOSU</h3></div>
         <div id="lbClans"></div>
-        <div class="lb-foot"><a class="btn btn-primary" href="klanlar.html">Tüm en iyi klanları görüntüle →</a></div>
+        <div class="lb-foot"><a class="btn btn-primary" href="klanlar.html" data-i18n="home.allClans">Tüm en iyi klanları görüntüle →</a></div>
       </div>
     </div>
   </div>
@@ -113,8 +139,8 @@
   <div class="container">
     <div class="flex between center wrap" style="margin-bottom:16px">
       <div>
-        <p class="eyebrow">HYPNOS CR YOUTUBE KANALI</p>
-        <h2 class="section-title">Son <span class="accent">Videolar</span></h2>
+        <p class="eyebrow" data-i18n="home.channel">HYPNOS CR YOUTUBE KANALI</p>
+        <h2 class="section-title"><span data-i18n="home.videos">Son</span> <span class="accent" data-i18n="home.videosB">Videolar</span></h2>
       </div>
       <div class="flex gap-8 wrap">
         <a class="btn btn-ghost" id="igBtn" target="_blank" rel="noopener">Instagram</a>
@@ -132,7 +158,136 @@
 <script>
 mountChrome("index.html");
 
-function go(type, q){ q=(q||"").trim(); location.href=(type==="klan"?"klan.html":"oyuncu.html")+(q?"?tag="+encodeURIComponent(q):""); }
+function go(type, q){ location.href = searchUrl(type==="klan" ? "clan" : "player", q); }
+
+/* The hero's own two boxes get the same type-ahead as the header one — they
+   were the "player and clan search below" that had no dropdown. */
+attachSuggest(document.getElementById("pIn"), () => "player");
+attachSuggest(document.getElementById("cIn"), () => "clan");
+
+/* Ödül duyurusu kutusu. Hangi dönem için geçerli olduğuna SUNUCU karar
+   veriyor ve dönem bitince `odul` null döner — burada tarih hesabı yok,
+   yani duyuru ekranda unutulup kalmıyor. Tablo boş ya da henüz açılmamış
+   olsa da görünür: asıl amacı zaten insanları tabloya çekmek. */
+function odulHtml(d, fmt, TRb){
+  const ob = new Date(d.odul.start), oe = new Date(d.odul.end);
+  const ne = d.odul.buHafta
+    ? (TRb ? "Bu dönem" : "This period")
+    : (TRb ? `${fmt(ob)} – ${fmt(new Date(oe - 1))}` : `${fmt(ob)} – ${fmt(new Date(oe - 1))}`);
+  return `<div class="board-prize">
+      <span class="bp-ic">🎁</span>
+      <span class="bp-tx"><b>${esc(d.odul.baslik)}</b><span>${ne} · ${d.odul.metin}</span></span>
+    </div>`;
+}
+
+/* ---------- TOKMAKÇILAR ----------
+   Yedi günlük dönemlerin puan tablosu. Dönemler 20 Ağustos açılışından
+   itibaren sayılıyor (bkz. server/board.js), pazartesiden değil. */
+async function loadBoard(){
+  const TRb = LANG === "tr";
+  const body = document.getElementById("boardBody");
+  /* r.ok kontrolü şart: hata yanıtları da JSON döner ({"reason":...}), o yüzden
+     doğrudan r.json() demek "veri geldi" sanılmasına ve d.week.start üzerinde
+     çökmeye yol açıyordu. Şekli de doğruluyoruz. */
+  const d = await fetch(API_BASE + "/board/weekly", { credentials: "same-origin" })
+    .then(r => r.ok ? r.json() : null).catch(() => null);
+  if (!d || !d.week || !Array.isArray(d.items)){
+    body.innerHTML = `<p class="board-empty">${TRb?"Tablo yüklenemedi.":"Could not load the board."}</p>`; return;
+  }
+
+  const fmt = (x) => x.toLocaleDateString(TRb?"tr-TR":"en-GB", { day:"numeric", month:"short" });
+  const sure = (ms) => { const h = Math.max(0, Math.floor(ms / 3600e3));
+    return h >= 24 ? `${Math.floor(h/24)} ${TRb?"gün":"d"}` : `${h} ${TRb?"saat":"h"}`; };
+
+  /* Tablo açılış tarihinden ÖNCE mi? Sunucu `week.acik` ile söylüyor.
+     O zaman dönem tarihi yerine "ne zaman açılıyor" yazıyoruz; oyunlar
+     oynanıyor ama puan yazmıyor ve bunu saklamak yanlış olur. */
+  if (d.week.acik === false){
+    const a = new Date(d.week.start);
+    document.getElementById("boardWeek").textContent =
+      TRb ? `${fmt(a)} tarihinde açılıyor` : `Opens on ${fmt(a)}`;
+    document.getElementById("boardLeft").textContent = sure(d.week.acilisMs);
+    body.innerHTML = (d.odul ? odulHtml(d, fmt, TRb) : "") + `
+      <p class="board-empty">
+        <b>${TRb?"Yarış henüz başlamadı.":"The race has not started yet."}</b><br>
+        ${TRb ? `Tokmakçılar tablosu <b>${fmt(a)}</b> tarihinde açılıyor. O güne kadar oyunlar
+                 oynanabilir ama <b>puan yazmaz</b> — herkes aynı yerden başlasın diye.`
+              : `The board opens on <b>${fmt(a)}</b>. Until then games can be played but award no points.`}
+      </p>`;
+    return;
+  }
+
+  // Başlık: dönemin tarihleri ve kalan süre
+  const s = new Date(d.week.start), e = new Date(d.week.end);
+  document.getElementById("boardWeek").textContent =
+    `${fmt(s)} – ${fmt(new Date(e - 1))} · ${TRb?"haftalık":"weekly"}`;
+  document.getElementById("boardLeft").textContent = sure(d.week.endsInMs);
+
+  /* Ödül duyurusu. Hangi hafta için geçerli olduğuna sunucu karar veriyor
+     ve hafta bitince `odul` null döner — burada tarih hesabı yok, yani
+     duyuru ekranda unutulup kalmıyor. Tablo boş olsa da görünür: asıl
+     amacı zaten insanları tabloya çekmek. */
+  const odul = d.odul ? odulHtml(d, fmt, TRb) : "";
+
+  if (!d.items.length){
+    body.innerHTML = odul + `
+      <p class="board-empty">
+        <b>${TRb?"Tablo henüz boş.":"Nobody on the board yet."}</b><br>
+        ${d.scoring
+          ? (TRb?"Eğlence bölümündeki oyunları oynayarak puan topla — ilk sıra senin olabilir."
+               : "Play the games in the Fun section to earn points.")
+          : (TRb?"Puanlama henüz açılmadı; tablo hazır, oyunlara puan bağlanınca dolmaya başlayacak."
+               : "Scoring is not switched on yet; the board is ready and will fill once games award points.")}
+      </p>
+      ${ME ? "" : `<p class="board-note">${TRb
+        ? `Puan toplamak için <b>hesabın</b> olmalı.`
+        : `You need an account to collect points.`}</p>`}`;
+    return;
+  }
+
+  /* Yasaklama düğmesi YALNIZCA yöneticiye çıkar ve yalnızca sunucu
+     userId gönderdiyse — yetki kontrolü zaten sunucuda, buradaki
+     kontrol sadece görünüm içindir. Site sahibi banlanamaz. */
+  const banBtn = (x) => (d.admin && x.userId && !x.owner)
+    ? `<button class="board-ban" title="${TRb
+         ? `Yasakla — sıradaki ceza: ${esc(x.next||"")}`
+         : `Ban — next step: ${esc(x.next||"")}`}"
+         onclick="boardBan(${jsArg(x.userId)},${jsArg(x.username)})">🚫</button>`
+    : "";
+  const row = (x, me) => `
+    <div class="board-row ${me?"me":""}">
+      <span class="board-rank ${x.rank<=3?"m"+x.rank:""}">${x.rank}</span>
+      <span class="board-av">${esc(x.username.slice(0,1).toUpperCase())}</span>
+      <span class="board-n">${esc(x.username)}</span>
+      <span class="board-g">${x.games} ${TRb?"oyun":"games"}</span>
+      <span class="board-p">${nfTR(x.points)}</span>
+      ${banBtn(x)}
+    </div>`;
+  const top = d.items.slice(0, 10);
+  const meOut = d.me && d.me.rank > 10;      // kendi satırın listenin dışındaysa altta göster
+  body.innerHTML = odul +
+    `<div class="board-list">${top.map(x => row(x, d.me && x.rank === d.me.rank)).join("")}</div>` +
+    (meOut ? `<div class="board-list sep">${row(d.me, true)}</div>` : "") +
+    `<div class="board-foot">${TRb?"Toplam":"Total"} ${nfTR(d.total)} ${TRb?"tokmakçı":"players"}</div>`;
+}
+
+/* Tablodan yasaklama. Ceza süresini sunucu belirliyor (5 dk → … → kalıcı),
+   burada sadece onay alınıp istek atılıyor. */
+async function boardBan(userId, username){
+  const TRb = LANG === "tr";
+  const sebep = prompt(TRb
+    ? `"${username}" yasaklansın mı? Sebep (isteğe bağlı):`
+    : `Ban "${username}"? Reason (optional):`, TRb ? "Uygunsuz kullanıcı adı" : "Inappropriate username");
+  if (sebep === null) return;
+  const r = await fetch(API_BASE + "/board/ban", {
+    method: "POST", credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId, reason: sebep }),
+  }).then(x => x.json()).catch(() => null);
+  if (!r || r.error) return toast((r && r.message) || (TRb ? "Yasaklanamadı." : "Failed."));
+  toast(r.message);
+  loadBoard();                       // tablo tazelensin, yasaklı satır düşsün
+}
 
 /* Season bar */
 (function(){
@@ -143,46 +298,51 @@ function go(type, q){ q=(q||"").trim(); location.href=(type==="klan"?"klan.html"
   document.getElementById("sEnd").textContent = s.endStr;
 })();
 
-/* Meta decks (live → demo) */
+/* Meta decks. Veri gelmediyse (null) örnek deste basmıyoruz; uyarı çıkıyor. */
 function renderHomeMeta(decks){
+  if (!decks){ document.getElementById("homeMetaDecks").innerHTML = apiDownBox("reloadHome"); return; }
   document.getElementById("homeMetaDecks").innerHTML = decks.slice(0,6).map(d => `
     <div class="card hoverable metadeck">
       <div class="flex between center">
         <h3 style="font-size:1rem;margin:0">${d.name}</h3>
-        ${d.usage!=null?`<span class="badge">%${d.usage}</span>`:""}
+        ${d.winrate!=null?`<span class="badge wr-badge ${d.winrate>=55?"good":d.winrate<45?"bad":""}">%${d.winrate} ${t("word.winrate")}</span>`:d.usage!=null?`<span class="badge">%${d.usage}</span>`:""}
       </div>
-      <div class="mini-cards">${d.cards.slice(0,4).map(c => renderCard(c,{evo:(d.evo||[]).includes(c)})).join("")}</div>
-      <div class="mini-cards">${d.cards.slice(4,8).map(c => renderCard(c,{evo:(d.evo||[]).includes(c)})).join("")}</div>
+      <div class="mini-cards">${d.cards.slice(0,4).map(c => renderCard(c,{evo:(d.evo||[]).includes(c),heroSlot:(d.hero||[]).includes(c),hero:(d.champ||[]).includes(c)})).join("")}</div>
+      <div class="mini-cards">${d.cards.slice(4,8).map(c => renderCard(c,{evo:(d.evo||[]).includes(c),heroSlot:(d.hero||[]).includes(c),hero:(d.champ||[]).includes(c)})).join("")}</div>
       <div class="foot">
         <span class="elixir-badge">💧 ${deckElixir(d.cards)}</span>
-        ${d.usage!=null?`<span>Kullanım: <b>%${d.usage}</b></span>`:""}
-        ${copyDeckLink(d.cards)?`<a class="wr" style="margin-left:auto" href="${copyDeckLink(d.cards)}">Kopyala ↗</a>`:``}
+        ${d.usage!=null?`<span>${t("word.usage")}: <b>%${d.usage}</b></span>`:""}
+        ${copyDeckLink(d.cards)?`<a class="wr" style="margin-left:auto" href="${copyDeckLink(d.cards)}">${t("word.copy")} ↗</a>`:``}
       </div>
     </div>`).join("");
 }
 
 /* Leaderboard cards */
 function renderLbPlayers(rows){
+  if (!rows){ document.getElementById("lbPlayers").innerHTML = apiDownBox("reloadHome"); return; }
   document.getElementById("lbPlayers").innerHTML = rows.slice(0,5).map(r=>`
     <a class="lb-row" href="oyuncu.html?tag=${encodeURIComponent(r.tag)}" style="text-decoration:none;color:inherit">
       <span class="lb-medal ${r.rank<=3?'g'+r.rank:''}">${r.rank}</span>
-      <span class="lb-main"><span class="n">${r.name}</span><span class="s">${clanChip(r.clan)}</span></span>
+      <span class="lb-main"><span class="n">${esc(r.name)}</span><span class="s">${clanChip(r.clan, r.clanBadge)}</span></span>
       <span class="lb-val">${(r.trophies||0).toLocaleString("tr-TR")} 🏅</span>
     </a>`).join("");
 }
 function renderLbClans(rows){
+  if (!rows){ document.getElementById("lbClans").innerHTML = apiDownBox("reloadHome"); return; }
   document.getElementById("lbClans").innerHTML = rows.slice(0,5).map(c=>`
-    <div class="lb-row">
+    <a class="lb-row" href="klan.html?tag=${encodeURIComponent(c.tag||'')}" style="text-decoration:none;color:inherit">
       <span class="lb-medal ${c.rank<=3?'g'+c.rank:''}">${c.rank}</span>
-      <span class="lb-main"><span class="n"><span class="clan-crest" style="width:20px;height:24px">${ICONS.crest}</span>${c.name} <span class="flag">${c.flag||''}</span></span><span class="s">${c.members} Üye Sayısı</span></span>
+      <span class="lb-main"><span class="n">${clanCrest(c.badge, 20)}${esc(c.name)}</span><span class="s">${c.members} ${t("unit.member")}</span></span>
       <span class="lb-val trophyv">${(c.score||0).toLocaleString("tr-TR")} 🏆</span>
-    </div>`).join("");
+    </a>`).join("");
 }
 
 /* Videos */
 function renderVideos(items){
   document.getElementById("igBtn").href = SOCIAL.instagram;
   document.getElementById("ytBtn").href = SOCIAL.youtube;
+  /* Örnek videolar hiçbir yere gitmeyen sahte kartlardı; onları da kaldırdık. */
+  if (!items){ document.getElementById("videoGrid").innerHTML = apiDownBox("reloadHome"); return; }
   document.getElementById("videoGrid").innerHTML = items.slice(0,4).map(v=>`
     <a class="video-card" href="${v.url}" target="_blank" rel="noopener">
       <div class="video-thumb">
@@ -192,24 +352,33 @@ function renderVideos(items){
       </div>
       <div class="video-meta">
         <div class="vt">${v.title}</div>
-        <div class="va"><span class="yt-dot"></span>${relativeTime(v.published)}${v.views?` · ${Number(v.views).toLocaleString("tr-TR")} izlenme`:""}</div>
+        <div class="va"><span class="yt-dot"></span>${relativeTime(v.published)}${v.views?` · ${Number(v.views).toLocaleString("tr-TR")} ${LANG==="tr"?" izlenme":" views"}`:""}</div>
       </div>
     </a>`).join("");
 }
 
 /* Boot */
-(async function(){
+async function loadHome(){
   const [meta, players, clans, videos] = await Promise.all([
     HypnoAPI.meta(), HypnoAPI.pol(), HypnoAPI.clanRankings(), HypnoAPI.youtube()
   ]);
+  window.__meta = meta; window.__pl = players; window.__cl = clans;
   renderHomeMeta(meta);
   renderLbPlayers(players);
   renderLbClans(clans);
+  window.__vid = videos;
   renderVideos(videos);
   paintApiStatus();
+}
+function reloadHome(){ loadHome(); }
+
+(async function(){
+  await loadHome();
+  loadBoard();
 })();
 
 window.onLangChange = () => { paintApiStatus(); const s=seasonInfo(); document.getElementById("sDays").textContent = s.daysLeft + (LANG==="tr"?" gün kaldı":" days left"); document.getElementById("sEnd").textContent=s.endStr; };
+window.repaint = () => { loadBoard(); if (window.__vid) renderVideos(window.__vid); if (window.__meta) renderHomeMeta(window.__meta); if (window.__pl) renderLbPlayers(window.__pl); if (window.__cl) renderLbClans(window.__cl); const s = seasonInfo(); document.getElementById('sDays').textContent = s.daysLeft + (LANG==='tr'?' gün kaldı':' days left'); document.getElementById('sEnd').textContent = s.endStr; };
 </script>
 </body>
 </html>

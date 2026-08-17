@@ -2,8 +2,10 @@
 <html lang="tr" data-theme="light">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Klan Liderlik Tablosu — HYPNOSCOUT</title>
+<!-- viewport-fit=cover: bu olmadan env(safe-area-inset-*) HER ZAMAN 0 döner,
+     yani alt çubuğun iPhone çentik/ana-ekran çubuğu payı hiç uygulanmıyordu. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Klan Liderlik Tablosu — HYPNOSHUB</title>
 <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
@@ -11,17 +13,23 @@
 
 <section class="page-strip">
   <div class="container">
-    <p class="eyebrow">EN İYİ KLANLAR — KLAN SKORUNA GÖRE</p>
+    <p class="eyebrow" id="boardEyebrow">EN İYİ KLANLAR — KLAN SKORUNA GÖRE</p>
     <h1>KLAN LİDERLİK TABLOSU</h1>
-    <p><span class="api-status" data-api-status style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2);color:#eaf0fb"><span class="led"></span>Demo veri</span></p>
+    <p><span class="api-status" data-api-status style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2);color:#eaf0fb"><span class="led"></span>Veri alınamadı</span></p>
   </div>
 </section>
 
 <section class="section">
   <div class="container">
-    <div class="search-box" style="border-radius:12px;max-width:420px;margin-bottom:16px">
-      <input id="clanSearch" type="text" placeholder="Klan ara..." style="flex:1;min-width:0" oninput="filterClans()">
-      <button class="search-go" onclick="filterClans()" id="clanSearchBtn"></button>
+    <div class="flex between center wrap gap-12" style="margin-bottom:16px">
+      <div class="tabs" id="boardTabs">
+        <button class="active" data-mode="score" onclick="setMode('score',this)">🛡️ Klan Skoru</button>
+        <button data-mode="war" onclick="setMode('war',this)">⚔️ Klan Savaşı</button>
+      </div>
+      <div class="search-box" style="border-radius:12px;max-width:420px;flex:1">
+        <input id="clanSearch" type="text" placeholder="Klan ara..." style="flex:1;min-width:0" oninput="filterClans()">
+        <button class="search-go" onclick="filterClans()" id="clanSearchBtn"></button>
+      </div>
     </div>
     <div class="table-wrap">
       <table class="data">
@@ -29,7 +37,7 @@
           <th data-i18n="col.rank">SIRA</th>
           <th>KLAN</th>
           <th>ÜYE</th>
-          <th>KLAN SKORU</th>
+          <th id="scoreHead">KLAN SKORU</th>
         </tr></thead>
         <tbody id="clanBody"></tbody>
       </table>
@@ -47,22 +55,65 @@ mountChrome("");
 document.getElementById("clanSearchBtn").innerHTML = ICONS.search;
 let ROWS=[], PAGE=1; const PER=20;
 
+/* Two independent ladders: clan score, and the clan-war ladder. Each is
+   fetched once and kept, so switching tabs costs nothing. */
+let MODE = "score";
+const CACHE = { score:null, war:null };
+const MODE_TEXT = {
+  score: { head:"KLAN SKORU", eyebrow:"EN İYİ KLANLAR — KLAN SKORUNA GÖRE", empty:"Klan skoru sıralaması alınamadı." },
+  war:   { head:"SAVAŞ KUPASI", eyebrow:"EN İYİ KLANLAR — KLAN SAVAŞI KUPASINA GÖRE", empty:"Klan savaşı sıralaması alınamadı." },
+};
+
+async function setMode(mode, btn){
+  MODE = mode; PAGE = 1;
+  document.querySelectorAll("#boardTabs button").forEach(b => b.classList.toggle("active", b === btn));
+  document.getElementById("scoreHead").textContent = MODE_TEXT[mode].head;
+  document.getElementById("boardEyebrow").textContent = MODE_TEXT[mode].eyebrow;
+  if (!CACHE[mode]){
+    document.getElementById("clanBody").innerHTML =
+      `<tr><td colspan="4">${spinnerBox("Sıralama yükleniyor…")}</td></tr>`;
+    /* null = veri alınamadı. Boş diziye çevirmiyoruz: "hiç klan yok" ile
+       "sıralamayı çekemedik" farklı şeyler, ikincisini açıkça söylüyoruz.
+       null kaldığı için sekmeye tekrar girildiğinde kendiliğinden yeniden dener. */
+    CACHE[mode] = mode === "war"
+      ? await HypnoAPI.clanWarRankings()
+      : await HypnoAPI.clanRankings();
+    paintApiStatus();
+  }
+  ROWS = CACHE[mode];
+  paint();
+}
+function reloadClans(){
+  CACHE[MODE] = null;
+  setMode(MODE, document.querySelector("#boardTabs button.active"));
+}
+
 function filtered(){
-  const q=(document.getElementById("clanSearch").value||"").toLowerCase().trim();
-  return !q ? ROWS : ROWS.filter(c => c.name.toLowerCase().includes(q));
+  const q=(document.getElementById("clanSearch").value||"").toLocaleLowerCase("tr").trim();
+  const base = ROWS || [];
+  return !q ? base : base.filter(c => c.name.toLocaleLowerCase("tr").includes(q) || (c.tag||"").toLowerCase().includes(q));
 }
 function paint(){
+  if (!ROWS){
+    document.getElementById("clanBody").innerHTML = apiDownRow(4, "reloadClans");
+    document.getElementById("pager").innerHTML = "";
+    document.getElementById("clanCount").textContent = "";
+    return;
+  }
   const rows=filtered();
   const pages=Math.max(1,Math.ceil(rows.length/PER));
   if(PAGE>pages)PAGE=pages;
   const start=(PAGE-1)*PER, slice=rows.slice(start,start+PER);
-  document.getElementById("clanBody").innerHTML = slice.map(c=>`
-    <tr>
-      <td>${c.rank<=3?`<span class="rank-badge g${c.rank}">${c.rank}</span>`:`<span class="rank">${c.rank}</span>`}</td>
-      <td><span class="clan-chip"><span class="clan-crest">${ICONS.crest}</span><b>${c.name}</b> <span class="flag">${c.flag||''}</span></span> <span class="tag">${c.tag||''}</span></td>
+  document.getElementById("clanBody").innerHTML = slice.map(c=>{
+    const val = MODE === "war" ? c.war : c.score;
+    const move = c.prev && c.prev !== c.rank
+      ? `<span class="rank-move ${c.prev > c.rank ? "up" : "down"}">${c.prev > c.rank ? "▲" : "▼"}${Math.abs(c.prev - c.rank)}</span>` : "";
+    return `<tr>
+      <td>${c.rank<=3?`<span class="rank-badge g${c.rank}">${c.rank}</span>`:`<span class="rank">${c.rank}</span>`} ${move}</td>
+      <td><a class="clan-chip" href="klan.html?tag=${encodeURIComponent(c.tag||'')}" style="text-decoration:none;color:inherit">${clanCrest(c.badge, 26)}<b>${esc(c.name)}</b></a> <span class="tag">${esc(c.tag||'')}</span> <span class="muted" style="font-size:.76rem">${esc(c.region||'')}</span></td>
       <td><b>${c.members}</b>/50</td>
-      <td class="trophy">${(c.score||0).toLocaleString("tr-TR")}</td>
-    </tr>`).join("");
+      <td class="trophy">${nfTR(val)}</td>
+    </tr>`;}).join("") || `<tr><td colspan="4" class="muted text-center" style="padding:24px">${MODE_TEXT[MODE].empty}</td></tr>`;
   renderPager(pages);
   const from=rows.length?start+1:0, to=start+slice.length;
   document.getElementById("clanCount").textContent = `${rows.length} klandan ${from}–${to} arası gösteriliyor`;
@@ -77,8 +128,13 @@ function renderPager(pages){
 }
 function goto(p){PAGE=p;paint();document.querySelector(".table-wrap").scrollIntoView({behavior:"smooth",block:"start"});}
 function filterClans(){PAGE=1;paint();}
-(async function(){ ROWS=await HypnoAPI.clanRankings(); paintApiStatus(); paint(); })();
+/* ?tab=war deep-links straight to the clan-war ladder. */
+(function(){
+  const tab = new URLSearchParams(location.search).get("tab") === "war" ? "war" : "score";
+  setMode(tab, document.querySelector(`#boardTabs button[data-mode="${tab}"]`));
+})();
 window.onLangChange=paintApiStatus;
+window.repaint = () => paint();
 </script>
 </body>
 </html>

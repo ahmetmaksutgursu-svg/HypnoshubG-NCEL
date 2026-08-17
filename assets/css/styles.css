@@ -1,5 +1,5 @@
 /* ============================================================
-   HYPNOSCOUT — Clash Royale Analiz Platformu
+   HYPNOSHUB — Clash Royale Analiz Platformu
    Shared stylesheet. Clean white base, blue + gold accents.
    Light/Dark theme via [data-theme] on <html>.
    ============================================================ */
@@ -20,22 +20,31 @@
   --green-500: #1ea567;
   --green-400: #4cc487;
 
-  /* Surfaces (light / neutral) */
-  --bg: #f6f8fb;
-  --bg-soft: #eef2f7;
-  --surface: #ffffff;
-  --surface-2: #f4f6fa;
-  --border: #e6e9ef;
-  --border-strong: #d5dae3;
-  --text: #1c2430;
-  --text-soft: #58616f;
-  --text-muted: #8a92a1;
+  /* Surfaces (açık / nötr)
+
+     Eskiden zemin #f6f8fb, kart yüzeyi ise saf #ffffff idi. Sayfanın
+     çoğunu kartlar kapladığı için ekran neredeyse bembeyaz oluyordu:
+     hem göz alıyor, hem de yüzey/zemin farkı 2-3 birime düştüğü için
+     kartların kenarı seçilmiyordu. Artık hiçbir yüzey saf beyaz değil
+     ve basamaklar arasında görünür fark var. */
+  --bg: #e9edf3;          /* sayfa zemini — en koyu basamak */
+  --bg-soft: #e1e7ef;
+  --surface: #f8fafc;     /* kart yüzeyi — beyaza yakın ama beyaz değil */
+  --surface-2: #edf1f6;   /* girdi/ikincil yüzey */
+  --border: #d4dbe5;
+  --border-strong: #bcc6d4;
+  --text: #1b232e;
+  --text-soft: #505a68;
+  --text-muted: #7d8695;
   --link: var(--blue-600);
   --shadow: 0 8px 28px rgba(30, 40, 60, 0.07);
   --shadow-sm: 0 2px 10px rgba(30, 40, 60, 0.05);
   --radius: 16px;
   --radius-sm: 10px;
-  --maxw: 1180px;
+  /* Content column. 1180px left ~340px of dead margin on each side of a
+     1861px viewport, which read as the page sitting off to one side; 1360
+     uses the width without letting text lines get uncomfortably long. */
+  --maxw: 1360px;
 
   /* Rarity */
   --r-common: #9aa7bd;
@@ -63,6 +72,16 @@
 }
 
 * { box-sizing: border-box; }
+
+/* `hidden` niteliği HER ZAMAN gizlesin.
+
+   Tarayıcı bunu kendi stil dosyasındaki [hidden]{display:none} ile yapar,
+   ama yazar kuralları tarayıcınınkini her koşulda ezer. Yani .collection
+   gibi `display:grid` verilmiş bir öğeye hidden koymak hiçbir işe
+   yaramıyordu: nitelik duruyor, öğe ekranda kalıyordu (ölçüldü — kart
+   koleksiyonu hidden olmasına rağmen 2810 piksel yer kaplıyordu).
+   Bu satır, hidden kullanan her yeri de baştan güvenceye alıyor. */
+[hidden] { display: none !important; }
 
 html { scroll-behavior: smooth; }
 
@@ -118,7 +137,9 @@ h1,h2,h3 { line-height: 1.15; margin: 0 0 .5em; letter-spacing: -.01em; }
 }
 .header-inner {
   max-width: var(--maxw); margin: 0 auto; padding: 12px 20px;
-  display: flex; align-items: center; gap: 20px;
+  /* Aradaki boşluk 20px'ken menü satırı 1360px'e sığmıyordu ve EĞLENCE
+     kırpılıyordu. Boşluğu kısmak 24px kazandırdı. */
+  display: flex; align-items: center; gap: 12px;
 }
 .brand { display: flex; align-items: center; gap: 11px; }
 .brand-logo {
@@ -141,20 +162,81 @@ h1,h2,h3 { line-height: 1.15; margin: 0 0 .5em; letter-spacing: -.01em; }
 .brand-sub { font-size: .58rem; font-weight: 800; letter-spacing: .18em; color: var(--text-muted); text-transform: uppercase; margin-top: 3px; }
 .brand:hover { text-decoration: none; }
 
-.main-nav { display: flex; gap: 4px; margin-left: 8px; }
+.main-nav { display: flex; gap: 2px; margin-left: 4px; }
 .main-nav a {
-  padding: 9px 13px; border-radius: 10px; color: var(--text-soft);
+  padding: 9px 10px; border-radius: 10px; color: var(--text-soft);
   font-weight: 800; font-size: .82rem; letter-spacing: .02em; text-transform: uppercase;
+  /* Two-word labels ("ANA SAYFA", "SON MAÇLAR") were breaking onto a second
+     line and making the header look ragged. */
+  white-space: nowrap;
 }
 .main-nav a:hover { background: var(--blue-100); color: var(--blue-700); text-decoration: none; }
 .main-nav a.active { color: var(--blue-700); background: var(--blue-100); }
 
-.header-tools { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+/* Eğlence opens a submenu instead of spilling each game into the top bar.
+   The wrapper keeps no gap between the link and the panel, so the pointer can
+   travel from one to the other without the menu closing under it. */
+.nav-item.has-sub { position: relative; display: inline-flex; }
+.nav-sub {
+  display: none; position: absolute; top: 100%; left: 0; z-index: 70; min-width: 232px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(15,30,60,.20); padding: 6px; margin-top: 6px;
+}
+/* An invisible bridge across the 6px gap. */
+.nav-sub::before { content: ""; position: absolute; left: 0; right: 0; top: -8px; height: 8px; }
+.nav-item.has-sub:hover .nav-sub, .nav-item.has-sub:focus-within .nav-sub { display: block; }
+.main-nav .nav-sub a {
+  display: flex; align-items: center; gap: 9px; padding: 9px 11px; border-radius: 9px;
+  text-transform: none; letter-spacing: 0; font-size: .84rem; font-weight: 700; white-space: nowrap;
+}
+.nav-sub .ns-ic { font-size: 1rem; width: 20px; text-align: center; }
 
+/* The header is a single non-wrapping row, so everything in it has to be
+   allowed to shrink — otherwise the last item (the account button) is pushed
+   past the right edge and clipped. The search box gives up width first. */
+/* `flex-wrap: wrap` bir kırılma noktasına bağlı DEĞİL: arama kutusuna
+   240 piksellik bir taban verildiği için, satıra sığmadığı anda kutu
+   kendiliğinden alt satıra iniyor. Eskiden tek satıra zorlanıyordu ve
+   sığmayınca kutunun çocukları (metin alanı, büyüteç) dışarı taşıp
+   yandaki düğmelerin üstüne biniyordu — 768 pikselde ölçüldü. */
+.header-tools { margin-left: auto; display: flex; align-items: center; gap: 8px; min-width: 0;
+                flex-wrap: wrap; row-gap: 8px; }
+.header-tools .search-box { flex: 1 1 240px; min-width: 0; max-width: 380px; }
+/* Yazı alanının genişliği `width` ile veriliyor, `min-width` ile DEĞİL.
+
+   Fark önemli: boş bir metin kutusunun doğal genişliği sıfıra yakındır, o
+   yüzden başlık ona hiç yer ayırmıyordu (ölçtük: 94 piksel kalıyor, yer
+   tutucu yarıda kesiliyordu). `min-width` vermek de çözmedi, tersine
+   bozdu — kutu daralabildiği hâlde çocuklar daralamayınca düğme kutunun
+   çerçevesinin DIŞINA taşıyordu; büyütecin kopuk görünmesinin sebebi buydu
+   (1500 pikselde bile 58 piksel dışarı çıkıyordu).
+
+   `width` doğal genişliği tanımlı kılıyor: başlık 160 piksel yer ayırıyor,
+   `min-width:0` sayesinde yer yoksa daralabiliyor, yani taşma imkânsız. */
+   (`overflow:hidden` ile kırpmak akla geliyor ama olmaz: kutunun altından
+   açılan öneri listesini de keser — bkz. yukarıdaki not.) */
+.header-tools .search-box input { width: 160px; min-width: 0; flex: 1 1 auto; }
+.header-tools .icon-btn { flex: none; }
+.header-inner { min-width: 0; }
+/* Menü ASLA kısalmaz: kısalınca son sıradaki EĞLENCE kırpılıyordu ve
+   sağ üstte hiç görünmüyordu. Baskıyı arama kutusu emiyor (o da 1180px
+   altında zaten menüyle birlikte gizleniyor).
+   `overflow: hidden` de kalktı — Eğlence'nin alt menüsü aşağı sarktığı
+   için o kutu tarafından kesiliyordu. */
+.main-nav { min-width: 0; flex-shrink: 0; }
+/* The menu button moved out of header-tools and into the empty space on the
+   far left, which also relieved the crowded right-hand side. */
+.header-inner > .menu-btn { flex: none; margin-right: 2px; }
+
+/* NOTE: no `overflow: hidden` here. It used to clip the select/button into the
+   rounded corner, but it also clipped the type-ahead dropdown that hangs below
+   the box, so the corners are rounded on the children instead. */
 .search-box {
   display: flex; align-items: stretch; background: var(--surface-2);
-  border: 1px solid var(--border-strong); border-radius: 12px; overflow: hidden;
+  border: 1px solid var(--border-strong); border-radius: 12px; position: relative;
 }
+.search-box > select, .search-box > input:first-child { border-radius: 11px 0 0 11px; }
+.search-box > .search-go { border-radius: 0 11px 11px 0; }
 .search-box select {
   border: none; background: var(--blue-100); color: var(--blue-700);
   font-weight: 800; font-size: .8rem; padding: 0 10px; cursor: pointer;
@@ -169,6 +251,11 @@ h1,h2,h3 { line-height: 1.15; margin: 0 0 .5em; letter-spacing: -.01em; }
   border: none; background: var(--blue-600); color: #fff; padding: 0 14px; cursor: pointer;
   display: grid; place-items: center;
 }
+/* Büyütecin boyutu. Bu kural yoktu: SVG'nin kendi ölçüsü olmadığı için
+   düğmenin içinde 0×0 çiziliyordu — yani buton bomboş bir mavi kutu gibi
+   görünüyordu. Sayfadaki diğer simgelerin hepsinde böyle bir kural var
+   (.icon-btn svg, .social-link svg …), atlanan tek yer burasıydı. */
+.search-box .search-go svg { width: 17px; height: 17px; flex: none; }
 .search-box .search-go:hover { background: var(--blue-700); }
 
 .icon-btn {
@@ -186,9 +273,10 @@ h1,h2,h3 { line-height: 1.15; margin: 0 0 .5em; letter-spacing: -.01em; }
 /* ---------- Hero (light / neutral) ---------- */
 .hero {
   position: relative; overflow: hidden;
+  /* Sabit #ffffff yerine yüzey rengi: tema değişince kendiliğinden uyuyor. */
   background:
     radial-gradient(900px 340px at 82% -20%, rgba(37,99,235,.08), transparent 60%),
-    linear-gradient(180deg, #ffffff, var(--bg));
+    linear-gradient(180deg, var(--surface), var(--bg));
   color: var(--text); padding: 54px 0 44px;
   border-bottom: 1px solid var(--border);
 }
@@ -198,11 +286,22 @@ h1,h2,h3 { line-height: 1.15; margin: 0 0 .5em; letter-spacing: -.01em; }
 .hero h1 .b { color: var(--blue-600); }
 .hero p { font-size: 1.04rem; color: var(--text-soft); max-width: 60ch; }
 .hero-cta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 22px; }
+/* Filigran tokmak. %7 opaklık koyu zeminde iş görüyordu ama açık temada
+   neredeyse beyaz üstünde beyaz kalıyordu — görünmüyordu. Açık temada
+   daha belirgin, koyu temada eski değerinde. */
 .hero-watermark {
   position: absolute; right: -30px; top: 50%; transform: translateY(-50%) rotate(-8deg);
-  opacity: .07; z-index: 1; pointer-events: none;
+  opacity: .16; z-index: 1; pointer-events: none;
 }
+[data-theme="dark"] .hero-watermark { opacity: .10; }
 .hero-watermark img, .hero-watermark svg { width: 380px; height: 380px; object-fit: contain; }
+/* Tokmakçılar tablosu tek sütuna düşünce (≤1100px) sağdaki alan bomboş
+   kalıyordu. Filigranı gizlemek yerine oraya, arama kartlarının hizasına
+   çekiyoruz — boşluğu o dolduruyor. */
+@media (max-width: 1100px) {
+  .hero-watermark { right: -40px; top: auto; bottom: 0; transform: rotate(-8deg); }
+  .hero-watermark img, .hero-watermark svg { width: 320px; height: 320px; }
+}
 .hero-stats { display: flex; gap: 30px; margin-top: 28px; flex-wrap: wrap; }
 .hero-stat b { display: block; font-size: 1.6rem; font-weight: 900; color: var(--blue-600); }
 .hero-stat span { font-size: .82rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .08em; }
@@ -235,6 +334,19 @@ h1,h2,h3 { line-height: 1.15; margin: 0 0 .5em; letter-spacing: -.01em; }
 /* ---------- Cards (game cards) ---------- */
 .card-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 .card-grid.eight { grid-template-columns: repeat(4, 1fr); }
+/* Tüm kartlar ızgarası (Kartlar sayfası). Sütun sayısı ekrana göre iniyor;
+   ölçüldü: sabit sekiz sütunda 390 piksellik ekranda kart 33×40 piksele
+   düşüyor ve resim iksir rozetinin altında kayboluyor. */
+.card-grid.tumu { grid-template-columns: repeat(8, 1fr); }
+@media (max-width: 1180px){ .card-grid.tumu { grid-template-columns: repeat(6, 1fr); } }
+@media (max-width: 900px) { .card-grid.tumu { grid-template-columns: repeat(5, 1fr); } }
+@media (max-width: 620px) {
+  .card-grid.tumu { grid-template-columns: repeat(4, 1fr); }
+  .card-grid { gap: 8px; }
+  /* Küçük kartta 22 piksellik rozet resmi yutuyor — onunla birlikte küçülsün. */
+  .cr-card .elixir { width: 19px; height: 19px; font-size: .6rem; top: 3px; right: 3px; }
+}
+@media (max-width: 400px) { .card-grid.tumu { grid-template-columns: repeat(3, 1fr); } }
 .cr-card {
   position: relative; border-radius: 12px; overflow: hidden;
   background: var(--surface-2); border: 1px solid var(--border);
@@ -255,13 +367,33 @@ h1,h2,h3 { line-height: 1.15; margin: 0 0 .5em; letter-spacing: -.01em; }
 .cr-card.evo { border: 2px solid transparent; background:
   linear-gradient(var(--surface-2),var(--surface-2)) padding-box,
   linear-gradient(135deg,#8be9ff,#c58bff,#ff9ce4) border-box; }
-.cr-card .evo-tag, .cr-card .hero-tag {
+/* NOTE: the champion modifier is ".champ", never ".hero" — ".hero" is already
+   the landing-page banner section (padding: 54px 0 44px), and a card carrying
+   that class inherits the padding and clips its own artwork. */
+.cr-card.champ:not(.evo) { border: 2px solid transparent; background:
+  linear-gradient(var(--surface-2),var(--surface-2)) padding-box,
+  linear-gradient(135deg,var(--gold-400),var(--gold-600)) border-box; }
+.cr-card .evo-tag, .cr-card .hero-tag, .cr-card .heroslot-tag {
   position: absolute; top: 5px; left: 5px; z-index: 2;
   font-size: .58rem; font-weight: 900; letter-spacing: .04em;
   padding: 2px 6px; border-radius: 6px; text-transform: uppercase;
 }
-.cr-card .evo-tag { background: linear-gradient(135deg,#39c6ff,#a25bff); color:#fff; }
+/* Evolution and champion must never read as the same thing. Evolution keeps
+   the game's purple; champion is gold. Nothing else uses either colour. */
+.cr-card .evo-tag { background: linear-gradient(135deg,#8b5cf6,#6d28d9); color:#fff; }
 .cr-card .hero-tag { background: linear-gradient(135deg,var(--gold-400),var(--gold-600)); color:#2a1e00; }
+
+/* An evolution whose artwork was never published: the plain card is shown, so
+   the purple outline is dashed to say "this picture is not the evolved one".
+   The tooltip spells it out. */
+.cr-card.no-evo-art { outline: 2px dashed rgba(139,92,246,.75); outline-offset: -2px; }
+
+/* A HERO slot: the game's gold, clearly not the evolution purple. */
+.cr-card .heroslot-tag {
+  background: linear-gradient(135deg,#ffd75e,#e0a800); color:#3a2a00;
+}
+.cr-card.heroslot { box-shadow: 0 0 0 2px #e0a800 inset; }
+.di.heroslot { box-shadow: 0 0 0 2px #e0a800 inset; border-radius: 8px; }
 .cr-card .elixir {
   position: absolute; top: 5px; right: 5px; z-index: 2; width: 22px; height: 22px;
   border-radius: 50%; background: radial-gradient(circle at 35% 30%,#e884ff,#a01bd6);
@@ -270,7 +402,19 @@ h1,h2,h3 { line-height: 1.15; margin: 0 0 .5em; letter-spacing: -.01em; }
 }
 
 /* ---------- Tables ---------- */
-.table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm); }
+/* Tablo sarmalayıcısı. `overflow:hidden` idi ve mobilde asıl sorun buydu:
+   375 piksellik ekranda 721 piksellik sıralama tablosu kırpılıyor, sağdaki
+   sütunlar (MADALYON, DESTE) hiç görülemiyordu — kaydırmak da mümkün
+   değildi çünkü hidden kaydırmayı kapatıyor. `auto` ile artık parmakla
+   yana kaydırılıyor; köşe yuvarlaklığı da korunuyor.
+   `overscroll-behavior-x` yatay kaydırma bitince hareketin sayfaya (ve
+   tarayıcının "geri" hareketine) sıçramasını engelliyor. */
+.table-wrap {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow-sm);
+  overflow-x: auto; overflow-y: hidden;
+  overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch;
+}
 table.data { width: 100%; border-collapse: collapse; font-size: .9rem; }
 table.data thead th {
   text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .08em;
@@ -361,6 +505,12 @@ table.data .rank.top3 { color: #c98a3f; }
 .result-pill { font-size: .72rem; font-weight: 900; padding: 3px 10px; border-radius: 999px; }
 .result-pill.win { background: rgba(47,191,106,.16); color: var(--green-600); }
 .result-pill.loss { background: rgba(224,60,60,.14); color: #d23c3c; }
+.result-pill.draw { background: var(--surface-2); color: var(--text-muted); }
+
+/* Profile battle log */
+.bl-row { border-bottom: 1px solid var(--border); padding: 14px 0; }
+.bl-row:last-child { border-bottom: none; }
+.bl-lbl { font-size: .72rem; font-weight: 800; margin-bottom: 4px; color: var(--text-muted); }
 
 /* trophy chart */
 .spark { width: 100%; height: 90px; display: block; }
@@ -368,12 +518,72 @@ table.data .rank.top3 { color: #c98a3f; }
 
 /* ---------- Profile header ---------- */
 .profile-hero { background: linear-gradient(135deg,var(--blue-900),var(--blue-700)); color:#fff; border-radius: 20px; padding: 26px; display:flex; gap:20px; align-items:center; flex-wrap:wrap; }
-.profile-hero .avatar { width:76px; height:76px; border-radius:18px; background:linear-gradient(135deg,var(--gold-400),var(--gold-600)); display:grid; place-items:center; font-size:2rem; }
+.profile-hero .avatar { width:76px; height:76px; border-radius:18px; background:linear-gradient(135deg,var(--gold-400),var(--gold-600)); display:grid; place-items:center; font-size:2rem; flex:none; }
+/* Lig rozeti taşındığında altın kare fazlalık — görsel kendi zemininde durur. */
+.profile-hero .avatar.lig { background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.18); }
+.profile-hero .avatar.lig img { width:60px; height:60px; object-fit:contain; display:block; }
+.profile-hero .ph-body { min-width:0; flex:1 1 240px; }
 .profile-hero h1 { margin:0; font-size:1.7rem; }
-.profile-hero .tag { color:#cdd9f2; }
+/* Etiket satırı esnek bir sıra. Eskiden düz metindi ve içindeki klan arması
+   (22×26 blok) satır hizasından yukarı kaçıyordu; şimdi hepsi ortadan hizalı
+   ve dar ekranda temiz sarıyor. */
+.profile-hero .tag { color:#cdd9f2; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.profile-hero .tag i { font-style:normal; opacity:.45; }
+.profile-hero .tag .clan-chip { gap:6px; }
+.profile-hero .tag .clan-badge { width:22px; height:22px; display:block; }
 .profile-hero .p-stats { margin-left:auto; display:flex; gap:26px; flex-wrap:wrap; }
+/* Sayaçlar alttan hizalı. Lig sayacının değeri yazı olduğu için (ASİL
+   ŞAMPİYON) ötekilerden küçük punto; üstten hizalıyken alt satır 13 piksel
+   yukarıda kalıyordu, yani "LİG" ile "KUPA YOLU" aynı çizgide değildi.
+   Alttan hizalayınca etiket satırı hepsinde aynı yere düşüyor ve değerlerin
+   alt kenarları da kendiliğinden çakışıyor. */
+.profile-hero .p-stats > div { display:flex; flex-direction:column; justify-content:flex-end; }
 .profile-hero .p-stats b { display:block; font-size:1.5rem; color:var(--gold-400); }
+/* Sayı yerine lig adı yazınca 1.5rem taşıyordu. */
+.profile-hero .p-stats b.sm { font-size:1.05rem; line-height:1.45; }
 .profile-hero .p-stats span { font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:#c3d1ee; }
+
+/* ---------- Lig geçmişi ---------- */
+.lg-strip { display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
+.lg-step {
+  width:26px; height:26px; border-radius:8px; display:grid; place-items:center;
+  font-size:.72rem; font-weight:900; background:var(--surface-2);
+  border:1px solid var(--border); color:var(--text-muted);
+}
+.lg-step.on { background:var(--blue-100); border-color:var(--blue-500); color:var(--blue-600); }
+.lg-step.now { background:var(--blue-600); border-color:var(--blue-600); color:#fff; }
+.lg-bars { display:flex; flex-direction:column; gap:14px; }
+/* ÜÇÜNCÜ SÜTUN SABİT OLMAK ZORUNDA. `auto` iken sütunun genişliği yazının
+   uzunluğuna göre değişiyordu: "NİHAİ ŞAMPİYON ESKİ ÖLÇEK" satırında yazı
+   geniş olduğu için çubuk rayı daralıyor, dolayısıyla DAHA YÜKSEK madalyonlu
+   satırın çubuğu daha kısa görünüyordu. Ray artık her satırda aynı
+   genişlikte, yani çubuklar gerçekten karşılaştırılabilir. */
+.lg-row { display:grid; grid-template-columns:96px minmax(0,1fr) 184px; align-items:center; gap:12px; }
+.lg-note { margin:14px 0 0; font-size:.76rem; color:var(--text-muted); }
+.lg-lbl { font-size:.76rem; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); }
+.lg-track { position:relative; height:26px; border-radius:8px; background:var(--surface-2); overflow:hidden; }
+.lg-fill { height:100%; border-radius:8px; background:linear-gradient(90deg,var(--blue-500),var(--blue-700)); }
+.lg-row.best .lg-fill { background:linear-gradient(90deg,var(--gold-400),var(--gold-600)); }
+.lg-ic { position:absolute; right:4px; top:50%; transform:translateY(-50%); object-fit:contain; }
+.lg-val { text-align:right; line-height:1.35; }
+.lg-val b { display:block; font-size:.9rem; }
+.lg-val span { font-size:.76rem; color:var(--text-soft); }
+.lg-old {
+  font-size:.62rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase;
+  padding:1px 5px; border-radius:5px; background:var(--surface-2);
+  border:1px solid var(--border); color:var(--text-muted); vertical-align:2px;
+}
+/* Dönemi okunamayan kayıt işareti. Uydurulmuş bir lig adını sessizce
+   göstermek yerine belirsizliği görünür kılıyor; ipucu iki okumayı da yazar. */
+.lg-quest {
+  display:inline-grid; place-items:center; width:16px; height:16px; margin-left:5px;
+  border-radius:50%; font-size:.62rem; font-weight:900; cursor:help; vertical-align:2px;
+  background:var(--surface-2); border:1px solid var(--border); color:var(--text-muted);
+}
+@media (max-width: 620px) {
+  .lg-row { grid-template-columns:1fr; gap:4px; }
+  .lg-val { text-align:left; }
+}
 
 /* ---------- Meta deck cards ---------- */
 .metadeck { }
@@ -398,6 +608,196 @@ table.data .rank.top3 { color: #c98a3f; }
 }
 [data-theme="dark"] .notice { border-color:#5a4a12; color: var(--gold-400); }
 
+/* ---------- Resmi hesap tiki ----------
+   Rozet mavi, içindeki onay beyaz. Adın hemen yanında durur. */
+.vtick { display:inline-flex; width:1em; height:1em; vertical-align:-0.12em; margin-left:.28em; color:var(--blue-600); flex:none; }
+.vtick svg { width:100%; height:100%; display:block; }
+h1 .vtick { width:.82em; height:.82em; }
+/* Resmi hesap satırı listede hafifçe öne çıksın. */
+.res-row.vf { border-color: var(--blue-500); background: color-mix(in srgb, var(--blue-600) 6%, var(--surface)); }
+
+/* PRO — Nihai Kademe dünya ilk 100. Tikten ayrı dursun diye altın rozet. */
+.protag {
+  display:inline-block; margin-left:.3em; padding:1px 6px; border-radius:6px;
+  background:linear-gradient(135deg,var(--gold-500),var(--gold-600)); color:#fff;
+  font-size:.62em; font-weight:900; letter-spacing:.06em; vertical-align:middle;
+  line-height:1.5; white-space:nowrap;
+}
+
+/* ---------- PRO başvurusu (oyuncu formu) ---------- */
+.pro-form { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.pro-form input, .pro-form select {
+  font-family:inherit; font-size:.88rem; padding:9px 11px; border-radius:11px;
+  border:1px solid var(--border-strong); background:var(--surface-2); color:var(--text);
+}
+.pro-form #paTag { width:150px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
+.pro-form #paNote { flex:1; min-width:200px; }
+
+/* ---------- PRO başvuruları (yönetici paneli) ---------- */
+.pa-list { display:flex; flex-direction:column; gap:10px; max-height:56vh; overflow-y:auto; }
+.pa-row { border:1px solid var(--border); border-radius:12px; padding:11px 13px; background:var(--surface-2); }
+.pa-head { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:.92rem; }
+.pa-stats { display:flex; gap:14px; flex-wrap:wrap; margin-top:6px; }
+.pa-stat { font-size:.79rem; color:var(--text-soft); }
+.pa-note { margin-top:7px; font-size:.83rem; background:var(--surface); border-radius:9px; padding:7px 10px; }
+.pa-foot { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:9px; font-size:.78rem; }
+.pa-foot .btn { padding:5px 12px; font-size:.8rem; margin-left:0; }
+.pa-foot .btn-primary { margin-left:auto; }
+.pa-manual { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0; padding:10px; border:1px dashed var(--border-strong); border-radius:12px; }
+.pa-manual input, .pa-manual select {
+  font-family:inherit; font-size:.85rem; padding:7px 10px; border-radius:10px;
+  border:1px solid var(--border-strong); background:var(--surface); color:var(--text);
+}
+.pa-manual #pgTag { width:140px; font-weight:800; text-transform:uppercase; }
+.pa-manual #uaQ { flex:1; min-width:160px; }
+.pa-manual .btn { padding:6px 12px; font-size:.82rem; }
+
+/* ---------- Kullanıcı yönetimi (yasaklama) ---------- */
+.ua-row {
+  display:flex; align-items:center; gap:11px;
+  border:1px solid var(--border); border-radius:12px; padding:9px 12px; background:var(--surface-2);
+}
+.ua-row.banned { border-color:rgba(224,67,95,.45); background:rgba(224,67,95,.06); }
+.ua-av {
+  width:32px; height:32px; border-radius:9px; flex:none; display:grid; place-items:center;
+  background:var(--blue-600); color:#fff; font-weight:900; font-size:.9rem;
+}
+.ua-tx { display:flex; align-items:center; gap:7px; flex-wrap:wrap; min-width:0; flex:1; }
+.ua-tx b { font-size:.92rem; }
+.ua-sub { width:100%; font-size:.75rem; color:var(--text-muted); }
+.ua-row .btn { padding:5px 11px; font-size:.8rem; flex:none; }
+.ua-row .ua-ban:hover { border-color:#e0435f; color:#e0435f; }
+
+/* ---------- Özel mesajlar ----------
+   Sohbet iki taraflı: "me" sağda mavi, karşı taraf solda nötr. */
+.msg-list { display:flex; flex-direction:column; gap:8px; max-height:46vh; overflow-y:auto; padding:4px 2px; }
+#msgBox { max-height:46vh; overflow-y:auto; }
+.msg-b { max-width:78%; padding:9px 12px; border-radius:14px; display:flex; flex-direction:column; gap:3px; }
+.msg-b .msg-t { font-size:.88rem; line-height:1.4; white-space:pre-wrap; word-break:break-word; }
+.msg-b .msg-at { font-size:.68rem; opacity:.7; }
+.msg-b.me   { align-self:flex-end; background:var(--blue-600); color:#fff; border-bottom-right-radius:5px; }
+.msg-b.them { align-self:flex-start; background:var(--surface-2); border:1px solid var(--border); border-bottom-left-radius:5px; }
+.msg-send { display:flex; gap:8px; align-items:flex-end; margin-top:12px; }
+.msg-send textarea {
+  flex:1; min-width:0; resize:vertical; font-family:inherit; font-size:.88rem; padding:9px 11px;
+  border-radius:12px; border:1px solid var(--border-strong); background:var(--surface-2); color:var(--text);
+}
+.msg-threads { display:flex; flex-direction:column; gap:6px; max-height:52vh; overflow-y:auto; }
+.msg-row {
+  display:flex; align-items:center; gap:10px; width:100%; text-align:left;
+  background:var(--surface-2); border:1px solid var(--border); border-radius:12px;
+  padding:9px 12px; cursor:pointer; font-family:inherit; color:inherit;
+}
+.msg-row:hover { border-color:var(--blue-500); }
+.msg-av { width:30px; height:30px; border-radius:9px; background:var(--blue-600); color:#fff;
+          display:grid; place-items:center; font-weight:900; font-size:.82rem; flex:none; }
+.msg-main { display:flex; flex-direction:column; gap:2px; min-width:0; flex:1; }
+.msg-u { font-weight:800; font-size:.88rem; }
+.msg-last { font-size:.78rem; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.msg-badge { background:#e0435f; color:#fff; font-size:.72rem; font-weight:900; padding:2px 7px; border-radius:999px; flex:none; }
+
+/* Tokmakçılar tablosunda yönetici yasaklama düğmesi */
+.board-ban {
+  border:none; background:transparent; cursor:pointer; font-size:.9rem; line-height:1;
+  padding:3px 5px; border-radius:7px; opacity:.5; flex:none;
+}
+.board-ban:hover { opacity:1; background:rgba(224,67,95,.14); }
+
+/* ---------- Açılır kapanır kart başlığı ----------
+   Başlık <button> olduğu için klavyeyle de açılabiliyor. */
+.card.collapsible .as-toggle {
+  display:flex; align-items:center; gap:10px; width:100%;
+  background:none; border:none; padding:0; margin:0 0 2px;
+  font-family:inherit; color:inherit; cursor:pointer; text-align:left;
+}
+.card.collapsible .as-toggle:hover h3 { color:var(--blue-600); }
+.card.collapsible .chev { display:inline-flex; width:18px; height:18px; color:var(--text-muted); transition:transform .18s; }
+.card.collapsible .chev svg { width:100%; height:100%; }
+.card.collapsible.open .chev { transform:rotate(180deg); }
+.card.collapsible .collection { margin-top:12px; }
+
+/* ---------- Kart Kapışması ----------
+   İki kart yan yana, ortada VS. Dar ekranda alt alta geçiyor ama
+   VS ortada kalıyor, yoksa hangi kartın kime karşı olduğu kayboluyor. */
+.quiz-top.kapisma { background: linear-gradient(135deg, #7c2d12, #b45309); }
+.kp-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; font-size:.8rem; font-weight:800; }
+.kp-step { color:var(--text-soft); letter-spacing:.06em; }
+.kp-score { color:var(--blue-600); }
+.kp-arena { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:12px; margin-bottom:14px; }
+.kp-vs { font-weight:900; font-size:1.05rem; color:var(--text-soft); letter-spacing:.06em; }
+.kp-card {
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  background:var(--surface); border:2px solid var(--border); border-radius:16px;
+  padding:16px 12px; cursor:pointer; font-family:inherit; color:inherit;
+  transition:border-color .12s, transform .12s;
+}
+.kp-card:hover:not(:disabled) { border-color:var(--blue-500); transform:translateY(-2px); }
+.kp-card:disabled { cursor:default; }
+.kp-card img { width:96px; max-width:100%; height:auto; display:block; }
+.kp-n { font-weight:800; font-size:.9rem; text-align:center; line-height:1.2; }
+.kp-el { font-size:.78rem; color:var(--text-soft); }
+.kp-v { font-weight:900; font-size:1rem; min-height:1.2em; color:var(--blue-600); }
+.kp-card.right { border-color:#12885a; background:rgba(18,136,90,.08); }
+.kp-card.right .kp-v { color:#12885a; }
+.kp-card.wrong { border-color:#c0392b; background:rgba(192,57,43,.08); }
+.kp-card.wrong .kp-v { color:#c0392b; }
+@media (max-width:560px){
+  .kp-arena { grid-template-columns:1fr; }
+  .kp-vs { justify-self:center; }
+  .kp-card img { width:78px; }
+}
+
+/* ---------- Deste Jeneratörü ---------- */
+.quiz-top.deste { background: linear-gradient(135deg, #4c1d95, #7c3aed); }
+/* Yuva şeridi: dolan yuvaya seçilen kartın küçük resmi oturuyor. */
+.dj-strip { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+.dj-step {
+  width:38px; height:38px; border-radius:10px; display:grid; place-items:center;
+  background:var(--surface-2); border:1px solid var(--border);
+  font-size:1rem; overflow:hidden; flex:none;
+}
+.dj-step.ok { border-color:var(--blue-500); background:var(--blue-100); }
+.dj-step.now { border-color:var(--gold-500); box-shadow:0 0 0 3px rgba(242,184,7,.18); }
+.dj-step img { width:100%; height:100%; object-fit:cover; display:block; }
+.dj-head { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+.dj-step-no { font-size:.76rem; font-weight:800; letter-spacing:.06em; color:var(--text-muted); text-transform:uppercase; }
+.dj-slot { display:flex; flex-direction:column; gap:2px; }
+.dj-slot b { font-size:1.05rem; }
+.dj-slot span { font-size:.8rem; color:var(--text-soft); }
+.dj-choices { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+.dj-pick {
+  display:flex; flex-direction:column; align-items:center; gap:8px;
+  background:var(--surface); border:2px solid var(--border); border-radius:16px;
+  padding:14px 10px; cursor:pointer; font-family:inherit; color:inherit;
+  transition:border-color .12s, transform .12s;
+}
+.dj-pick:hover { border-color:var(--blue-500); transform:translateY(-2px); }
+.dj-pick .cr-card { width:100%; max-width:120px; }
+.dj-name { font-weight:800; font-size:.86rem; text-align:center; line-height:1.2; }
+.dj-acts { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:18px; }
+.dj-done { text-align:center; }
+.dj-done h3 { margin:0 0 16px; font-size:1.2rem; }
+.dj-deck { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px; }
+.dj-meta { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-bottom:6px; }
+.dj-tag {
+  font-size:.76rem; font-weight:700; padding:3px 9px; border-radius:999px;
+  background:var(--surface-2); border:1px solid var(--border); color:var(--text-soft);
+}
+@media (max-width:640px){
+  .dj-choices { grid-template-columns:1fr; }
+  .dj-pick { flex-direction:row; gap:14px; }
+  .dj-pick .cr-card { max-width:88px; }
+  .dj-deck { grid-template-columns:repeat(2,1fr); }
+}
+
+/* Veri alınamadı uyarısı: bilgi notundan ayrılsın diye kırmızı.
+   Örnek veri basmayı bıraktığımız için bu kutu artık boş kalan
+   tabloların/ızgaraların yerini tutuyor, o yüzden ortalanıyor. */
+.notice.warn { background:#fdeaea; border-color:#f0b4b4; color:#8c2b2b; }
+[data-theme="dark"] .notice.warn { background:rgba(140,43,43,.16); border-color:#7a3535; color:#f3b9b9; }
+.notice.warn .btn { display:inline-flex; margin-top:10px; padding:7px 14px; font-size:.82rem; }
+td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
+
 /* ---------- Footer ---------- */
 .site-footer { background: var(--blue-900); color: #cdd9f2; margin-top: 50px; }
 .site-footer a { color: #cdd9f2; }
@@ -420,7 +820,12 @@ table.data .rank.top3 { color: #c98a3f; }
 .social-icons a { width:34px; height:34px; border-radius:9px; background:rgba(255,255,255,.08); display:grid; place-items:center; }
 .social-icons a:hover { background:var(--blue-600); }
 .social-icons svg { width:17px; height:17px; }
-.social-link { display:flex; align-items:center; gap:9px; padding:6px 0; font-size:.88rem; opacity:.85; }
+/* DİKKAT: seçicideki `.footer-col` şart. Yalnızca `.social-link` yazınca
+   `.footer-col a { display:block }` (özgüllüğü daha yüksek) bunu eziyordu;
+   satır flex olmadığı için ikon ile yazı arasında boşluk kalmıyor ve simge
+   yazının hizasından kayıyordu. */
+.social-link,
+.footer-col a.social-link { display:flex; align-items:center; gap:9px; padding:6px 0; font-size:.88rem; opacity:.85; }
 .social-link:hover { opacity:1; }
 .social-link svg { width:18px; height:18px; flex:none; }
 
@@ -442,7 +847,41 @@ table.data .rank.top3 { color: #c98a3f; }
 @media (max-width:620px){ .video-grid{ grid-template-columns:1fr;} }
 
 /* ---------- Page header strip (light) ---------- */
-.page-strip { background: linear-gradient(180deg,#ffffff,var(--bg)); color:var(--text); padding: 34px 0; border-bottom:1px solid var(--border); }
+/* Üst band. `relative` + `overflow:hidden` filigran için: ana sayfadaki
+   tokmakla aynı düzen — resim bandın sağ boşluğuna oturuyor ve taşan kısmı
+   kırpılıyor. Filigranı sayfanın geneline koymayı denedik, işe yaramıyor:
+   içerik kutuları (tablo, kart ızgarası) opak zeminli, filigran onların
+   ardında kalıyor ve hiç görünmüyor. Boş alan yalnızca burada. */
+/* Zemin sabit #ffffff idi: karanlık temada band beyazdan siyaha inen bir
+   şerit gibi duruyordu. Aynı hata .hero'da düzeltilmiş, burası atlanmış —
+   yüzey rengi tema değişince kendiliğinden uyuyor. */
+.page-strip { position:relative; overflow:hidden; background: linear-gradient(180deg,var(--surface),var(--bg)); color:var(--text); padding: 34px 0; border-bottom:1px solid var(--border); }
+/* Yazı filigranın üstünde kalsın. */
+.page-strip > .container { position:relative; z-index:1; }
+/* Filigranlı bandı biraz yükseltiyoruz: 130 pikselde resimden yalnızca ince
+   bir şerit görünüyordu, tanınmıyordu bile. */
+.page-strip.filigranli { padding: 44px 0; }
+.page-watermark {
+  position:absolute; right:-24px; top:50%; transform:translateY(-50%) rotate(-7deg);
+  z-index:0; pointer-events:none; user-select:none; opacity:.17;
+}
+[data-theme="dark"] .page-watermark { opacity:.11; }
+.page-watermark img { width:230px; height:230px; object-fit:contain; display:block; }
+/* Dar ekranda başlığın üstüne biniyor: küçült, soluklaştır, en darda kaldır. */
+@media (max-width: 900px) {
+  .page-watermark { right:-40px; opacity:.10; }
+  [data-theme="dark"] .page-watermark { opacity:.07; }
+  .page-watermark img { width:180px; height:180px; }
+}
+/* Dar ekranda gizlenmiyor, KÜÇÜLÜP KÖŞEYE çekiliyor. Önce `display:none`
+   yapılmıştı çünkü büyük hâli başlığın üstüne biniyordu; ama o zaman da
+   telefonda hiç görünmüyorlardı. Sağ alt köşeye sığdırıp iyice soluklaştırmak
+   ikisini birden çözüyor: yazının okunduğu sol tarafa hiç girmiyor. */
+@media (max-width: 620px) {
+  .page-watermark { right:-22px; top:50%; transform:translateY(-50%) rotate(-7deg); opacity:.17; }
+  [data-theme="dark"] .page-watermark { opacity:.11; }
+  .page-watermark img { width:120px; height:120px; }
+}
 .page-strip h1 { font-size: clamp(1.5rem,3.2vw,2.2rem); font-weight:900; margin:0; }
 .page-strip p { color:var(--text-soft); margin:.4rem 0 0; }
 .page-strip .eyebrow { color: var(--blue-600); }
@@ -459,7 +898,15 @@ table.data .rank.top3 { color: #c98a3f; }
 @keyframes spin{to{transform:rotate(360deg);}}
 
 /* ---------- Responsive ---------- */
-@media (max-width: 1020px) {
+/* Menü artık kısalmadığı için, sığmadığı genişlikte tamamen hamburgere
+   geçiyor. Yoksa baskıyı arama kutusu emiyor ve 1300px civarında kutu
+   kullanılamayacak kadar (82px) eziliyordu. */
+@media (max-width: 1340px) {
+  .main-nav { display: none; }
+  .nav-toggle { display: grid; }
+}
+
+@media (max-width: 1180px) {
   .main-nav { display: none; }
   .nav-toggle { display: grid; }
   .search-box input { min-width: 130px; }
@@ -468,16 +915,72 @@ table.data .rank.top3 { color: #c98a3f; }
   .grid-4 { grid-template-columns: repeat(2,1fr); }
   .grid-3 { grid-template-columns: 1fr; }
   .dash { grid-template-columns: 1fr; }
-  .hero-watermark { display:none; }
 }
 @media (max-width: 620px) {
-  .header-inner { flex-wrap: wrap; }
-  .header-tools { width:100%; order:3; }
-  .search-box { flex:1; }
+  /* Dar ekranda filigran metnin üstüne biniyor — orada kapatıyoruz. */
+  /* Tokmak gizlenmiyor, küçülüp sağ ÜSTE çekiliyor. Alta koymak denendi ve
+     görünmedi: mobilde hero'nun altında arama kartları var, onların zemini
+     opak, filigran arkalarında kayboluyor. Üstte ise yalnızca başlık metni
+     var — metnin zemini saydam olduğu için filigran gerçekten görünüyor. */
+  .hero-watermark { right:-26px; top:14px; bottom:auto; transform:rotate(-8deg) translateY(0); opacity:.17; }
+  [data-theme="dark"] .hero-watermark { opacity:.11; }
+  .hero-watermark img, .hero-watermark svg { width:160px; height:160px; }
+  .header-inner { flex-wrap: wrap; row-gap: 8px; }
+  /* Araçlar kendi satırında ve İÇİNDE de sarıyor: arama kutusu tam
+     genişlikte tek başına, düğmeler altına. Eskiden hepsi tek satıra
+     sıkıştırılıyordu; kutu daralabildiği hâlde çocukları daralamayınca
+     büyüteç ve "TR" düğmesi metin alanının ÜSTÜNE biniyordu. */
+  .header-tools { width:100%; order:3; flex-wrap: wrap; row-gap: 8px; }
+  .header-tools .search-box { flex: 1 0 100%; }
+  .header-tools .search-box input { width: auto; flex: 1 1 auto; }
   .grid-2, .grid-4 { grid-template-columns: 1fr; }
   .footer-top { grid-template-columns: 1fr; }
   .profile-hero .p-stats { margin-left:0; width:100%; }
   .wheel { width: 240px; height:240px; }
+}
+
+/* ---------- Dokunma hedefleri ----------
+   Parmakla kullanılan bir ekranda küçük hedefe isabet ettirmek zor. Ölçtük:
+   giriş/kayıt düğmeleri 30-32 px, sekmeler 34 px, tablodaki oyuncu adı
+   20 px, deste kopyalama düğmesi 28 px, alt bilgi bağlantıları 30 px.
+
+   İki kademe kullanıyoruz, çünkü her şeyi 44 pikselte zorlamak yoğun
+   satırları dağıtıyor:
+     · Gerçek denetimler (düğme, sekme, liste satırındaki ana bağlantı) 44 px.
+     · Yoğun üstveri satırlarındaki küçük bağlantılar (profil başlığındaki
+       etiket/klan zinciri gibi) 32 px — satırı bozmadan parmakla tutulur.
+   Kural yalnızca dokunmatik cihazlarda: fareyle kullanılan dar bir pencerede
+   düğmeleri şişirmenin anlamı yok. */
+@media (max-width: 1020px) and (pointer: coarse) {
+  .btn, .auth-btn, .tabs button, .icon-btn, .search-go, .fav-btn,
+  .card-head, .deck-copy, .social-link, .brand, .pg {
+    min-height: 44px;
+  }
+  .pg { min-width: 44px; }
+  .btn, .auth-btn { padding-top: 10px; padding-bottom: 10px; }
+  .tabs button { padding-left: 14px; padding-right: 14px; }
+  .deck-copy { width: 44px; }
+  .social-link, .card-head { display: flex; align-items: center; }
+  /* Alt bilgi bağlantıları blok — kutuyu büyütmek düzeni bozmuyor. */
+  .footer-col a { display: flex; align-items: center; min-height: 44px; }
+
+  /* Tablo satırındaki bağlantılar BAŞKA türlü çözülüyor. `min-height` vermek
+     denendi ve satırları üç katına çıkardı: oyuncu adı, PRO rozeti ve etiket
+     ayrı satırlara düşüp sıralama okunamaz hâle geldi. Onun yerine görünmez
+     bir vuruş alanı seriyoruz — düzende hiç yer kaplamıyor, ama parmak
+     satırın herhangi bir yerine bassa bağlantı çalışıyor. */
+  .player-link, .tag a, .foot .wr { position: relative; }
+  .player-link::after, .tag a::after, .foot .wr::after {
+    content: ""; position: absolute; left: 0; right: 0;
+    top: 50%; transform: translateY(-50%); height: 44px;
+  }
+  /* Klan rozeti `inline-flex`, yani negatif dikey kenar boşluğu ONDA
+     çalışıyor: dolgu kutuyu 44 piksele çıkarıyor, negatif boşluk da bu
+     büyümenin satır yüksekliğine yansımasını geri alıyor. Görünmez katman
+     yerine bunu kullanmak gerekti — tablo sarmalayıcısı artık yatay
+     kaydırma için `overflow-y:hidden` taşıyor ve ilk/son satırdaki
+     görünmez katmanı kırpıyordu. */
+  .clan-chip { padding-top: 9px; padding-bottom: 9px; margin-top: -9px; margin-bottom: -9px; }
 }
 
 /* mobile nav drawer */
@@ -486,7 +989,39 @@ table.data .rank.top3 { color: #c98a3f; }
 .mobile-nav a { padding:10px 6px; font-weight:800; color:var(--text-soft); border-bottom:1px solid var(--border); text-transform:uppercase; font-size:.85rem; }
 
 /* ---------- Deck icon row ---------- */
+/* Profil başlığındaki kısayol düğmeleri (Son Savaşlar gibi). */
+.hero-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.hero-acts .btn { padding: 7px 12px; font-size: .8rem; }
+
+/* Kısayolla gidilen kart bir an vurgulanıyor ki göz nereye geldiğini bulsun. */
+@keyframes hs-flash {
+  0%   { box-shadow: 0 0 0 0 rgba(30,90,224,.45); }
+  100% { box-shadow: 0 0 0 14px rgba(30,90,224,0); }
+}
+.card.flash { animation: hs-flash 1.2s ease-out; }
+
+/* Arama kutusunun altındaki "etiketini yapıştır" notu. Bir ipucu, uyarı
+   değil — o yüzden kutu/çerçeve yok, sadece hafif bir renk farkı. */
+.search-tip {
+  display: block; font-size: .74rem; line-height: 1.45; margin-top: 3px;
+  color: var(--text-muted); opacity: .92;
+}
+.search-tip b { color: var(--text-soft); font-weight: 800; }
+
 .deck-icons { display:inline-flex; gap:3px; align-items:center; }
+/* Sıralama tablosunda destenin yanındaki "oyunda aç" düğmesi.
+   Kartların yüksekliğine oturuyor, satırı büyütmüyor. */
+.deck-cell { display: inline-flex; align-items: center; vertical-align: middle; }
+.deck-copy {
+  margin-left: 8px; vertical-align: middle;
+  display: inline-grid; place-items: center; width: 28px; height: 28px;
+  border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2);
+  color: var(--text-muted); cursor: pointer; flex: none;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.deck-copy svg { width: 15px; height: 15px; }
+.deck-copy:hover { background: var(--blue-100); color: var(--blue-700); border-color: var(--blue-100); }
+.deck-copy.ok { background: rgba(34,160,110,.16); color: #22a06e; border-color: transparent; }
 .deck-icons.lg .di { width:34px; height:41px; }
 .di {
   width:26px; height:31px; border-radius:5px; overflow:hidden; flex:none;
@@ -497,26 +1032,58 @@ table.data .rank.top3 { color: #c98a3f; }
 .di.evo { border:1.5px solid transparent; background:
   linear-gradient(var(--surface-2),var(--surface-2)) padding-box,
   linear-gradient(135deg,#39c6ff,#a25bff) border-box; }
+/* Champions get a gold frame so they stand out in the small deck rows,
+   where there is no room for the "Kahraman" tag used on full cards.
+   ".champ", not ".hero" — see the note on .cr-card.champ above. */
+.di.champ { border:1.5px solid transparent; background:
+  linear-gradient(var(--surface-2),var(--surface-2)) padding-box,
+  linear-gradient(135deg,var(--gold-400),var(--gold-600)) border-box; }
+.di.evo.champ { background:
+  linear-gradient(var(--surface-2),var(--surface-2)) padding-box,
+  linear-gradient(135deg,#39c6ff,var(--gold-500)) border-box; }
 .di.di-fb { background:linear-gradient(160deg,var(--blue-100),var(--surface-2)); }
 
-/* ---------- Bottom nav (mobile) ---------- */
+/* ---------- Bottom nav (mobile) ----------
+   Çubuk artık <body>'nin doğrudan çocuğu (bkz. app.js/mountBottomNav):
+   `position:fixed` bir öğe, atalarından biri backdrop-filter taşıyorsa
+   ekrana değil o ataya göre konumlanıyor ve kaydırınca yerinden ayrılıyor.
+   .site-header'da backdrop-filter var.
+
+   `env(safe-area-inset-bottom)` ancak viewport etiketinde `viewport-fit=cover`
+   varsa sıfırdan farklı döner — o eksikti, on HTML dosyasına da eklendi.
+   Zemin `backdrop-filter` yerine TAM opak: yarı saydam bir çubuğun altından
+   içerik okunuyor ve çubuk "havada duruyor" gibi görünüyordu. */
 .bottom-nav { display:none; }
 @media (max-width: 1020px){
   .bottom-nav {
     display:flex; position:fixed; bottom:0; left:0; right:0; z-index:60;
-    background:color-mix(in srgb, var(--surface) 94%, transparent);
-    backdrop-filter:blur(10px); border-top:1px solid var(--border);
-    padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+    background:var(--surface); border-top:1px solid var(--border);
+    padding:5px 2px; padding-bottom:max(5px, env(safe-area-inset-bottom));
+    box-shadow:0 -2px 14px rgba(0,0,0,.10);
   }
   .bottom-nav a {
-    flex:1; display:flex; flex-direction:column; align-items:center; gap:2px;
-    font-size:.62rem; font-weight:800; text-transform:uppercase; letter-spacing:.02em;
-    color:var(--text-muted); padding:4px 2px; text-decoration:none;
+    flex:1 1 0; min-width:0;            /* altı eşit paya bölünsün */
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+    font-weight:800; color:var(--text-muted); padding:5px 1px; text-decoration:none;
+    min-height:46px;                    /* rahat dokunulacak yükseklik */
+  }
+  /* Etiketler tek satır. Eskiden sarıyordu ("ANA SAYFA", "SON MAÇLAR" iki
+     satıra düşüp çubuğu şişiriyor ve alt satıra taşıyordu). */
+  .bottom-nav .bn-tx {
+    font-size:.58rem; text-transform:uppercase; letter-spacing:0; line-height:1;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    max-width:100%; text-align:center;
   }
   .bottom-nav a.active { color:var(--blue-600); }
-  .bottom-nav .bn-ic { font-size:1.15rem; line-height:1; }
-  body { padding-bottom:64px; }
+  .bottom-nav a.active .bn-ic { transform:scale(1.08); }
+  .bottom-nav .bn-ic { font-size:1.1rem; line-height:1; transition:transform .12s; }
+  /* İçeriğin son satırı çubuğun altında kalmasın; güvenli alan da dahil. */
+  body { padding-bottom:calc(60px + env(safe-area-inset-bottom)); }
   .nav-toggle { display:none; }   /* bottom nav replaces the hamburger */
+}
+@media (max-width: 360px){
+  .bottom-nav .bn-tx { font-size:.53rem; }
+  .bottom-nav .bn-ic { font-size:1rem; }
 }
 
 /* ---------- Drawer (hamburger) ---------- */
@@ -526,12 +1093,14 @@ table.data .rank.top3 { color: #c98a3f; }
   background: rgba(12,18,28,.5); backdrop-filter: blur(3px);
 }
 .drawer-overlay.open { display: block; }
+/* Opens from the LEFT, because that is where the menu button sits. Sliding
+   in from the opposite side of the button it belongs to reads as a glitch. */
 .drawer {
-  position: absolute; top: 0; right: 0; height: 100%; width: 340px; max-width: 88vw;
-  background: var(--surface); border-left: 1px solid var(--border);
-  box-shadow: -12px 0 40px rgba(0,0,0,.18); padding: 16px 16px calc(20px + env(safe-area-inset-bottom));
+  position: absolute; top: 0; left: 0; height: 100%; width: 340px; max-width: 88vw;
+  background: var(--surface); border-right: 1px solid var(--border);
+  box-shadow: 12px 0 40px rgba(0,0,0,.18); padding: 16px 16px calc(20px + env(safe-area-inset-bottom));
   display: flex; flex-direction: column; overflow-y: auto;
-  transform: translateX(100%); transition: transform .26s cubic-bezier(.3,.8,.3,1);
+  transform: translateX(-100%); transition: transform .26s cubic-bezier(.3,.8,.3,1);
 }
 .drawer-overlay.open .drawer { transform: translateX(0); }
 .dr-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
@@ -539,7 +1108,12 @@ table.data .rank.top3 { color: #c98a3f; }
 .dr-hint { display: block; font-size: .74rem; color: var(--text-muted); margin-top: 6px; padding-left: 2px; }
 .dr-sec { font-size: .68rem; font-weight: 800; letter-spacing: .12em; color: var(--text-muted); text-transform: uppercase; margin: 16px 4px 6px; }
 .dr-sec.fun { color: var(--blue-600); }
-.dr-link { display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 11px; font-weight: 700; color: var(--text); font-size: .94rem; }
+/* Also applied to <button> (Favori Oyuncular), which otherwise keeps the
+   browser default colour and font — invisible on a dark drawer. */
+.dr-link { display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 11px;
+  font-weight: 700; color: var(--text); font-size: .94rem;
+  width: 100%; text-align: left; background: none; border: none;
+  font-family: inherit; cursor: pointer; }
 .dr-link:hover { background: var(--surface-2); text-decoration: none; color: var(--blue-700); }
 .dr-ic { width: 26px; text-align: center; font-size: 1.05rem; }
 .dr-link.soon { color: var(--text-muted); cursor: default; }
@@ -556,9 +1130,19 @@ table.data .rank.top3 { color: #c98a3f; }
 }
 .tile:hover { transform: translateY(-2px); box-shadow: var(--shadow); text-decoration: none; border-color: var(--blue-500); }
 .tile .t-ic { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; font-size: 1.2rem; background: var(--blue-100); color: var(--blue-700); flex: none; }
-.tile .t-tx { min-width: 0; }
-.tile .t-tx .tt { font-size: .95rem; }
-.tile .t-tx .ts { font-size: .76rem; color: var(--text-muted); font-weight: 600; }
+/* Title and subtitle are two inline <span>s; without an explicit column they
+   flow onto the same line and read as one run-on word ("Deste DüellosuYakında"). */
+.tile .t-tx { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.tile .t-tx .tt { font-size: .95rem; line-height: 1.25; }
+.tile .t-tx .ts { font-size: .76rem; color: var(--text-muted); font-weight: 600; line-height: 1.25; }
+/* "Puanlı" altyazısı sırıtmasın ama gözden de kaçmasın: aynı boyut,
+   yalnızca renk ve önündeki küçük tokmak farklı. */
+.tile .t-tx .ts.pts { color: var(--gold-600, #a67c00); font-weight: 800; }
+.tile .t-tx .ts.pts::before { content: "🔨"; margin-right: 4px; font-size: .72rem; }
+:root[data-theme="dark"] .tile .t-tx .ts.pts { color: var(--gold-400, #f2b807); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tile .t-tx .ts.pts { color: var(--gold-400, #f2b807); }
+}
 .tile.soon { border-style: dashed; opacity: .8; }
 .tile.soon .t-ic { background: var(--surface-2); color: var(--text-muted); }
 .tile.fun .t-ic { background: #eafaf1; color: var(--green-600); }
@@ -575,7 +1159,9 @@ table.data .rank.top3 { color: #c98a3f; }
 .season .s-right span { display:block; font-size:.78rem; color:var(--text-muted); }
 
 /* ---------- Card ranking game ---------- */
-.game-wrap { max-width: 720px; margin: 0 auto; }
+/* The game column used to be 720px inside a 1180px container, so the games sat
+   as a thin strip with a wide empty gutter beside them. */
+.game-wrap { max-width: 980px; margin: 0 auto; }
 .scenario-bar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px 18px; box-shadow:var(--shadow-sm); margin-bottom:18px; }
 .scenario-bar .lbl { font-size:.72rem; font-weight:800; letter-spacing:.08em; color:var(--text-muted); text-transform:uppercase; }
 .scenario-bar .txt { font-weight:900; font-size:1.15rem; color:var(--blue-700); flex:1; min-width:200px; }
@@ -627,8 +1213,11 @@ table.data .rank.top3 { color: #c98a3f; }
 .match-side.right { text-align:right; }
 .match-side .pn { font-weight:900; font-size:1rem; }
 .match-side .pc { font-size:.78rem; color:var(--text-muted); }
-.match-side .decks { margin-top:8px; }
-.match-side.right .decks { justify-content:flex-end; display:flex; }
+/* Deste satırı + kopyalama düğmesi yan yana dursun (düğme eklendi). */
+.match-side .decks { margin-top:8px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.match-side.right .decks { justify-content:flex-end; }
+/* Profildeki savaş geçmişinde deste ile düğmenin hizası. */
+.bl-row .deck-cell + .deck-copy { margin-left:6px; }
 .match-score { text-align:center; }
 .match-score .sc { font-size:1.6rem; font-weight:900; }
 .match-score .sc .l { color:var(--text-muted); }
@@ -679,3 +1268,664 @@ table.data .rank.top3 { color: #c98a3f; }
 .collection { display:grid; grid-template-columns:repeat(8,1fr); gap:8px; }
 @media (max-width:1020px){ .collection { grid-template-columns:repeat(6,1fr);} .match-grid{ grid-template-columns:1fr; text-align:left;} .match-side.right{ text-align:left;} .match-side.right .decks{ justify-content:flex-start;} .match-score{ order:3;} }
 @media (max-width:620px){ .collection { grid-template-columns:repeat(4,1fr);} .deck-icons .di{ width:22px; height:27px;} }
+
+/* ---------- Search results (oyuncu.html / klan.html) ----------
+   Player and clan searches both answer with a *list*; these are its rows. */
+.res-list { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow-sm); overflow:hidden; }
+.res-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:14px 18px; border-bottom:1px solid var(--border); background:var(--surface-2); font-size:.86rem; }
+.res-head b { font-size:.95rem; }
+.res-row { display:flex; align-items:center; gap:14px; padding:12px 18px; border-bottom:1px solid var(--border); text-decoration:none; color:inherit; }
+.res-row:last-child { border-bottom:none; }
+.res-row:hover { background:var(--surface-2); }
+.res-ic { width:38px; height:38px; flex:none; display:grid; place-items:center; font-size:1.15rem; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); }
+.res-main { min-width:0; flex:1; }
+.res-main .n { font-weight:900; font-size:1rem; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.res-main .s { font-size:.8rem; color:var(--text-muted); display:flex; align-items:center; gap:6px; margin-top:2px; flex-wrap:wrap; }
+.res-val { text-align:right; font-weight:900; color:var(--gold-600); white-space:nowrap; flex:none; }
+.res-val .s { display:block; font-size:.74rem; font-weight:700; color:var(--text-muted); }
+
+/* Real clan badge from the API (badgeId → RoyaleAPI artwork). Sits where the
+   generic .clan-crest SVG used to, and falls back to it if the image 404s. */
+.clan-badge { object-fit:contain; flex:none; vertical-align:middle; }
+
+@media (max-width: 560px) {
+  .res-row { gap:10px; padding:11px 13px; }
+  .res-ic { width:32px; height:32px; font-size:1rem; }
+  .res-main .n { font-size:.92rem; }
+  .res-val { font-size:.85rem; }
+}
+
+/* ---------- Path of Legends medal ----------
+   Ranked play scores in medals, not Trophy Road trophies, so ranked numbers
+   carry the purple PoL medal instead of the 🏆 emoji. */
+.pol-medal { vertical-align:-.18em; object-fit:contain; flex:none; }
+.medal-delta { display:inline-flex; align-items:center; gap:3px; font-weight:900; font-size:.82rem; color:var(--text-muted); }
+.medal-delta.up { color:var(--green-600); }
+.medal-delta.down { color:#d23c3c; }
+.match-side .pdelta { margin-top:2px; }
+.match-side.right .pdelta { display:flex; justify-content:flex-end; }
+@media (max-width:1020px){ .match-side.right .pdelta { justify-content:flex-start; } }
+
+/* Rank movement since the previous clan-war ladder snapshot (previousRank). */
+.rank-move { font-size:.68rem; font-weight:900; margin-left:4px; vertical-align:middle; }
+.rank-move.up { color:var(--green-600); }
+.rank-move.down { color:#d23c3c; }
+
+/* Win-rate pill on a meta deck: green above 55%, red below 45%. */
+.wr-badge.good { background:rgba(47,191,106,.16); color:var(--green-600); border-color:transparent; }
+.wr-badge.bad  { background:rgba(210,60,60,.14); color:#d23c3c; border-color:transparent; }
+.metadeck .foot .muted { font-size:.76rem; }
+/* Numbered rank chip reuses the result-row icon slot in the deck-pilots modal. */
+.modal-box .res-ic { font-weight:900; font-size:.95rem; }
+
+/* The champion label ("KAHRAMAN") is far longer than "EVRİM" and overflowed
+   the card on the 4-across meta grid, where a card is only ~72px wide. Keep it
+   inside the artwork and shrink it on the small grids instead of clipping. */
+.cr-card .evo-tag, .cr-card .hero-tag, .cr-card .heroslot-tag { max-width: calc(100% - 30px); white-space: nowrap; }
+.metadeck .mini-cards .cr-card .evo-tag,
+.metadeck .mini-cards .cr-card .hero-tag,
+.metadeck .mini-cards .cr-card .heroslot-tag,
+.modal-box .mini-cards .cr-card .evo-tag,
+.modal-box .mini-cards .cr-card .hero-tag,
+.modal-box .mini-cards .cr-card .heroslot-tag {
+  font-size: .46rem; padding: 2px 4px; letter-spacing: 0; top: 4px; left: 4px;
+}
+
+/* The 4-across mini deck grid was scoped to .metadeck only, so the same markup
+   inside the deck-pilots modal fell back to full-width stacked cards. */
+.modal-box .mini-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin:10px 0; }
+.modal-box .mini-cards .cr-card { aspect-ratio: 4/5; }
+
+/* ---------- Kahramanlar: character renders ----------
+   The unit itself rather than the card frame, so these are transparent PNGs
+   on a plain tile instead of framed card art. */
+.hero-sec { font-size:.95rem; font-weight:900; text-transform:uppercase; letter-spacing:.05em; margin:22px 0 12px; display:flex; align-items:center; gap:8px; }
+.hero-sec:first-child { margin-top:0; }
+.hero-sec .muted { font-weight:700; font-size:.8rem; }
+/* Guessing game answers: one row of choices, wrapping, never squeezed. */
+.guess-opts { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; max-width:640px; margin:0 auto; }
+.guess-opts .btn { min-width:118px; justify-content:center; }
+
+/* Final shortlist: the player points at the card instead of answering a
+   question about its English name. */
+/* Liste artık uzun olabiliyor (körlemesine tahmin yerine hep bu gösteriliyor),
+   o yüzden kendi içinde kayıyor. */
+.guess-picks {
+  display:flex; flex-wrap:wrap; gap:12px; justify-content:center;
+  max-width:680px; margin:0 auto; max-height:46vh; overflow-y:auto; padding:4px;
+}
+.guess-pick {
+  width:96px; background:none; border:none; padding:0; cursor:pointer; font-family:inherit; color:inherit;
+  display:flex; flex-direction:column; gap:6px; align-items:center;
+  transition:transform .12s ease;
+}
+.guess-pick:hover { transform:translateY(-4px); }
+.guess-pick .gp-art { display:block; width:100%; }
+.guess-pick .gp-name { font-size:.76rem; font-weight:800; line-height:1.2; }
+
+/* Cenabet deals its eight cards one at a time. */
+.cen-deal { animation: cenIn .34s cubic-bezier(.2,.8,.3,1.2) both; }
+@keyframes cenIn {
+  from { opacity:0; transform:translateY(-18px) scale(.82) rotate(-6deg); }
+  to   { opacity:1; transform:none; }
+}
+@media (prefers-reduced-motion: reduce){ .cen-deal { animation:none; } }
+
+/* Roomier than the old 128px: these are the real card portraits and they are
+   the point of the section, so they get the space to read properly. */
+.hero-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(152px,1fr)); gap:14px; }
+.hero-tile {
+  position:relative; display:flex; flex-direction:column; align-items:center; gap:4px;
+  background:var(--surface); border:1px solid var(--border); border-radius:14px;
+  padding:12px 8px 10px; cursor:pointer; font-family:inherit; color:inherit;
+  box-shadow:var(--shadow-sm); transition:transform .12s ease, box-shadow .12s ease;
+}
+.hero-tile:hover { transform:translateY(-3px); box-shadow:0 10px 24px rgba(15,30,60,.14); }
+.hero-tile.champ { border:2px solid transparent; background:
+  linear-gradient(var(--surface),var(--surface)) padding-box,
+  linear-gradient(135deg,var(--gold-400),var(--gold-600)) border-box; }
+.hero-art { display:grid; place-items:center; width:100%; height:104px; }
+.hero-art img { max-width:100%; max-height:104px; object-fit:contain; filter:drop-shadow(0 6px 10px rgba(15,30,60,.22)); }
+.hero-name { font-weight:800; font-size:.82rem; text-align:center; line-height:1.2; }
+.hero-cost { font-size:.74rem; color:var(--text-muted); font-weight:800; }
+
+/* ---------- Real hero portrait ----------
+   The image already has the game's gold frame, gem and name plate baked in, so
+   the tile adds nothing around it: no border, no background, no second frame.
+   Elixir stays as a small chip in the corner. */
+.hero-tile.hero-real {
+  padding: 0; border: none; background: none; box-shadow: none; overflow: visible;
+}
+/* The portraits are screenshots, so their aspect ratios differ slightly
+   (measured 0.708–0.83). Letting each set its own height made the grid ragged.
+   A fixed 3:4 box with `contain` lines every tile up without cropping any of
+   the gold frames — the small letterbox is invisible on a transparent tile. */
+.hero-tile.hero-real .hero-shot {
+  display: block; width: 100%; aspect-ratio: 3 / 4; line-height: 0;
+}
+.hero-tile.hero-real .hero-shot img {
+  width: 100%; height: 100%; object-fit: contain; display: block; border-radius: 10px;
+  filter: drop-shadow(0 6px 14px rgba(15,30,60,.28));
+}
+.hero-tile.hero-real:hover { transform: translateY(-4px); }
+.hero-tile.hero-real .hero-cost {
+  position: absolute; top: 6px; right: 6px; z-index: 2;
+  background: rgba(12,20,40,.72); color: #fff; border-radius: 999px;
+  padding: 2px 7px; font-size: .7rem; font-weight: 800; backdrop-filter: blur(2px);
+}
+/* If the file is there but unreadable, fall back to a plain frame rather than
+   an empty box. */
+.hero-tile.hero-real.broken { border: 1px solid var(--border); background: var(--surface); padding: 10px; }
+
+/* ---------- Hero portrait (fallback) ----------
+   The in-game hero card: a gold frame, a gold-blue plaque behind the unit and
+   a head-and-shoulders crop rather than the full standing render. Supercell
+   does not publish these portraits (they sit inside packed .sc assets), so the
+   look is rebuilt here on top of the character render we do have. */
+.hero-tile.hero-gold {
+  border: 2px solid #d9a521;
+  background:
+    radial-gradient(120% 80% at 50% 0%, #fff3cf 0%, #ffe08a 42%, #f3c245 100%);
+  box-shadow: 0 0 0 2px #fff inset, 0 6px 16px rgba(150,100,10,.28);
+  padding-top: 16px;
+}
+:root[data-theme="dark"] .hero-tile.hero-gold {
+  background: radial-gradient(120% 80% at 50% 0%, #6b5426 0%, #4a3a1a 55%, #33280f 100%);
+  box-shadow: 0 0 0 2px #7c6320 inset, 0 6px 16px rgba(0,0,0,.45);
+}
+.hero-tile.hero-gold .hero-name { color:#4a3308; text-shadow:0 1px 0 rgba(255,255,255,.55); }
+.hero-tile.hero-gold .hero-cost { color:#6d4f10; }
+:root[data-theme="dark"] .hero-tile.hero-gold .hero-name { color:#ffe9b0; text-shadow:0 1px 2px rgba(0,0,0,.6); }
+:root[data-theme="dark"] .hero-tile.hero-gold .hero-cost { color:#e2c47a; }
+
+/* The gem the game stamps at the top of an unlocked hero. */
+.hero-crown {
+  position:absolute; top:-9px; left:50%; transform:translateX(-50%) rotate(45deg);
+  width:16px; height:16px; border-radius:3px; background:linear-gradient(135deg,#ffe9a8,#e0a800);
+  border:2px solid #fff; box-shadow:0 2px 5px rgba(120,80,0,.4);
+}
+
+/* Portrait crop: scale the render up and pull it down so the frame lands on
+   the head, the way the game's card does. object-position sits high because
+   these renders put the figure's head in the top third. */
+.hero-tile.hero-gold .hero-art {
+  height:96px; width:100%; overflow:hidden; border-radius:10px;
+  background:linear-gradient(180deg, rgba(255,255,255,.45), rgba(255,255,255,0));
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.6);
+}
+:root[data-theme="dark"] .hero-tile.hero-gold .hero-art {
+  background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0));
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.18);
+}
+.hero-tile.hero-gold .hero-art.portrait img {
+  width:100%; height:100%; max-width:none; max-height:none;
+  object-fit:cover; object-position:50% 12%; transform:scale(1.55); transform-origin:50% 18%;
+}
+.hero-flag {
+  position:absolute; top:6px; left:6px; z-index:2; font-size:.5rem; font-weight:900;
+  letter-spacing:.04em; padding:2px 5px; border-radius:6px;
+  background:linear-gradient(135deg,var(--gold-400),var(--gold-600)); color:#2a1e00;
+}
+@media (max-width:560px){
+  .hero-grid { grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); gap:9px; }
+  .hero-art { height:78px; } .hero-art img { max-height:78px; }
+}
+
+/* ---------- Oyun seçici ---------- */
+.pick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.pick-card {
+  display: flex; align-items: flex-start; gap: 14px; text-align: left; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  padding: 16px; font-family: inherit; color: inherit; box-shadow: var(--shadow-sm);
+  transition: transform .12s, border-color .12s, box-shadow .16s;
+}
+.pick-card:hover { transform: translateY(-3px); border-color: var(--blue-600); box-shadow: var(--shadow); }
+/* Puan veren oyunlar hafifçe öne çıksın — bağırmadan. */
+.pick-card.scored { border-left: 3px solid var(--gold-400); }
+.pick-ic {
+  width: 46px; height: 46px; flex: none; display: grid; place-items: center; font-size: 1.5rem;
+  border-radius: 13px; background: var(--surface-2);
+}
+.pick-tx { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.pick-n { font-weight: 900; font-size: .98rem; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.pick-d { font-size: .82rem; color: var(--text-soft); line-height: 1.4; }
+.pick-p { font-size: .72rem; color: var(--gold-600); font-weight: 800; margin-top: 2px; }
+:root[data-theme="dark"] .pick-p { color: var(--gold-400); }
+
+/* "puanlı" rozeti — küçük, soluk, satırın akışını bozmayan. */
+.pts-badge {
+  font-size: .6rem; font-weight: 900; letter-spacing: .04em; text-transform: uppercase;
+  padding: 2px 6px; border-radius: 999px; white-space: nowrap;
+  background: rgba(242,184,7,.18); color: var(--gold-600);
+}
+:root[data-theme="dark"] .pts-badge { background: rgba(242,184,7,.16); color: var(--gold-400); }
+.dr-link .pts-badge { margin-left: auto; }
+.main-nav .nav-sub a .pts-badge { margin-left: auto; }
+
+/* Bir oyun açıkken üstte duran geri çubuğu. */
+.game-bar { border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 40; }
+.game-bar .container { display: flex; align-items: center; gap: 14px; padding-top: 10px; padding-bottom: 10px; }
+.game-bar b { font-size: .95rem; }
+
+/* ---------- Şikayet & Öneri ---------- */
+/* Başlıkta iki düğme var (bildirim + tümünü okundu yap); dar kalınca
+   başlığı kırmak yerine düğmeler alt satıra insin. */
+.fb-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
+.fb-head h3 { margin: 0; white-space: nowrap; }
+.fb-head button { white-space: nowrap; }
+.fb-ic { font-size: 1.4rem; }
+.fb-kinds { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.fb-kind {
+  flex: 1; min-width: 90px; padding: 9px; border-radius: 11px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surface-2);
+  font-family: inherit; font-weight: 800; font-size: .84rem; color: var(--text-soft);
+}
+.fb-kind.on { background: var(--blue-600); border-color: var(--blue-700); color: #fff; }
+.fb-text {
+  width: 100%; padding: 12px; border-radius: 12px; resize: vertical;
+  border: 1px solid var(--border-strong); background: var(--surface);
+  color: var(--text); font-family: inherit; font-size: .92rem; line-height: 1.5;
+}
+.fb-text:focus { outline: none; border-color: var(--blue-600); box-shadow: 0 0 0 3px var(--blue-100); }
+.fb-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; }
+.fb-row .muted { font-size: .76rem; }
+
+/* ---------- Gelen Mesajlar (yönetim) ---------- */
+.auth-dot {
+  min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px;
+  background: #e0435f; color: #fff; font-size: .64rem; font-weight: 900;
+  display: grid; place-items: center;
+}
+.inbox { max-height: min(58vh, 520px); overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.inbox-row {
+  border: 1px solid var(--border); border-radius: 12px; padding: 11px 13px; background: var(--surface);
+}
+/* Okunmamışlar solda kırmızı bir şeritle ayrılıyor. */
+.inbox-row.new { border-left: 3px solid #e0435f; background: var(--surface-2); }
+.inbox-top { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; font-size: .8rem; margin-bottom: 6px; }
+.inbox-kind { font-weight: 800; }
+.inbox-top .muted { font-size: .74rem; }
+.inbox-acts { margin-left: auto; display: flex; gap: 4px; }
+.inbox-acts button {
+  border: none; background: none; cursor: pointer; font-size: .95rem;
+  padding: 2px 5px; border-radius: 7px; color: var(--text-muted);
+}
+.inbox-acts button:hover { background: var(--surface-2); color: var(--text); }
+.inbox-acts button.danger:hover { background: rgba(224,67,95,.14); color: #e0435f; }
+.inbox-acts button.ok:hover     { background: rgba(34,160,110,.14); color: #22a06e; }
+/* Gönderen şu an yasaklıysa adının yanında görünür. */
+.inbox-ban {
+  font-size: .64rem; font-weight: 800; letter-spacing: .5px; padding: 2px 7px;
+  border-radius: 999px; background: rgba(224,67,95,.16); color: #e0435f;
+}
+/* Kullanıcı metni: satır sonları korunur ama HTML olarak yorumlanmaz. */
+.inbox-text { margin: 0; font-size: .9rem; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+.inbox-page { font-size: .7rem; color: var(--text-muted); font-family: ui-monospace, monospace; }
+
+/* ---------- Günün Kartı / Düello / Kimin ---------- */
+.quiz-top.gunun  { background: linear-gradient(135deg,#0f766e,#14b8a6); }
+.quiz-top.duello { background: linear-gradient(135deg,#7c2d12,#ea580c); }
+.quiz-top.eksik  { background: linear-gradient(135deg,#0c4a6e,#0ea5e9); }
+
+/* ---------- Eksik Kartı Bul ---------- */
+.ek-deck { max-width: 340px; margin: 0 auto 14px; }
+.ek-deck .mini-cards { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; margin-bottom: 6px; }
+/* Sekizinci kartın yeri: boş bırakmak yerine soru işaretiyle duruyor,
+   böylece "hangi kart eksik" sorusu görsel olarak da anlaşılıyor. */
+.ek-slot {
+  display: grid; place-items: center; aspect-ratio: 5 / 6; border-radius: 8px;
+  border: 2px dashed var(--border-strong); background: var(--surface-2);
+  color: var(--text-muted); font-size: 1.6rem; font-weight: 900;
+}
+.ek-opts { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; max-width: 460px; margin: 0 auto; }
+.ek-opt {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 6px;
+  border: 2px solid var(--border); border-radius: 12px; background: var(--surface);
+  font-family: inherit; color: inherit; cursor: pointer; transition: border-color .12s, background .12s;
+}
+.ek-opt:hover:not(:disabled) { border-color: var(--blue-600); }
+.ek-opt:disabled { cursor: default; }
+.ek-opt.right { border-color: var(--green-600); background: rgba(47,191,106,.14); }
+.ek-opt.wrong { border-color: #d23c3c; background: rgba(224,60,60,.12); }
+.ek-name { font-size: .7rem; font-weight: 800; line-height: 1.2; text-align: center; }
+@media (max-width: 560px){ .ek-opts { grid-template-columns: repeat(2,1fr); } }
+
+/* Hakkın bittiğinde çıkan geri sayım satırı. */
+.cd-line { font-size: .92rem; margin: 6px 0 2px; }
+.cd-line b { color: var(--blue-700); }
+.quiz-top .quiz-ic { font-size: 1.5rem; }
+
+.gn-wrap { display: flex; flex-direction: column; gap: 12px; align-items: center; }
+.gn-tries { display: flex; align-items: center; gap: 6px; }
+.gn-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--border-strong); }
+.gn-dot.used { background: #d23c3c; }
+.gn-left { font-size: .76rem; font-weight: 800; color: var(--text-muted); margin-left: 6px; }
+.gn-hints { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.gn-hint {
+  font-size: .78rem; font-weight: 700; padding: 5px 11px; border-radius: 999px;
+  background: var(--surface-2); border: 1px solid var(--border);
+}
+.gn-hint b { color: var(--text-muted); font-weight: 800; }
+.gn-msg { margin: 0; font-size: .86rem; font-weight: 700; }
+.gn-msg .bad { color: #d23c3c; }
+.gn-box { max-width: 420px; width: 100%; }
+.gn-ok { color: var(--green-600); font-weight: 800; margin: 0; }
+.gn-no { color: #d23c3c; font-weight: 800; margin: 0; }
+
+.du-q { text-align: center; font-size: 1.02rem; font-weight: 800; margin: 0 0 16px; }
+.du-row { display: flex; align-items: center; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.du-vs { font-weight: 900; color: var(--text-muted); font-size: .9rem; }
+.du-deck {
+  flex: 1 1 240px; max-width: 300px; cursor: pointer; text-align: left;
+  background: var(--surface); border: 2px solid var(--border-strong); border-radius: 14px;
+  padding: 12px; font-family: inherit; color: inherit;
+  transition: border-color .12s, transform .1s;
+}
+.du-deck:hover:not(:disabled) { border-color: var(--blue-600); transform: translateY(-2px); }
+.du-deck:disabled { cursor: default; }
+.du-deck.right { border-color: var(--green-600); background: rgba(47,191,106,.10); }
+.du-deck.lost { opacity: .65; }
+.du-name { font-weight: 900; font-size: .88rem; margin-bottom: 8px; }
+.du-meta { font-size: .74rem; color: var(--text-muted); font-weight: 700; margin-top: 8px; }
+.du-deck .mini-cards { display: grid; grid-template-columns: repeat(4,1fr); gap: 5px; margin-bottom: 5px; }
+
+
+/* ---------- Tokmak Yarışması ---------- */
+.quiz-top {
+  display: flex; align-items: center; gap: 12px; padding: 16px 18px;
+  background: linear-gradient(135deg, var(--blue-700), var(--blue-600)); color: #fff;
+}
+.quiz-ic {
+  width: 44px; height: 44px; flex: none; border-radius: 12px; overflow: hidden; background: #fff;
+  display: grid; place-items: center; box-shadow: 0 2px 8px rgba(0,0,0,.2);
+}
+.quiz-ic img { width: 100%; height: 100%; object-fit: contain; }
+.quiz-t { flex: 1; min-width: 0; }
+.quiz-t h2 { margin: 0; font-size: 1.05rem; letter-spacing: .04em; color: #fff; }
+.quiz-t span { font-size: .74rem; opacity: .85; font-weight: 700; }
+.quiz-left {
+  flex: none; font-size: .74rem; font-weight: 900; padding: 5px 10px; border-radius: 999px;
+  background: rgba(255,255,255,.18); white-space: nowrap;
+}
+
+.quiz-body { padding: 22px 20px; }
+.quiz-mid { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.quiz-mid p { margin: 0; font-size: .92rem; max-width: 52ch; }
+.quiz-start { padding: 12px 26px; font-size: 1rem; margin-top: 6px; }
+
+.quiz-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.quiz-step { font-weight: 900; font-size: .82rem; color: var(--text-muted); }
+.quiz-worth {
+  font-size: .72rem; font-weight: 900; padding: 3px 9px; border-radius: 999px;
+  background: var(--gold-400); color: #3a2a00;
+}
+.quiz-cp { font-size: .72rem; font-weight: 900; padding: 3px 9px; border-radius: 999px;
+  background: rgba(47,191,106,.18); color: var(--green-600); }
+.quiz-safe { font-size: .72rem; font-weight: 800; color: var(--text-muted); margin-left: auto; }
+.quiz-text { font-size: 1.12rem; font-weight: 800; margin: 0 0 16px; line-height: 1.4; }
+
+.quiz-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.quiz-opt {
+  display: flex; align-items: center; gap: 10px; text-align: left; cursor: pointer;
+  padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border-strong);
+  background: var(--surface); color: var(--text); font-family: inherit;
+  font-weight: 700; font-size: .92rem; transition: border-color .12s, background .12s, transform .1s;
+}
+.quiz-opt:hover:not(:disabled) { border-color: var(--blue-600); transform: translateY(-1px); }
+.quiz-opt:disabled { cursor: default; }
+/* Yeni soru çizilince şıklar çok kısa bir an kapalı gelir (bot koruması,
+   bkz. quiz.js). Sertçe kaybolup belirmesin diye yalnızca soluk açılıyor —
+   kullanıcı bunu "gecikme" değil, sorunun belirmesi olarak görüyor. */
+.quiz-opts.locked .quiz-opt { opacity: .45; }
+.quiz-opts .quiz-opt { transition: border-color .12s, background .12s, transform .1s, opacity .18s; }
+.qo-l {
+  width: 26px; height: 26px; flex: none; border-radius: 8px; display: grid; place-items: center;
+  background: var(--surface-2); font-weight: 900; font-size: .8rem; color: var(--text-muted);
+}
+.quiz-opt.picked { border-color: var(--blue-600); }
+.quiz-opt.right { border-color: var(--green-600); background: rgba(47,191,106,.14); }
+.quiz-opt.right .qo-l { background: var(--green-600); color: #fff; }
+.quiz-opt.wrong { border-color: #d23c3c; background: rgba(224,60,60,.12); }
+.quiz-opt.wrong .qo-l { background: #d23c3c; color: #fff; }
+.quiz-quit { margin-top: 14px; width: 100%; justify-content: center; }
+
+.quiz-end { font-size: 2.6rem; font-weight: 900; line-height: 1; }
+.quiz-end span { font-size: .9rem; font-weight: 800; }
+.quiz-end.good { color: var(--green-600); }
+.quiz-end.bad { color: var(--text-muted); }
+
+/* Puan merdiveni — 13'ten 1'e, barajlar işaretli. */
+.quiz-ladder:empty { display: none; }
+.quiz-ladder { border-top: 1px solid var(--border); padding: 10px 14px; background: var(--surface-2); }
+.ql-row { display: flex; flex-direction: row-reverse; justify-content: center; gap: 4px; flex-wrap: wrap; }
+.ql {
+  min-width: 26px; padding: 3px 6px; border-radius: 7px; text-align: center;
+  font-size: .7rem; font-weight: 900; color: var(--text-muted); background: var(--surface);
+  border: 1px solid var(--border);
+}
+.ql.done { background: var(--blue-100); color: var(--blue-700); border-color: var(--blue-100); }
+.ql.now { background: var(--blue-600); color: #fff; border-color: var(--blue-700); }
+.ql.cp { border-color: var(--green-600); }
+
+@media (max-width: 560px){ .quiz-opts { grid-template-columns: 1fr; } }
+
+/* ---------- TOKMAKÇILAR — weekly board ----------
+   Fills the empty right-hand half of the hero. Two columns while there is
+   room; below 1100px the board drops under the search cards rather than
+   squeezing both into unreadable widths. */
+/* İçerik filigranın ÜSTÜNDE kalsın. Filigran konumlandırılmış bir öğe
+   olduğu için, akıştaki metnin üzerine boyanıyordu; masaüstünde sağda
+   durduğu için fark edilmiyordu ama mobilde başlığın üstüne biniyor. */
+.hero-split { display: grid; grid-template-columns: minmax(0,1fr) 360px; gap: 34px; align-items: start;
+              position: relative; z-index: 2; }
+.hero-left { min-width: 0; }
+
+.board {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
+  box-shadow: var(--shadow); overflow: hidden; position: relative;
+}
+/* A thin gold seam along the top — the hammer's colour, not the site blue,
+   so the board reads as its own thing. */
+.board::before {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 3px;
+  background: linear-gradient(90deg, var(--gold-400), var(--gold-600), var(--gold-400));
+}
+.board-head {
+  display: flex; align-items: center; gap: 11px; padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--border);
+}
+/* The site's own hammer mark rather than an emoji. The artwork carries its
+   own white ground and black outline, so it sits on a white tile in both
+   themes — a gold gradient behind it just muddied the outline. */
+.board-ic {
+  width: 42px; height: 42px; flex: none; display: grid; place-items: center; font-size: 1.3rem;
+  border-radius: 12px; overflow: hidden; background: #fff;
+  box-shadow: inset 0 0 0 1px rgba(180,130,0,.35), 0 2px 6px rgba(120,90,0,.15);
+}
+.board-ic img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.board-t { min-width: 0; flex: 1; }
+.board-t h2 { margin: 0; font-size: 1.02rem; letter-spacing: .04em; }
+.board-sub { font-size: .72rem; color: var(--text-muted); font-weight: 700; }
+.board-badge {
+  flex: none; font-size: .7rem; font-weight: 900; padding: 4px 9px; border-radius: 999px;
+  background: var(--blue-100); color: var(--blue-700); white-space: nowrap;
+}
+
+.board-list { padding: 6px; }
+.board-list.sep { border-top: 1px dashed var(--border); }
+.board-row {
+  display: grid; grid-template-columns: 26px 28px minmax(0,1fr) auto auto;
+  align-items: center; gap: 9px; padding: 8px 10px; border-radius: 11px;
+}
+.board-row:hover { background: var(--surface-2); }
+.board-row.me { background: var(--blue-100); }
+.board-rank { font-weight: 900; font-size: .84rem; color: var(--text-muted); text-align: center; }
+.board-rank.m1 { color: #c9971a; } .board-rank.m2 { color: #8c98a8; } .board-rank.m3 { color: #b0713a; }
+.board-av {
+  width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center;
+  background: linear-gradient(135deg, var(--blue-600), var(--blue-700));
+  color: #fff; font-weight: 900; font-size: .82rem;
+}
+.board-n { font-weight: 800; font-size: .88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-g { font-size: .7rem; color: var(--text-muted); font-weight: 700; white-space: nowrap; }
+.board-p { font-weight: 900; font-size: .95rem; color: var(--gold-600); min-width: 3ch; text-align: right; }
+:root[data-theme="dark"] .board-p { color: var(--gold-400); }
+
+.board-empty { padding: 20px 18px; font-size: .84rem; color: var(--text-soft); line-height: 1.55; margin: 0; }
+.board-note { padding: 0 18px 16px; font-size: .76rem; color: var(--text-muted); margin: 0; }
+.board-foot {
+  padding: 9px 16px; border-top: 1px solid var(--border);
+  font-size: .74rem; color: var(--text-muted); font-weight: 700; text-align: center;
+}
+
+/* Ödül duyurusu — tablonun tepesinde, altın şeritle. Tablonun kendi
+   altın dikişiyle aynı dilde dursun diye mavi değil altın. */
+.board-prize {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 11px 16px; border-bottom: 1px solid var(--border);
+  background: linear-gradient(90deg, var(--gold-100), transparent);
+}
+.board-prize .bp-ic { font-size: 1.1rem; line-height: 1.3; flex: none; }
+.board-prize .bp-tx { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.board-prize .bp-tx b {
+  font-size: .74rem; text-transform: uppercase; letter-spacing: .07em; color: var(--gold-600);
+}
+.board-prize .bp-tx span { font-size: .8rem; color: var(--text-soft); line-height: 1.45; }
+.board-prize .bp-tx span b { text-transform: none; letter-spacing: 0; font-size: inherit; color: var(--text); }
+
+@media (max-width: 1100px){
+  .hero-split { grid-template-columns: 1fr; gap: 24px; }
+  .board { max-width: 520px; }
+}
+
+/* ---------- Favourite players ---------- */
+/* The header heart fills in once there is something in the list. */
+#favBtn svg { width: 20px; height: 20px; }
+#favBtn.has { color: #e0435f; }
+#favBtn.has svg { fill: #e0435f; }
+
+.fav-btn {
+  display: inline-flex; align-items: center; gap: 6px; vertical-align: middle;
+  margin-left: 10px; padding: 5px 11px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--border-strong); background: var(--surface);
+  color: var(--text-soft); font-family: inherit; font-weight: 800; font-size: .78rem;
+  transition: color .12s, border-color .12s, background .12s;
+}
+.fav-btn svg { width: 16px; height: 16px; }
+.fav-btn:hover { color: #e0435f; border-color: #e0435f; }
+.fav-btn.on { color: #e0435f; border-color: #e0435f; background: rgba(224,67,95,.08); }
+.fav-btn.on svg { fill: #e0435f; }
+
+.fav-ic { display: grid; place-items: center; color: #e0435f; }
+.fav-ic svg { width: 20px; height: 20px; fill: #e0435f; }
+.fav-row { padding: 0; }
+.fav-go { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;
+  padding: 9px 12px; text-decoration: none; color: inherit; }
+.fav-x {
+  border: none; background: none; cursor: pointer; color: var(--text-muted);
+  padding: 8px 12px; display: grid; place-items: center;
+}
+.fav-x svg { width: 16px; height: 16px; }
+.fav-x:hover { color: #d23c3c; }
+
+/* ---------- Account (register / log in) ---------- */
+.auth-btn { padding: 8px 12px; font-size: .8rem; white-space: nowrap; }
+.auth-me { display: inline-flex; }
+.auth-name {
+  display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 11px;
+  padding: 5px 11px 5px 5px; font-family: inherit; color: inherit; font-weight: 800; font-size: .84rem;
+}
+.auth-name:hover { border-color: var(--blue-600); }
+.auth-av {
+  width: 28px; height: 28px; border-radius: 8px; flex: none; display: grid; place-items: center;
+  background: linear-gradient(135deg, var(--blue-600), var(--blue-700)); color: #fff;
+  font-weight: 900; font-size: .9rem;
+}
+.auth-av.big { width: 46px; height: 46px; border-radius: 12px; font-size: 1.3rem; }
+.auth-u { max-width: 12ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.auth-tabs { display: flex; gap: 6px; margin: 0 0 16px; }
+.auth-tabs button {
+  flex: 1; padding: 10px; border-radius: 11px; border: 1px solid var(--border);
+  background: var(--surface-2); font-family: inherit; font-weight: 800; font-size: .88rem;
+  color: var(--text-soft); cursor: pointer;
+}
+.auth-tabs button.on { background: var(--blue-600); border-color: var(--blue-700); color: #fff; }
+
+.auth-form { display: flex; flex-direction: column; gap: 12px; }
+.auth-l { display: block; font-size: .78rem; font-weight: 800; color: var(--text-muted); }
+.auth-l input {
+  display: block; width: 100%; margin-top: 5px; padding: 10px 12px;
+  border: 1px solid var(--border-strong); border-radius: 11px; background: var(--surface);
+  color: var(--text); font-family: inherit; font-size: .92rem; font-weight: 600;
+}
+.auth-l input:focus { outline: none; border-color: var(--blue-600); box-shadow: 0 0 0 3px var(--blue-100); }
+.auth-go { justify-content: center; padding: 11px; font-size: .95rem; }
+.auth-msg { font-size: .82rem; font-weight: 700; min-height: 1em; }
+.auth-msg.bad { color: #d23c3c; }
+.auth-note { font-size: .74rem; color: var(--text-muted); margin: 0; text-align: center; }
+
+/* Toast: says what happened after the modal closes. */
+.toast {
+  position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(16px);
+  background: var(--text); color: var(--surface); padding: 11px 18px; border-radius: 999px;
+  font-weight: 800; font-size: .86rem; box-shadow: 0 10px 30px rgba(15,30,60,.28);
+  opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s; z-index: 200;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* Yeni mesaj uyarısı: normal toast'ın biraz üstünde durur ve tıklanabilir. */
+.toast-click {
+  bottom: 82px; cursor: pointer; border: none; font-family: inherit;
+  border-radius: 14px; padding: 12px 18px; letter-spacing: .1px;
+}
+.toast-click.show { pointer-events: auto; }
+.toast-click:hover { filter: brightness(1.12); }
+
+@media (max-width: 620px){
+  .auth-btn { padding: 7px 9px; font-size: .74rem; }
+  .auth-u { display: none; }
+}
+
+/* ---------- Type-ahead suggestions ----------
+   Dropdown under a search box; the host gets position:relative in JS. */
+.sug-box { display:none; position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:60;
+  background:var(--surface); border:1px solid var(--border); border-radius:12px;
+  box-shadow:0 16px 40px rgba(15,30,60,.20); overflow:hidden; max-height:min(70vh,420px); overflow-y:auto; }
+.sug-box.open { display:block; }
+.sug-row { display:flex; align-items:center; gap:10px; padding:9px 12px; text-decoration:none;
+  color:inherit; border-bottom:1px solid var(--border); }
+.sug-row:last-child { border-bottom:none; }
+.sug-row:hover, .sug-row.on { background:var(--surface-2); }
+.sug-ic { width:28px; height:28px; flex:none; display:grid; place-items:center; font-size:.95rem; }
+.sug-main { min-width:0; flex:1; }
+.sug-main .n { font-weight:800; font-size:.9rem; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.sug-main .n .tag { font-size:.72rem; }
+.sug-main .s { font-size:.75rem; color:var(--text-muted); display:flex; align-items:center; gap:5px; margin-top:1px; }
+.sug-val { font-size:.78rem; font-weight:900; color:var(--gold-600); white-space:nowrap; flex:none; }
+
+/* Ranked medal cell: same weight as .trophy but with the PoL medal, no 🏆. */
+.medals { font-weight:900; color:var(--gold-600); white-space:nowrap; }
+
+/* ---------- Match card: rank chip + medal ledger ----------
+   The three lines (name+rank, clan, medals) are stacked rather than crammed
+   onto one row, which is what made them collide on narrow screens. */
+.rank-chip { display:inline-block; font-size:.68rem; font-weight:900; padding:2px 6px; border-radius:7px;
+  background:var(--blue-100); color:var(--blue-700); margin:0 6px 0 0; vertical-align:middle; }
+.match-side.right .rank-chip { margin:0 0 0 6px; }
+.match-side .pn { display:flex; align-items:center; gap:2px; flex-wrap:wrap; line-height:1.3; }
+.match-side.right .pn { justify-content:flex-end; }
+.pc-clan { color:var(--text-muted); text-decoration:none; }
+.pc-clan:hover { text-decoration:underline; }
+.mledger { display:inline-flex; align-items:center; gap:4px; font-size:.8rem; color:var(--text-soft); white-space:nowrap; }
+.mledger .arw { color:var(--text-muted); }
+.match-side .pdelta { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:3px; }
+.match-side.right .pdelta { justify-content:flex-end; }
+
+/* Below the match-grid breakpoint the two sides stack, so the right-hand side
+   left-aligns like the left one — including the flex rows added for the rank
+   chip and the medal ledger, which otherwise stayed pinned to the right. */
+@media (max-width:1020px){
+  .match-side.right .pn, .match-side.right .pdelta { justify-content: flex-start; }
+}

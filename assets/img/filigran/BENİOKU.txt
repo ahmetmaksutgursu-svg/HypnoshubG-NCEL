@@ -1,0 +1,59 @@
+ARKA PLAN FİLİGRANLARI
+======================
+
+Bu klasördeki resimler sayfaların arka planına, ana sayfadaki saydam
+tokmak gibi, silik biçimde yerleştirilir. Kodda hiçbir yerde dosya adı
+yazılı değil — ne koyarsan onu kullanır.
+
+
+NASIL EKLENİR
+-------------
+Resmi bu klasöre at, sayfayı yenile. Hepsi bu.
+
+
+DOSYA ADI
+---------
+İki biçim de çalışır:
+
+  1 - tokmak.png        ← sıra numaralı (önerilen)
+  tokmak.png            ← numarasız, alfabetik sıraya girer
+
+Numara SIRAYI belirler, sayfayı değil. Dosyalar sayfalara sırayla
+dağıtılır ve dosya sayısı sayfa sayısından azsa baştan dönülür — yani
+2 dosya 6 sayfaya 1,2,1,2,1,2 diye yayılır, hiçbir sayfa boş kalmaz.
+
+Sayfa sırası:
+  Sıralamalar → Son Maçlar → Meta → Kartlar → Eğlence → Klanlar
+
+Ana sayfadaki tokmak ayrı durur (assets/img/hammer-logo.jpg), bu
+klasörden etkilenmez.
+
+
+HANGİ DOSYA TÜRÜ
+----------------
+png · webp · avif · jpg · jpeg · gif · svg
+
+ARKA PLANI SAYDAM (png/webp) olan resimler çok daha iyi duruyor:
+filigran zaten silikleştiriliyor, resmin kendi beyaz/renkli arka planı
+varsa o da silik bir kutu olarak görünüyor.
+
+Boyut: uzun kenarı 600-1200 piksel yeter. Daha büyüğü sayfayı boşuna
+yavaşlatır, filigran ekranda en fazla ~420 piksel çiziliyor.
+
+
+ÜZERİNE YAZMA
+-------------
+Aynı adla yeni dosya atmak yeter; site değişikliği anında görür
+(adresin sonuna dosyanın tarih damgası ekleniyor, tarayıcı eskisini
+önbellekte tutamıyor).
+
+
+KALDIRMA
+--------
+Dosyayı sil. Klasör tamamen boşsa sayfalar filigransız çalışır, hata
+vermez.
+
+
+KONTROL
+-------
+Ne okunduğunu görmek için:  http://localhost:8787/api/filigran

@@ -1,0 +1,39 @@
+# ---------------------------------------------------------------
+# ASLA depoya girmemesi gerekenler.
+#
+# Bu dosya yokken `git add .` demek yeterliydi: API anahtarı ve bütün
+# kullanıcı parolalarının özeti tek komutla depoya girerdi. Depo bir gün
+# herkese açılırsa geri alması da mümkün olmaz — geçmişte kalır.
+# ---------------------------------------------------------------
+
+# Clash Royale API anahtarı. Örneği (.env.example) depoda kalsın, gerçeği asla.
+server/.env
+.env
+*.env
+!*.env.example
+# Anahtar değiştirilirken alınan yedek — içinde ESKİ anahtar var.
+*.env.eski
+.env.*
+!.env.example
+
+# Sunucunun disk deposu: hesaplar (parola özeti + tuz + e-posta),
+# mesajlar, puan tablosu, oyuncu indeksi, önbellek.
+server/.cache/
+.cache/
+
+# Bağımlılıklar — package-lock.json ile yeniden kurulur.
+node_modules/
+
+# İşletim sistemi / düzenleyici artıkları
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+.vscode/
+.idea/
+
+# Günlükler ve geçici dosyalar
+*.log
+npm-debug.log*
+tmp/
