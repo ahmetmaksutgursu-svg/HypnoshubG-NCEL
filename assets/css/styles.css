@@ -2145,3 +2145,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
 @media (max-width:1020px){
   .match-side.right .pn, .match-side.right .pdelta { justify-content: flex-start; }
 }
+
+/* Çarkın yanındaki ses düğmesi. Yeşil düğme flex:1 ile yayıldığı için
+   bunun küçülmemesi gerekiyor; ayrıca dokunma hedefi 44 pikselin altına
+   düşmesin diye boyut sabit. */
+.ses-btn { flex:0 0 auto; width:46px; height:46px; font-size:1.15rem; line-height:1; }
+.ses-btn[aria-pressed="false"] { opacity:.55; }

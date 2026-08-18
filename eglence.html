@@ -76,7 +76,12 @@
           <div class="wheel-hub"><span id="hubIcon"></span></div>
         </div>
         <div class="gen-btn-col">
-          <button class="big-green-btn" id="spinBtn" onclick="spinWheel()">RASTGELE META DESTESİ OLUŞTUR</button>
+          <div class="flex gap-8 center" style="width:100%">
+            <button class="big-green-btn" id="spinBtn" onclick="spinWheel()" style="flex:1">RASTGELE META DESTESİ OLUŞTUR</button>
+            <!-- Ses düğmesi çarkın YANINDA: sesi kapatmak isteyen kişi tam da
+                 sesi duyduğu anda arıyor, ayarlar sayfasında değil. -->
+            <button class="icon-btn ses-btn" data-ses-dugme onclick="sesDegistir()" aria-pressed="true" title="Sesi kapat">🔊</button>
+          </div>
           <p class="muted" style="font-size:.86rem;margin:0">Çark, güncel meta destelerinden birini rastgele seçer. Sonuç; kartlar, kopyalama linki ve oynanış ipucuyla birlikte gösterilir.</p>
           <span class="api-status" data-api-status><span class="led"></span>Veri alınamadı</span>
         </div>
@@ -227,6 +232,8 @@
 <script src="assets/js/app.js"></script>
 <script>
 mountChrome("");
+/* Kayıtlı ses tercihi düğmeye yansısın (varsayılan: açık). */
+document.querySelectorAll("[data-ses-dugme]").forEach(sesDugmesiCiz);
 document.getElementById("hubIcon").innerHTML = ICONS.hammer;
 
 /* ============ Kart Sıralama Oyunu ============ */
@@ -356,16 +363,73 @@ function buildWheel(){
   });
   document.getElementById("wheel").innerHTML = `<svg viewBox="0 0 200 200" style="width:100%;height:100%;display:block">${paths}${labels}</svg>`;
 }
+/* ---- çark sesi ----
+   CSS'teki geçiş: transform 4.6s cubic-bezier(.15,.9,.2,1)
+   Buradaki sayılar O SATIRLA aynı olmak zorunda; biri değişirse
+   tıklar çarktan kayar ve kulak bunu anında yakalar. */
+const CARK_SURE = 4.6, CARK_EGRI = [.15, .9, .2, 1];
+/* İki tık arası en az bu kadar olsun. Çark ilk anda saniyede ~30
+   dilim geçiyor; hepsini çalmak tık değil vızıltı üretiyor. */
+const CARK_MIN_ARA = 0.045;
+/* Dilim başına ÇİVİ sayısı. Gerçek çarklarda çivi, ödül diliminden çok
+   daha sıktır ve tık çividen gelir — dilim sınırından değil.
+
+   Bu sayı ölçülerek seçildi. Dilim başına tek çivide çark son 1,48
+   saniyeyi SESSİZ geçiriyordu: kazanan dilime yerleşirken 22,5° dönüyor
+   ve o aralıkta hiçbir sınır yok. Oysa gerçek bir çarkın en çarpıcı anı
+   tam orası — yavaşlayıp tek tek tıklaması.
+       çivi/dilim:  1 → son tık 3,12sn (1,48sn sessiz)
+                    2 → 4,32sn (0,28sn)
+                    4 → 4,32sn (0,28sn), 49 tık
+   Dört seçildi: kuyruk kapanıyor ve yavaşlama evresinde tıklar ayrı ayrı
+   duyuluyor. Daha fazlası kuyruğu iyileştirmiyor (bkz. p_civi ölçümü). */
+const CARK_CIVI = 4;
+
+/* CSS eğrisi ZAMAN→İLERLEME verir; bize tersi lazım: "çark yolun
+   %P'sini ne zaman tamamlar?". Eğri bu aralıkta tek yönlü arttığı
+   için ikili arama yeterli ve kapalı çözüm aramaya gerek yok. */
+function carkZamani(P, [x1, y1, x2, y2]){
+  const kub = (a, b, s) => { const u = 1 - s; return 3*u*u*s*a + 3*u*s*s*b + s*s*s; };
+  let lo = 0, hi = 1, s = 0;
+  for (let i = 0; i < 40; i++){ s = (lo + hi) / 2; if (kub(y1, y2, s) < P) lo = s; else hi = s; }
+  return kub(x1, x2, s);
+}
+
+/* Her dilim sınırının geçileceği anı hesaplayıp tıkları önceden
+   planlar. Web Audio zamanlaması setTimeout'tan farklı olarak
+   örnek hassasiyetinde; 40+ tık setTimeout'la planlansaydı sayfa
+   meşgulken tıklar kayardı. */
+function carkSesiPlanla(toplamDerece, dilimSayisi){
+  if (!sesAcikMi() || !sesUyandir()) return;
+  const adim = 360 / (dilimSayisi * CARK_CIVI);          // iki çivi arası açı
+  const adet = Math.floor(toplamDerece / adim);
+  let sonT = -1;
+  for (let k = 1; k <= adet; k++){
+    const t = carkZamani((k * adim) / toplamDerece, CARK_EGRI) * CARK_SURE;
+    if (t - sonT < CARK_MIN_ARA) continue;          // çok sıksa atla
+    sonT = t;
+    /* Yavaşladıkça tıklar belirginleşsin — gerçek çarkta da hızlıyken
+       tıklar birbirine karışır, sonda tek tek duyulur. */
+    sesTik(t, 0.45 + 0.55 * (k / adet));
+  }
+  sesKazandi(CARK_SURE);
+}
+
 function spinWheel(){
   if (spinning || !META_LIST.length) return;
   spinning = true;
   const btn=document.getElementById("spinBtn"); btn.disabled=true;
   buildWheel();
   const n=wheelDecks.length, seg=360/n, idx=Math.floor(Math.random()*n), ac=idx*seg+seg/2;
-  wheelRotation += 360*5 + (360-(ac%360)) + (360-(wheelRotation%360));
+  /* Dönüş miktarı ayrı bir değişkende: ses planlaması bu SAYIYA
+     ihtiyaç duyuyor (kaç dilim sınırı geçilecek?). */
+  const donus = 360*5 + (360-(ac%360)) + (360-(wheelRotation%360));
+  wheelRotation += donus;
   document.getElementById("wheel").style.transform = `rotate(${wheelRotation}deg)`;
+  carkSesiPlanla(donus, n);
   setTimeout(()=>{ showDeck(wheelDecks[idx]); btn.disabled=false; spinning=false; }, 4700);
 }
+
 function showDeck(d){
   document.getElementById("deckName").textContent = d.name;
   document.getElementById("deckUsage").textContent = d.usage!=null ? "%"+d.usage : "—";

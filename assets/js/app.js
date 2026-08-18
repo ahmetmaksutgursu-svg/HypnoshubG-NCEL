@@ -50,6 +50,114 @@ function applyTheme(tm){
   store.set("hs-theme", tm);
   document.querySelectorAll("[data-theme-icon]").forEach(el => el.innerHTML = tm === "dark" ? ICONS.sun : ICONS.moon);
 }
+/* ============================================================
+   SES  🔊  — dosyasız, kodla üretilen efektler
+   ------------------------------------------------------------
+   Neden ses DOSYASI yok:
+
+   1) Çarkın tıkları sabit hızda OLMAMALI. Çark yavaşladıkça
+      tıklar da seyrekleşmeli, yoksa kulak sahteliği hemen
+      yakalıyor. Hazır bir mp3 bunu yapamaz; tıkların tam olarak
+      çarkın hangi anda hangi dilimi geçtiğine göre planlanması
+      gerekiyor (bkz. eglence.html → carkSesiPlanla).
+   2) Barındırılacak dosya, indirilecek bayt ve bozulacak yol
+      olmuyor; çevrimdışı da çalışıyor.
+
+   Ses AÇILIŞTA ÇALMAZ. Tarayıcılar kullanıcı dokunmadan ses
+   çalmayı engeller (ve haklılar); AudioContext ilk tıklamada
+   kuruluyor, o yüzden `sesUyandir()` mutlaka bir tıklama
+   işleyicisinin içinden çağrılmalı.
+
+   Kapatma tercihi cihazda saklanıyor ve BÜTÜN oyunlar için
+   geçerli — ileride başka bir oyuna ses eklenirse ayrı bir
+   düğme gerekmesin.
+   ============================================================ */
+const SES_ANAHTAR = "hs_ses";
+let sesBaglam = null, sesGurultu = null;
+
+/* Varsayılan: AÇIK. Kapatan kişinin tercihi saklanıyor. */
+function sesAcikMi(){
+  try { return localStorage.getItem(SES_ANAHTAR) !== "0"; } catch { return true; }
+}
+function sesAyarla(acik){
+  try { localStorage.setItem(SES_ANAHTAR, acik ? "1" : "0"); } catch {}
+  document.querySelectorAll("[data-ses-dugme]").forEach(sesDugmesiCiz);
+  return acik;
+}
+function sesDegistir(){
+  const yeni = !sesAcikMi();
+  sesAyarla(yeni);
+  if (yeni) { sesUyandir(); sesTik(0, 0.5); }   // açınca tek bir tık: çalıştığı duyulsun
+  return yeni;
+}
+function sesDugmesiCiz(el){
+  const acik = sesAcikMi();
+  el.textContent = acik ? "🔊" : "🔇";
+  el.setAttribute("aria-pressed", String(acik));
+  el.title = acik ? "Sesi kapat" : "Sesi aç";
+}
+
+/* AudioContext'i kurar/uyandırır. TIKLAMA İÇİNDEN çağrılmalı. */
+function sesUyandir(){
+  if (!sesAcikMi()) return null;
+  try {
+    if (!sesBaglam){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      sesBaglam = new AC();
+      /* Tık sesi için kısa bir gürültü tamponu — bir kez üretilip
+         her tıkta yeniden kullanılıyor. Osilatörle üretilen "bip"
+         plastik mandalın peglere çarpmasına benzemiyor; gürültüyü
+         bant geçiren süzgeçten geçirmek benziyor. */
+      const n = Math.floor(sesBaglam.sampleRate * 0.05);
+      sesGurultu = sesBaglam.createBuffer(1, n, sesBaglam.sampleRate);
+      const v = sesGurultu.getChannelData(0);
+      for (let i = 0; i < n; i++) v[i] = Math.random() * 2 - 1;
+    }
+    if (sesBaglam.state === "suspended") sesBaglam.resume();
+    return sesBaglam;
+  } catch { return null; }
+}
+/* Şu anki ses saati — planlama bunun üstüne kuruluyor. */
+function sesSaati(){ const c = sesUyandir(); return c ? c.currentTime : 0; }
+
+/* Tek bir "tık". `gecikme` saniye cinsinden, ŞİMDİden itibaren.
+   `siddet` 0–1. Tonu hafifçe oynatıyoruz; birebir aynı tık arka
+   arkaya çalınca makineli tüfek gibi duyuluyor. */
+function sesTik(gecikme = 0, siddet = 1){
+  const c = sesUyandir(); if (!c || !sesGurultu) return;
+  const t = c.currentTime + Math.max(0, gecikme);
+  const src = c.createBufferSource(); src.buffer = sesGurultu;
+  const bp = c.createBiquadFilter();
+  bp.type = "bandpass";
+  bp.frequency.value = 1500 + Math.random() * 900;
+  bp.Q.value = 1.4;
+  const g = c.createGain();
+  const tepe = 0.16 * Math.min(1, Math.max(0.05, siddet));
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(tepe, t + 0.002);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.045);
+  src.connect(bp); bp.connect(g); g.connect(c.destination);
+  src.start(t); src.stop(t + 0.06);
+}
+
+/* Sonuç sesi: kısa yükselen üç nota. */
+function sesKazandi(gecikme = 0){
+  const c = sesUyandir(); if (!c) return;
+  const t0 = c.currentTime + Math.max(0, gecikme);
+  [0, 0.09, 0.18].forEach((d, i) => {
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = "triangle";
+    o.frequency.value = [523.25, 659.25, 783.99][i];      // do–mi–sol
+    const t = t0 + d;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.14, t + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + (i === 2 ? 0.45 : 0.16));
+    o.connect(g); g.connect(c.destination);
+    o.start(t); o.stop(t + (i === 2 ? 0.5 : 0.2));
+  });
+}
+
 function toggleTheme(){
   const cur = document.documentElement.getAttribute("data-theme") || "light";
   applyTheme(cur === "dark" ? "light" : "dark");
@@ -781,48 +889,59 @@ function cardNameOf(key){ return cardName(CARD_DB[key]); }
 
 /* Bir *currentDeck*'in özel yuvaları (evrim + kahraman).
 
-   Profildeki `evolutionLevel` "bu kartın evrimi AÇIK" demek, "bu kart evrim
-   yuvasında" demek DEĞİL — üst seviye bir hesapta 122 kartın ~54'ü işaretli
-   geliyor ve bir destenin 4 kartı birden işaretli olabiliyor. Eski kod bunu
-   olduğu gibi basıp aynı destede ÜÇ evrim gösteriyordu; oyunda böyle bir
-   deste kurulamaz. Ayrıca kahraman yuvası hiç ayrılmıyordu, o yüzden
-   kahraman olarak oynanan Büyücü ekranda evrimli Büyücü gibi görünüyordu.
+   ŞİKÂYET ÜZERİNE YENİDEN YAZILDI. Bir kullanıcı "destem doğru ama evrim ve
+   kahramanlar yanlış, son maçıma baktım farklıydı" dedi. Ölçtük, haklıydı.
 
-   Kural (savaş günlüklerinden ölçüldü): en fazla 2 evrim + 1 kahraman.
-   Öncelik sırası:
-     1) Yalnızca kahraman olabilen kart (evrimi yok) → kahraman yuvası.
-     2) Kalanlardan evrim sanatı olanlar → evrim yuvaları.
-     3) Kahraman bulunamadıysa ve evrim adayı 2'yi aşıyorsa, hem evrim hem
-        kahraman olabilen kartlardan biri (Şövalye/Valkür/Silahşör/Büyücü)
-        kahraman sayılır — çünkü üçü birden evrim olamaz.
+   ESKİ KURAL neye bakıyordu: profildeki `evolutionLevel` işaretine. Ama o
+   alan "bu kartın evrimi AÇIK" demek, "bu kart evrim yuvasında" demek DEĞİL —
+   üst seviye bir hesapta 122 kartın ~54'ü işaretli geliyor. Kural, işaretli
+   kartlar arasından sanata/sıraya göre seçim yapmaya çalışıyordu, yani
+   pratikte tahmin ediyordu.
 
-   Yine de bu bir TAHMİN. Kesin bilgi savaş günlüğünde: aynı sekiz kartın
-   oynandığı bir maç varsa oyuncu ekranı onu kullanıyor (bkz. oyuncu.html
-   içindeki desteYuvalari). */
+   YENİ KURAL: destenin SIRASI. Savaş günlüğünde evrimlerin 0.-2. sırada,
+   kahramanın 1. sırada durduğu daha önce ölçülmüştü; meğer profildeki
+   `currentDeck` de aynı sırayı koruyormuş. Kimse buna bakmıyordu.
+
+   ÖLÇÜM — 200 hesap tarandı, 67'sinde aynı sekiz kartın oynandığı bir maç
+   bulunup GERÇEK yuvalarla karşılaştırıldı:
+
+       EVRİM     eski kural %69   →   0. ve 2. sıra  %93
+       KAHRAMAN  eski kural %75   →   1. sıra        %93
+
+   Denenip ELENEN fikirler (ölçümle):
+     · `evolutionLevel` işaretini süzgeç olarak eklemek: hiçbir şey
+       değiştirmiyor (%93 → %93). Beklenen, çünkü işaret zaten her şeye
+       konuyor.
+     · "İşaretli ve evrim sanatı olan ilk iki kart": %7. Sıra bilgisini
+       yok saydığı için tamamen dağılıyor.
+     · Oyuncunun geçmiş maçlarından öğrenmek: %71. Sezgiye ters ama
+       mantıklı — oyuncular deste değiştiriyor, geçmiş başka destelerin
+       evrimleriyle kirleniyor.
+
+   ŞAMPİYON ≠ KAHRAMAN. Ölçülen hataların yarısı buydu: Güçlü Madenci ya da
+   Altın Şövalye 1. sıradayken kahraman sanılıyordu. Şampiyon ayrı bir
+   mekanik ve kendi yuvası var, o yüzden ikisi de açıkça eleniyor.
+
+   Kalan ~%7: kahramanı 1. sırada OLMAYAN desteler (ör. 5. sıradaki Balon).
+   Bunu profil verisinden bilmenin yolu yok. O yüzden sonuç hâlâ `tahmin`
+   olarak işaretleniyor ve ekranda "tahmini" yazıyor; aynı sekiz kartın
+   oynandığı bir maç bulunursa oradan KESİN bilgi alınıyor (desteYuvalari). */
+const DECK_EVO_SLOTS = [0, 2];      // ölçüldü: evrimler burada
+const DECK_HERO_SLOT = 1;           // ölçüldü: kahraman burada
 function deckSpecialSlots(cards, keys){
-  const flagged = cards
-    .map((c, i) => ({ c, k: keys[i] }))
-    .filter(({ c }) => c.evolutionLevel && canEvolve(c));
+  const db = (i) => CARD_DB[keys[i]] || {};
+  const kart = (i) => cards[i] || {};
+  /* Şampiyon ne evrim ne kahraman yuvasına girer — kendi mekaniği var. */
+  const sampiyon = (i) => kart(i).rarity === "champion" || db(i).rarity === "champion";
+  const evrimOlur = (i) => !sampiyon(i) && !!(
+    db(i).canEvo || db(i).imgUrlEvo ||
+    kart(i).iconUrls?.evolutionMedium || kart(i).maxEvolutionLevel);
+  const kahramanOlur = (i) => !sampiyon(i) && (
+    HERO_ONLY.has(kart(i).name) || HERO_DUAL.has(kart(i).name) || HERO_NOFLAG.has(kart(i).name));
 
-  const yalnizKahraman = flagged.filter(({ c }) => HERO_ONLY.has(c.name));
-  let kalan = flagged.filter(({ c }) => !HERO_ONLY.has(c.name));
-  kalan.sort((a, b) => (b.c.iconUrls?.evolutionMedium ? 1 : 0) - (a.c.iconUrls?.evolutionMedium ? 1 : 0));
-
-  let hero = yalnizKahraman.slice(0, 1);
-  if (!hero.length && kalan.length > MAX_EVO_SLOTS_DECK){
-    const i = kalan.findIndex(({ c }) => HERO_DUAL.has(c.name));
-    if (i >= 0){ hero = [kalan[i]]; kalan = kalan.filter((_, j) => j !== i); }
-  }
-  /* İşaretsiz kahraman (Yaramaz): API bu kartlara hiç bayrak koymadığı için
-     yukarıdaki elemelerin hiçbirine takılmıyor. Kahraman yuvası boşsa oraya
-     oturuyor — bkz. splitSlots. */
-  if (!hero.length){
-    const i = cards.findIndex((c) => HERO_NOFLAG.has(c.name));
-    if (i >= 0) hero = [{ c: cards[i], k: keys[i] }];
-  }
   return {
-    evo: kalan.slice(0, MAX_EVO_SLOTS_DECK).map(({ k }) => k),
-    hero: hero.map(({ k }) => k),
+    evo: DECK_EVO_SLOTS.filter(evrimOlur).map((i) => keys[i]),
+    hero: kahramanOlur(DECK_HERO_SLOT) ? [keys[DECK_HERO_SLOT]] : [],
     tahmin: true,                       // savaş günlüğünden doğrulanmadı
   };
 }
@@ -1573,6 +1692,9 @@ const MODE_TR = {
   chaos_1v1_draft: "Kaos Ligi Mücadelesi",
   showdown_friendly: "Kapışma",
   challenge_allcards_eventdeck_noset: "Etkinlik Mücadelesi",
+  crazy_arena_epiconly: "Çılgın Arena · Sadece Destansı",
+  touchdown_draft: "Sayı Koşusu Taslağı", mirrordeck_friendly: "Ayna Deste Dostluk",
+  draftmode: "Taslak Modu",
 };
 const MODE_EN = {
   ranked1v1_newarena: "Path of Legends", ranked1v1_newarena2: "Path of Legends",
@@ -1586,10 +1708,15 @@ const MODE_EN = {
   chaos_1v1_draft: "Chaos League Draft",
   showdown_friendly: "Showdown",
   challenge_allcards_eventdeck_noset: "Event Challenge",
+  crazy_arena_epiconly: "Crazy Arena · Epic Only",
+  touchdown_draft: "Touchdown Draft", mirrordeck_friendly: "Mirror Deck Friendly",
+  draftmode: "Draft Mode",
 };
 
 /* Listede olmayan modlar için desenler — sıra önemli, ilk tutan kazanır. */
 const MODE_PATTERNS = [
+  [/crazy.?arena/i,             "Çılgın Arena",       "Crazy Arena"],
+  [/touchdown/i,                "Sayı Koşusu",        "Touchdown"],
   [/grand/i,                    "Büyük Mücadele",     "Grand Challenge"],
   [/classic/i,                  "Klasik Mücadele",    "Classic Challenge"],
   [/royal|kingdom/i,            "Kraliyet Turnuvası", "Royal Tournament"],
@@ -1622,13 +1749,43 @@ const MODE_MODS = [
   [/rage/i,         "Öfke",         "Rage"],
 ];
 
-/* Son çare: "Chaos_1v1_Draft" → "Chaos 1v1 Draft". Çirkin ama boş değil. */
+/* Son çare: listede ve desenlerde tutmayan mod adı.
+
+   Eskiden burası ham İngilizceyi olduğu gibi basıyordu ve ekranda
+   "CRAZY ARENA EPIC ONLY" gibi yazılar çıkıyordu. Supercell her sezon
+   yeni etkinlik modu ekliyor, yani listeyi ne kadar doldurursak
+   dolduralım bir gün buraya düşen yeni bir ad olacak.
+
+   Çözüm: adı KELİMELERİNE ayırıp bilinenleri çeviriyoruz. Tanımadığımız
+   kelime olduğu gibi kalıyor — yani en kötü ihtimalle yarı Türkçe bir ad
+   çıkar, tamamen İngilizce değil. Bir mod sık görünmeye başlarsa
+   yukarıdaki tam listeye düzgün adıyla eklenir; burası yalnızca
+   "hiç değilse anlaşılsın" katmanı. */
+const MODE_KELIME = {
+  arena:"Arena", crazy:"Çılgın", only:"Sadece", epic:"Destansı", rare:"Ender",
+  common:"Sıradan", legendary:"Efsanevi", champion:"Şampiyon", elixir:"İksir",
+  deck:"Deste", draft:"Taslak", sudden:"Ani", death:"Ölüm", mirror:"Ayna",
+  rage:"Öfke", gold:"Altın", crown:"Taç", gem:"Elmas", rush:"Hücumu",
+  event:"Etkinlik", challenge:"Mücadele", battle:"Savaşı", duel:"Düello",
+  mode:"Modu", boat:"Tekne", war:"Savaşı", clan:"Klan", friendly:"Dostluk",
+  ladder:"Kupa Yolu", tournament:"Turnuva", touchdown:"Sayı Koşusu",
+  ranked:"Sıralamalı", classic:"Klasik", grand:"Büyük", royal:"Kraliyet",
+  chaos:"Kaos", showdown:"Kapışma", practice:"Antrenman", triple:"3x",
+  double:"2x", mega:"Mega", all:"Tüm", cards:"Kartlar", new:"Yeni",
+  newarena:"Yeni Arena", league:"Lig", season:"Sezon", quest:"Görev",
+  special:"Özel", party:"Parti", fun:"Eğlence", night:"Gece", day:"Gün",
+};
 function humanMode(name){
-  return String(name || "")
+  const parcalar = String(name || "")
     .replace(/_/g, " ")
     .replace(/([a-z\d])([A-Z])/g, "$1 $2")
     .replace(/\s+/g, " ")
-    .trim();
+    .trim().split(" ").filter(Boolean);
+  if (LANG !== "tr") return parcalar.join(" ");
+  return parcalar.map((k) => {
+    const c = MODE_KELIME[k.toLowerCase()];
+    return c === undefined ? k : c;
+  }).filter(Boolean).join(" ");
 }
 
 /*
