@@ -401,6 +401,54 @@ h1,h2,h3 { line-height: 1.15; margin: 0 0 .5em; letter-spacing: -.01em; }
   box-shadow: 0 2px 6px rgba(160,27,214,.5);
 }
 
+/* ---------- Kart rozetleri kartla birlikte ölçeklenir ----------
+   Rozetlerin boyu SABİTTİ (iksir 22px, seviye .72rem) ama kart her yerde
+   aynı boyda değil. Ölçüldü — 390 piksellik telefonda:
+
+       anti listesi     kart  33px → iksir rozeti kartın  %67'si
+       meta destesi     kart  73px → evrim etiketi        %44'ü
+       koleksiyon       kart  71px → seviye çubuğu        %30'u
+
+   Yani küçük kartlarda rozet kartın kendisini örtüyordu; ekranda kart
+   sanatı değil mor bir daire görünüyordu.
+
+   Çözüm kapsayıcı sorgusu (container query): rozetler artık kartın
+   GENİŞLİĞİNE göre ölçekleniyor (cqw). clamp() ile alt/üst sınır var —
+   büyük kartta rozet devleşmesin, küçük kartta okunmaz hâle gelmesin.
+
+   Çok küçük kartlarda (≤44px, ör. yan yana sekiz kart) rozetler tamamen
+   gizleniyor: o boyutta kartı tanıtan şey sanatıdır, üstündeki rakam
+   değil. Evrim/kahraman bilgisi yine görünür kalıyor çünkü onu çerçeve
+   taşıyor (evrimde renkli kenarlık, kahramanda altın iç gölge). */
+.cr-card { container-type: inline-size; }
+
+.cr-card .elixir {
+  width: clamp(10px, 26cqw, 22px); height: clamp(10px, 26cqw, 22px);
+  font-size: clamp(.4rem, 15cqw, .7rem);
+  top: clamp(2px, 5cqw, 5px); right: clamp(2px, 5cqw, 5px);
+}
+.cr-card .lvl {
+  font-size: clamp(.4rem, 14cqw, .72rem);
+  padding: clamp(1px, 3cqw, 4px) 2px;
+}
+.cr-card .evo-tag, .cr-card .hero-tag, .cr-card .heroslot-tag {
+  /* "KAHRAMAN" sekiz harf ve dar kartta sığmayıp "KAHR…" diye kesiliyordu.
+     Harf aralığı da kartla birlikte küçülünce tam sığıyor; kesme yalnızca
+     son çare olarak duruyor. */
+  font-size: clamp(.28rem, 9.5cqw, .58rem);
+  letter-spacing: clamp(0em, .6cqw, .04em);
+  padding: clamp(0px, 1.5cqw, 2px) clamp(2px, 4cqw, 6px);
+  top: clamp(2px, 5cqw, 5px); left: clamp(2px, 5cqw, 5px);
+  /* Sağdan ayrılan pay = iksir rozetinin yeri, o da kartla ölçekleniyor. */
+  max-width: calc(100% - clamp(12px, 30cqw, 30px));
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+@container (max-width: 44px) {
+  .cr-card .elixir, .cr-card .evo-tag, .cr-card .hero-tag, .cr-card .heroslot-tag { display: none; }
+}
+/* Kapsayıcı sorgusunu tanımayan eski tarayıcı: rozetler eski sabit
+   boyutlarında kalır — kötü görünür ama hiçbir şey kırılmaz. */
+
 /* ---------- Tables ---------- */
 /* Tablo sarmalayıcısı. `overflow:hidden` idi ve mobilde asıl sorun buydu:
    375 piksellik ekranda 721 piksellik sıralama tablosu kırpılıyor, sağdaki
@@ -1534,19 +1582,15 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
 /* Numbered rank chip reuses the result-row icon slot in the deck-pilots modal. */
 .modal-box .res-ic { font-weight:900; font-size:.95rem; }
 
-/* The champion label ("KAHRAMAN") is far longer than "EVRİM" and overflowed
-   the card on the 4-across meta grid, where a card is only ~72px wide. Keep it
-   inside the artwork and shrink it on the small grids instead of clipping. */
-.cr-card .evo-tag, .cr-card .hero-tag, .cr-card .heroslot-tag { max-width: calc(100% - 30px); white-space: nowrap; }
-.metadeck .mini-cards .cr-card .evo-tag,
-.metadeck .mini-cards .cr-card .hero-tag,
-.metadeck .mini-cards .cr-card .heroslot-tag,
-.modal-box .mini-cards .cr-card .evo-tag,
-.modal-box .mini-cards .cr-card .hero-tag,
-.modal-box .mini-cards .cr-card .heroslot-tag {
-  font-size: .46rem; padding: 2px 4px; letter-spacing: 0; top: 4px; left: 4px;
-}
+/* NOT: burada eskiden bağlam bağlam ELLE yazılmış boyutlar vardı
+   (.metadeck için .46rem, .modal-box için ayrı…). Kart rozetleri artık
+   kapsayıcı sorgusuyla kendiliğinden ölçekleniyor (bkz. yukarıdaki
+   "Kart rozetleri kartla birlikte ölçeklenir" bölümü), o yüzden bu
+   elle listeler kaldırıldı — ikisi birbiriyle çakışıyor ve elle yazılan
+   daha spesifik olduğu için ölçeklemeyi eziyordu.
 
+   "KAHRAMAN" etiketi "EVRİM"den çok daha uzun; iksir rozetine yer
+   bırakmak için sağdan pay ayrılıyor ve bu pay da kartla ölçekleniyor. */
 /* The 4-across mini deck grid was scoped to .metadeck only, so the same markup
    inside the deck-pilots modal fell back to full-width stacked cards. */
 .modal-box .mini-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin:10px 0; }
