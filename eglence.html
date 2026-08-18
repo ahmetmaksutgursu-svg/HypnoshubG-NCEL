@@ -1690,12 +1690,15 @@ async function puanUyarisi(){
   if (!d || d.acik !== false) { el.innerHTML = ""; return; }
   const tr = LANG === "tr";
   const a = new Date(d.acilis || d.week?.start);
-  const gun = a.toLocaleDateString(tr ? "tr-TR" : "en-GB", { day: "numeric", month: "long" });
+  /* Tarih DEĞİL tarih+saat: açılış 18.00 ve yalnız günü yazmak, o sabah
+     gelen oyuncuya "bugün açık" dedirtiyordu. */
+  const gun = a.toLocaleString(tr ? "tr-TR" : "en-GB",
+    { timeZone: "Europe/Istanbul", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
   el.innerHTML = notice(`<span>⏳</span><span>${tr
-    ? `<b>Tokmakçılar tablosu ${gun} tarihinde açılıyor.</b> O güne kadar oyunları
+    ? `<b>Tokmakçılar tablosu ${gun}'de açılıyor.</b> O güne kadar oyunları
        oynayabilirsin ama <b>kazandığın puanlar tabloya yazılmaz</b> — yarış herkes için
        aynı anda başlasın diye.`
-    : `<b>The leaderboard opens on ${gun}.</b> You can play until then, but points are not
+    : `<b>The leaderboard opens ${gun}.</b> You can play until then, but points are not
        recorded yet so everyone starts together.`}</span>`, "warn");
 }
 function reloadFun(){ loadFun(); }

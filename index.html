@@ -220,15 +220,22 @@ async function loadBoard(){
      oynanıyor ama puan yazmıyor ve bunu saklamak yanlış olur. */
   if (d.week.acik === false){
     const a = new Date(d.week.start);
+    /* SAAT de yazılmalı: açılış 20 Ağustos 18.00 ama ekranda yalnız
+       "20 Ağu" görünüyordu ve o gün sabah gelen herkes tablonun neden
+       kapalı olduğunu anlamıyordu. Saat Türkiye'ye sabit — sunucu da
+       aynı saati kullanıyor (bkz. takvim.js). */
+    const acilisAni = (t) => t.toLocaleString(TRb ? "tr-TR" : "en-GB",
+      { timeZone: "Europe/Istanbul", day: "numeric", month: "long",
+        hour: "2-digit", minute: "2-digit" });
     document.getElementById("boardWeek").textContent =
-      TRb ? `${fmt(a)} tarihinde açılıyor` : `Opens on ${fmt(a)}`;
+      TRb ? `${acilisAni(a)}'de açılıyor` : `Opens ${acilisAni(a)}`;
     document.getElementById("boardLeft").textContent = sure(d.week.acilisMs);
     body.innerHTML = (d.odul ? odulHtml(d, fmt, TRb) : "") + `
       <p class="board-empty">
         <b>${TRb?"Yarış henüz başlamadı.":"The race has not started yet."}</b><br>
-        ${TRb ? `Tokmakçılar tablosu <b>${fmt(a)}</b> tarihinde açılıyor. O güne kadar oyunlar
+        ${TRb ? `Tokmakçılar tablosu <b>${acilisAni(a)}</b>'de açılıyor. O güne kadar oyunlar
                  oynanabilir ama <b>puan yazmaz</b> — herkes aynı yerden başlasın diye.`
-              : `The board opens on <b>${fmt(a)}</b>. Until then games can be played but award no points.`}
+              : `The board opens <b>${acilisAni(a)}</b>. Until then games can be played but award no points.`}
       </p>`;
     return;
   }

@@ -1025,100 +1025,114 @@ function eslesmeYukle(){
   eslesmeSozu = HypnoAPI._get("/eslesme", 10000).then((d) => {
     if (!d || !d.hazir) return null;
     ESLESME = {
-      minOrnek: d.minOrnek || 60,
+      minOrnek: d.minOrnek || 40,
+      ortusme: d.ortusme || 5,
       sezon: d.sezon || "", karma: !!d.karma, savas: d.savas || 0,
       kaynak: d.kaynak || "",
       koc: new Map((d.koc || []).map((c) => [c.id, c])),
-      ciftler: new Map(Object.keys(d.ciftler || {}).map((k) => [k, d.ciftler[k]])),
+      /* Meta desteleri POPÜLERLİK sırasında geliyor ve eşleme beraberliği
+         bu sırayla çözülüyor — diziyi olduğu gibi koruyoruz. */
+      metalar: (d.metalar || []).map((m) => ({ k: m.k, n: m.n, ids: m.ids })),
+      hucreler: new Map(Object.keys(d.hucreler || {}).map((k) => [k, d.hucreler[k]])),
     };
     return ESLESME;
   }).catch(() => null);
   return eslesmeSozu;
 }
 
-/* Destenin ana kartı (kazanma koşulu). Kural sunucuyla birebir:
-   önce katman (1 gerçek kazanma koşulu, 2 yalnızca 1 hiç yoksa),
-   sonra sunucunun gönderdiği liste sırası. İksire BAKILMIYOR —
-   bkz. server/eslesme.js'deki not (Köstebek/Goblin Matkabı düzeltmesi). */
-function eslesmeAnaKart(keys){
+/* Destenin ARKETİPİ: katman 1 kazanma koşulu.
+   Katman 2'ye (Mega Şövalye vb.) düşen desteler arketipsiz sayılıyor —
+   kullanıcının bildirdiği anlamsız etiketler tam olarak onlardı. */
+function eslesmeArketip(keys){
   if (!ESLESME) return null;
   let en = null;
   for (const k of keys || []){
     const c = CARD_DB[k];
     const m = c && ESLESME.koc.get(c.id);
     if (!m) continue;
-    const aday = { id: c.id, key: k, katman: m.k, sira: m.s };
-    const daha = !en || (aday.katman !== en.katman ? aday.katman < en.katman
-                                                   : aday.sira < en.sira);
-    if (daha) en = aday;
+    if (!en || m.s < en.sira) en = { id: c.id, key: k, sira: m.s };
   }
   return en;
 }
 
-/* İki deste için eşleşme kaydı. `null` = gösterilecek bir şey yok
-   (tablo yüklenmedi ya da bir tarafta kazanma koşulu bulunamadı). */
+/* Desteyi en yakın META DESTESİNE eşler. Kural sunucudakiyle birebir
+   (eslesme.js → metaEsle): en çok kart paylaşan, beraberlikte listede
+   önce gelen (liste popülerliğe göre sıralı) kazanır. Örtüşme eşiğin
+   altındaysa deste "meta değil" sayılır ve analiz gösterilmez. */
+function eslesmeMetaEsle(keys){
+  if (!ESLESME || !ESLESME.metalar.length) return null;
+  const ids = (keys || []).map((k) => CARD_DB[k]?.id).filter(Boolean);
+  if (!ids.length) return null;
+  let en = null, enSkor = 0;
+  for (const m of ESLESME.metalar){
+    let ortak = 0;
+    for (const id of ids) if (m.ids.includes(id)) ortak++;
+    if (ortak > enSkor){ enSkor = ortak; en = m; }
+  }
+  return enSkor >= ESLESME.ortusme ? { ...en, ortak: enSkor } : null;
+}
+
+/* Bir maç için eşleşme kaydı.
+
+   ZİNCİR: senin desten bir META DESTESİNE eşleşmeli, rakibinki de bir
+   ARKETİPE. İkisinden biri tutmazsa hiçbir şey gösterilmiyor — random
+   destelerin analizi yapılmaz.
+
+   Oran SENİN DESTENE ait: aynı arketipteki iki farklı deste ayrı
+   satırlardır, artık "ayna eşleşme" yanılgısı yok. */
 function eslesmeBilgi(benimKeys, rakipKeys){
   if (!ESLESME) return null;
-  const a = eslesmeAnaKart(benimKeys), b = eslesmeAnaKart(rakipKeys);
-  if (!a || !b) return null;
-  if (a.id === b.id) return { ayna: true, a, b };
-  const [dus, yuk] = a.id < b.id ? [a, b] : [b, a];
-  const kayit = ESLESME.ciftler.get(`${dus.id}|${yuk.id}`);
+  const meta = eslesmeMetaEsle(benimKeys);
+  const rakip = eslesmeArketip(rakipKeys);
+  if (!meta || !rakip) return null;
+  const kayit = ESLESME.hucreler.get(`${meta.k}||${rakip.id}`);
   const n = kayit ? kayit[0] : 0;
-  if (!n) return { a, b, n: 0, yeterli: false };
-  const pDus = kayit[1] / n * 100;
-  const pA = a.id === dus.id ? pDus : 100 - pDus;
-  /* %95 güven aralığının yarı genişliği. Rozetin kendisinde değil
-     ipucunda yazıyor — 60 maçlık bir oranın ±13 puan oynayabildiğini
-     görmek, sayıyı kanun sanmayı engelliyor. */
-  const pay = 1.96 * Math.sqrt((pA / 100) * (1 - pA / 100) / n) * 100;
-  return { a, b, n, pA, pay, yeterli: n >= ESLESME.minOrnek };
+  if (!n) return { meta, rakip, n: 0, yeterli: false };
+  const p = kayit[1] / n * 100;
+  /* %95 güven aralığının yarı genişliği — 40 maçlık bir oran ±15 puan
+     oynayabiliyor, ipucunda yazıyor. */
+  const pay = 1.96 * Math.sqrt((p / 100) * (1 - p / 100) / n) * 100;
+  return { meta, rakip, n, p, pay, yeterli: n >= ESLESME.minOrnek };
 }
 
 /* Eşleşme rozeti.
 
-   Biçim iki ekranda da AYNI: "⚔️ Balon %58 – %42 Yaban Domuzu". Önce
-   yazan kart, ilk verilen destenin kazanma koşuludur — yani profildeki
-   savaş günlüğünde her zaman OYUNCUNUN kartı, akışta soldaki oyuncunun
-   kartı. Satırın altındaki "SENİN DESTEN / RAKİP" düzeniyle aynı sırada
-   okunuyor.
+   Ne söylüyor: "SENİN DESTEN, rakibin arketipine karşı %X kazanıyor".
+   Oran destenin kendisine ait — aynı arketipteki iki farklı deste ayrı
+   satırlardır. Önce iki kazanma koşulu karşılaştırılıyordu ve iki
+   bambaşka Mega Şövalye destesi "ayna eşleşme" görünüyordu; artık öyle
+   bir durum yok, çünkü senin tarafın DESTE düzeyinde eşleşiyor.
 
-   Önce "Eşleşme %52 sende" yazıyordu; hangi kartların karşılaştığı
-   yalnızca ipucundaydı. Telefonda ipucu diye bir şey yok — kullanıcıların
-   %90'ı mobilden geldiğine göre o bilgi pratikte hiç görünmüyordu. */
+   Desten meta destelerine benzemiyorsa ya da rakipte tanınan bir
+   arketip yoksa rozet HİÇ çizilmiyor — random destelerin analizi
+   yapılmaz. */
 function eslesmeRozeti(benimKeys, rakipKeys, benim){
   const e = eslesmeBilgi(benimKeys, rakipKeys);
   if (!e) return "";
   const tr = LANG === "tr";
-  const adA = cardNameOf(e.a?.key) || "", adB = cardNameOf(e.b?.key) || "";
+  const rakipAd = esc(cardNameOf(e.rakip.key) || "");
   const yuzde = (n) => tr ? `%${n}` : `${n}%`;
-  if (e.ayna)
-    return `<span class="mu-chip even" title="${tr
-      ? "İki deste de aynı kazanma koşulunu oynuyor — eşleşme simetrik."
-      : "Both decks run the same win condition — the matchup is symmetric."}">⚔️ ${
-      tr ? "Ayna eşleşme" : "Mirror matchup"}${adA ? ` · ${esc(adA)}` : ""}</span>`;
+  const kimin = benim ? (tr ? "Senin desten" : "Your deck") : (tr ? "Soldaki deste" : "The left deck");
 
   if (!e.yeterli){
     const az = e.n ? `${nfTR(e.n)} ${tr ? "maç" : "games"}` : (tr ? "veri yok" : "no data");
     const nicin = e.n
-      ? (tr ? `elimizde ${nfTR(e.n)} maç var; güvenilir bir oran için en az ${nfTR(ESLESME.minOrnek)} maç gerekiyor.`
-            : `we have ${nfTR(e.n)} games; a reliable rate needs at least ${nfTR(ESLESME.minOrnek)}.`)
-      : (tr ? "henüz kayıt yok." : "no games recorded yet.");
-    return `<span class="mu-chip thin" title="${esc(adA)} – ${esc(adB)}: ${nicin}">` +
-           `⚔️ ${esc(adA)} – ${esc(adB)} · ${az}</span>`;
+      ? (tr ? `bu deste ${rakipAd} destelerine karşı ${nfTR(e.n)} kez oynanmış; güvenilir bir oran için en az ${nfTR(ESLESME.minOrnek)} maç gerekiyor.`
+            : `${nfTR(e.n)} games recorded; a reliable rate needs at least ${nfTR(ESLESME.minOrnek)}.`)
+      : (tr ? "bu eşleşme henüz hiç kaydedilmemiş." : "no games recorded yet.");
+    return `<span class="mu-chip thin" title="${nicin}">⚔️ ${tr ? "vs" : "vs"} ${rakipAd} · ${az}</span>`;
   }
 
-  const p = Math.round(e.pA);
+  const p = Math.round(e.p);
   const cls = p >= 55 ? "up" : p <= 45 ? "down" : "even";
   const ipucu = tr
-    ? `${benim ? "Senin destenin" : "Soldaki oyuncunun"} kazanma koşulu ${esc(adA)}, rakibinki ${esc(adB)}. ` +
-      `Nihai Kademe ilk 1000'de bu eşleşme ${nfTR(e.n)} kez oynandı; ` +
-      `${esc(adA)} %${p} kazandı (±${e.pay.toFixed(0)} puan belirsizlik)${ESLESME.karma ? " · iki sezon birleşik" : ""}.`
-    : `${benim ? "Your deck's" : "The left player's"} win condition is ${esc(adA)}, the opponent's ${esc(adB)}. ` +
-      `Played ${nfTR(e.n)} times in the Path of Legends top 1000; ` +
-      `${esc(adA)} won ${p}% (±${e.pay.toFixed(0)} points)${ESLESME.karma ? " · two seasons combined" : ""}.`;
+    ? `${kimin} ${nfTR(e.meta.n)} kez oynanmış bir meta destesi. ${rakipAd} destelerine karşı ` +
+      `${nfTR(e.n)} maçta %${p} kazanmış (±${e.pay.toFixed(0)} puan belirsizlik). ` +
+      `Kaynak: Nihai Kademe ilk 1000${ESLESME.karma ? " · iki sezon birleşik" : ""}.`
+    : `${kimin} is a meta deck. Against ${rakipAd} decks it won ${p}% over ${nfTR(e.n)} games ` +
+      `(±${e.pay.toFixed(0)} points).`;
   return `<span class="mu-chip ${cls}" title="${ipucu}">` +
-         `⚔️ ${esc(adA)} <b>${yuzde(p)}</b> – <b>${yuzde(100 - p)}</b> ${esc(adB)}</span>`;
+         `⚔️ <b>${yuzde(p)}</b> ${tr ? "vs" : "vs"} ${rakipAd}</span>`;
 }
 
 /* Desteyi oyunda aç.
@@ -1550,7 +1564,7 @@ function nameDeck(keys){
   /* Eşleşme tablosu yüklüyse kazanma koşulunu ONDAN sor: site genelinde tek
      kural olsun diye. Ad da oyunun kendi Türkçesinden gelir ("Köstebek"),
      data.js'teki eski karşılıktan değil ("Madenci"). */
-  const koc = typeof eslesmeAnaKart === "function" ? eslesmeAnaKart(keys) : null;
+  const koc = typeof eslesmeArketip === "function" ? eslesmeArketip(keys) : null;
   if (koc) return trUp(cardNameOf(koc.key) + " destesi");
 
   for (const wk of WINCON_SIRA)

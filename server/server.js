@@ -2073,36 +2073,24 @@ app.get("/api/eslesme", (req, res) => {
 });
 
 /* ============================================================
-   ANTİ DESTE  🛡️
+   ANTİ DESTE — yeniden kuruldu
    ------------------------------------------------------------
-   "Bu desteyi ne yener?" — kullanıcı bir meta destesi seçiyor,
-   ona karşı üstün olan desteler sıralanıyor.
+   Eski hâli iki KAZANMA KOŞULU arasında ölçüyordu ve kullanıcı haklı
+   olarak şunu bildirdi: iki bambaşka Mega Şövalye destesi aynı ada
+   düşüp "ayna eşleşme" görünüyordu.
 
-   NASIL ÇALIŞIYOR (ve neyi vaat ETMİYOR)
+   Yeni zincir (bkz. eslesme.js başındaki ölçüm):
+     1. Seçilen destenin ARKETİPİ bulunuyor (katman 1 kazanma koşulu).
+        Bulunamazsa analiz YOK — "random bir destenin analizi zaten
+        yapılmaz".
+     2. Tabloda her META DESTESİNİN o arketibe karşı kendi oranı var.
+     3. %55 ve üstündekiler, kesinliğe göre sıralanıp veriliyor.
 
-   Elimizdeki istatistik deste-deste değil, KAZANMA KOŞULU
-   çiftleri üzerinden (bkz. eslesme.js). Sebebi örneklem: 996
-   farklı meta destesi var, yani ~500.000 deste çifti — hiçbirine
-   anlamlı sayıda maç düşmez. Kazanma koşulu çiftinde ise 328
-   eşleşme var ve popüler olanlar yüzlerce maç topluyor.
-
-   O yüzden zincir şu: seçilen destenin kazanma koşulu bulunuyor →
-   o koşula karşı ÜSTÜN olan koşullar sıralanıyor → her koşul için
-   onu ana kart olarak oynayan gerçek meta desteleri listeleniyor.
-
-   Yani sayı "şu deste bu desteyi %71 yener" demiyor;
-   "Kraliyet Devi desteleri, Yaban Domuzu destelerini %71 yeniyor;
-   işte Kraliyet Devi oynayan meta desteleri" diyor. Arayüz de
-   tam olarak böyle yazıyor — daha fazlasını iddia etmek, elimizde
-   olmayan bir ölçümü varmış gibi göstermek olurdu.
+   Yani artık "Kraliyet Devi destesi %63" değil, "ŞU deste, Yaban
+   Domuzu destelerine karşı %63" deniyor — oran destenin kendisine ait.
    ============================================================ */
-const ANTI_ESIK = 55;      // bu orandan itibaren "anti" sayılıyor (istekle: %55)
-const ANTI_DESTE = 6;      // her karşı koşul için gösterilen en çok deste
-/* Meta havuzundan hangi desteler listeye girsin. 996 destenin çoğu bir-iki
-   kez görülmüş; onları "anti deste" diye önermek, kullanıcıyı kimsenin
-   oynamadığı bir desteye yollamak olurdu. */
-const ANTI_MIN_MAC = 10;
-
+/* Kart kimliği → kart nesnesi. Anti uçları desteyi yalnızca kimlik
+   listesi olarak alıyor; adı, iksiri ve görseli buradan geliyor. */
 let kartHaritasi = null;
 async function kartlarIdIle() {
   if (kartHaritasi) return kartHaritasi;
@@ -2111,60 +2099,49 @@ async function kartlarIdIle() {
   return kartHaritasi;
 }
 
-/* Meta destelerini ana kartlarına göre gruplar. Bir deste yalnızca kendi
-   ANA kartının grubuna girer: Madenci taşıyan bir Yaban Domuzu destesi
-   "Madenci antisi" diye listelenirse, ölçtüğümüz şey o deste olmaz. */
-async function metaKocGruplari() {
-  const meta = await metaCached();
-  const grup = new Map();
-  for (const d of meta.all || []) {
-    if ((d.battles || 0) < ANTI_MIN_MAC) continue;
-    const k = eslesme.kosulSec(d.cards);
-    if (!k) continue;
-    if (!grup.has(k.id)) grup.set(k.id, []);
-    grup.get(k.id).push(d);
-  }
-  for (const [, liste] of grup) liste.sort((a, b) => (b.usage || 0) - (a.usage || 0) || (b.battles || 0) - (a.battles || 0));
-  return { grup, meta };
+const ANTI_ESIK = 55;      // bu orandan itibaren "anti" sayılıyor
+const ANTI_SAYI = 8;       // en çok kaç deste döndürülsün
+
+
+/* Bir meta destesini (kart kimlikleri) ekranda çizilebilir hâle getirir.
+   Evrim/kahraman yuvaları burada BİLİNMİYOR — deste anahtarı yalnızca
+   kimlik taşıyor — o yüzden meta derlemesinden aynı desteyi bulup
+   yuvalarını ondan alıyoruz; bulunamazsa düz kartlar çiziliyor. */
+async function antiDesteCiz(ids, metaAll) {
+  const harita = await kartlarIdIle();
+  const anahtar = [...ids].sort((a, b) => a - b).join(",");
+  const eslesen = (metaAll || []).find(
+    (d) => d.cards.map((c) => c.id).sort((a, b) => a - b).join(",") === anahtar);
+  if (eslesen) return { cards: eslesen.cards, usage: eslesen.usage, winrate: eslesen.winrate,
+                        battles: eslesen.battles, key: eslesen.key };
+  return {
+    cards: ids.map((id) => { const c = harita.get(id); return c ? metaCard(c, false, false) : null; })
+              .filter(Boolean),
+    usage: null, winrate: null, battles: null, key: anahtar,
+  };
 }
 
-/* Seçilebilecek desteler.
-
-   Manşetteki 16 meta destesi yetmiyor: kullanıcı KENDİ karşılaştığı desteyi
-   arıyor ve o çoğu zaman ilk 16'da olmuyor. Havuz, yeterince oynanmış bütün
-   destelere açılıyor (ölçüm: 1.018 farklı desteden ~%X'i eşiği geçiyor),
-   kullanıma göre sıralanıp ANTI_SECIM tanesi veriliyor.
-
-   Ayrıca kazanma koşulu listesi de gönderiliyor: destesini bulamayan
-   "Yaban Domuzu" diye doğrudan arketip seçebilsin. */
-const ANTI_SECIM = 30;
+/* Seçilebilecek desteler = tablodaki ARKETİPLERİN ta kendisi.
+   Eskiden meta derlemesinden geliyordu ve listede olup tabloda olmayan
+   desteler seçilebiliyordu; seçince de "veri yok" çıkıyordu. */
 app.get("/api/anti/desteler", async (req, res) => {
   try {
-    const { grup, meta } = await metaKocGruplari();
-    const secilebilir = [];
-    for (const [kocId, liste] of grup) for (const d of liste) secilebilir.push({ d, kocId });
-    secilebilir.sort((a, b) => (b.d.usage || 0) - (a.d.usage || 0) || (b.d.battles || 0) - (a.d.battles || 0));
-
-    const kocSayaci = new Map();
-    for (const [kocId, liste] of grup)
-      kocSayaci.set(kocId, liste.reduce((a, d) => a + (d.battles || 0), 0));
     const tablo = eslesme.durum();
-
+    const meta = await metaCached().catch(() => ({ all: [] }));
+    const harita = await kartlarIdIle();
+    const items = [];
+    for (const m of tablo.metalar || []) {
+      const ciz = await antiDesteCiz(m.ids, meta.all);
+      const kartlar = m.ids.map((id) => harita.get(id)).filter(Boolean);
+      const koc = eslesme.kosulSec(kartlar);
+      items.push({ ...ciz, oynanma: m.n, koc: koc ? { id: koc.id, ad: koc.ad, k: koc.katman } : null });
+    }
     res.set("Cache-Control", "public, max-age=300");
     res.json({
-      sezon: meta.season,
-      items: secilebilir.slice(0, ANTI_SECIM).map(({ d, kocId }) => {
-        const bilgi = (tablo.koc || []).find((c) => c.id === kocId);
-        const { players, ...rest } = d;
-        return { ...rest, koc: { id: kocId, ad: bilgi?.ad || "" } };
-      }),
-      /* Arketip kısayolu: en çok oynanan kazanma koşulları. */
-      koclar: [...kocSayaci.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .map(([id, mac]) => {
-          const bilgi = (tablo.koc || []).find((c) => c.id === id);
-          return { id, ad: bilgi?.ad || String(id), mac, desteSayisi: grup.get(id).length };
-        }),
+      sezon: tablo.sezon, ortusme: tablo.ortusme,
+      items,
+      /* Arketip kısayolu: yalnızca katman 1. */
+      koclar: (tablo.koc || []).map((c) => ({ id: c.id, ad: c.ad })),
     });
   } catch (e) { res.status(502).json({ error: "upstream_error", detail: String(e) }); }
 });
@@ -2172,70 +2149,59 @@ app.get("/api/anti/desteler", async (req, res) => {
 app.get("/api/anti", async (req, res) => {
   try {
     const harita = await kartlarIdIle();
-    /* İki giriş biçimi: `deste` (8 kart kimliği) ya da `koc` (doğrudan
-       arketip). İkisi de aynı yere varıyor — hesap zaten kazanma koşulu
-       üzerinden yapılıyor. */
-    let kendi = null;
+    const tablo = eslesme.durum();
+
+    /* Seçilen tarafın ARKETİPİ. İki giriş biçimi: deste ya da doğrudan koç. */
+    let hedef = null;
     if (req.query.koc) {
-      const kid = parseInt(req.query.koc, 10);
-      const kart = harita.get(kid);
-      kendi = kart ? eslesme.kosulSec([kart]) : null;
-      if (!kendi) return res.status(400).json({ error: "bad_koc", mesaj: "Bu kart bir kazanma koşulu olarak tanınmıyor." });
+      const kart = harita.get(parseInt(req.query.koc, 10));
+      const k = kart ? eslesme.kosulSec([kart]) : null;
+      if (!k || k.katman !== 1)
+        return res.status(400).json({ error: "bad_koc", mesaj: "Bu kart bir kazanma koşulu olarak tanınmıyor." });
+      hedef = k;
     } else {
       const ids = String(req.query.deste || "").split(",")
-        .map((s) => parseInt(s, 10)).filter(Number.isFinite);
-      if (ids.length < 1 || ids.length > 8) return res.status(400).json({ error: "bad_deck", mesaj: "Deste 1–8 kart kimliği olmalı." });
-      kendi = eslesme.kosulSec(ids.map((id) => harita.get(id)).filter(Boolean));
+        .map((x) => parseInt(x, 10)).filter(Number.isFinite);
+      if (ids.length < 1 || ids.length > 8)
+        return res.status(400).json({ error: "bad_deck", mesaj: "Deste 1–8 kart kimliği olmalı." });
+      const k = eslesme.kosulSec(ids.map((id) => harita.get(id)).filter(Boolean));
+      /* Katman 2'ye düşen desteler (Mega Şövalye vb.) analiz ALMIYOR —
+         kullanıcının bildirdiği anlamsız etiketler tam olarak bunlardı. */
+      hedef = k && k.katman === 1 ? k : null;
     }
-    if (!kendi) return res.json({ hazir: true, kocYok: true, sayac: [],
-      mesaj: "Bu destede tanıdığımız bir kazanma koşulu yok, bu yüzden eşleşme istatistiği çıkarılamıyor." });
+    if (!hedef) return res.json({ hazir: true, kocYok: true, sayac: [],
+      mesaj: "Bu deste tanıdığımız bir arketipe girmiyor, o yüzden eşleşme istatistiği çıkarılamıyor. Analiz yalnızca meta destelerinde yapılıyor." });
 
-    const tablo = eslesme.durum();
-    const { grup } = await metaKocGruplari();
-
+    const meta = await metaCached().catch(() => ({ all: [] }));
     const sayac = [];
-    for (const anahtar of Object.keys(tablo.ciftler)) {
-      const [a, b] = anahtar.split("|").map(Number);
-      if (a !== kendi.id && b !== kendi.id) continue;
-      const digerId = a === kendi.id ? b : a;
-      const [n, w] = tablo.ciftler[anahtar];
-      if (n < tablo.minOrnek) continue;
-      /* `w` küçük kimlikli koşulun galibiyeti; bize KARŞI TARAFIN oranı lazım. */
-      const oran = (digerId === a ? w / n : 1 - w / n) * 100;
-      const kart = harita.get(digerId);
-      const bilgi = (tablo.koc || []).find((c) => c.id === digerId);
+    for (const m of tablo.metalar || []) {
+      const kayit = tablo.hucreler[`${m.k}||${hedef.id}`];
+      if (!kayit || kayit[0] < tablo.minOrnek) continue;
+      const [n, w] = kayit;
+      const oran = w / n * 100;
+      const kartlar = m.ids.map((id) => harita.get(id)).filter(Boolean);
+      const kendiKoc = eslesme.kosulSec(kartlar);
+      /* Kendi arketibine karşı olan satır "ayna" değil, geçerli bir
+         hücre; ama seçilenle AYNI arketipse ayrıca işaretliyoruz. */
+      const ciz = await antiDesteCiz(m.ids, meta.all);
       sayac.push({
-        koc: { id: digerId, ad: bilgi?.ad || kart?.name || String(digerId), e: bilgi?.e || kart?.elixirCost || 0 },
-        n, yuzde: +oran.toFixed(1),
-        // %95 güven aralığının yarı genişliği — 40 maçlık bir oran ±15 puan oynayabiliyor.
+        ...ciz, oynanma: m.n, n, yuzde: +oran.toFixed(1),
         pay: +(1.96 * Math.sqrt((oran / 100) * (1 - oran / 100) / n) * 100).toFixed(1),
-        desteler: (grup.get(digerId) || []).slice(0, ANTI_DESTE)
-          .map(({ players, ...d }) => d),
+        koc: kendiKoc ? { id: kendiKoc.id, ad: kendiKoc.ad } : null,
+        ayniArketip: !!(kendiKoc && kendiKoc.id === hedef.id),
       });
     }
-    /* SIRALAMA — ham orana göre DEĞİL, güven aralığının alt sınırına göre.
-
-       Sebebi ölçülmüş bir tuzak: 45 maçlık bir %64'ün payı ±14 puan, yani
-       gerçek değeri %50 de olabilir; 240 maçlık bir %63'ün payı ±6. Ham orana
-       göre sıralayınca gürültülü olan üste çıkıyor ve "en iyi anti" diye
-       gösterdiğimiz şey aslında en az bildiğimiz şey oluyordu.
-
-       Alt sınır (oran − pay) ikisini de doğru yere koyuyor: X-Yay %64−14=50,
-       Yaban Domuzu %63−6=57 → Yaban Domuzu önde. Ekranda yine HAM oran
-       yazıyor (kullanıcı %64 istedi, %50 değil) ama sıra güvene göre; arayüz
-       bunu bir cümleyle açıklıyor ki "63 neden 64'ün üstünde" diye
-       sorulmasın. */
+    /* Ham yüzdeye göre DEĞİL güven alt sınırına göre: 45 maçlık bir %64
+       (±14), 240 maçlık bir %63'ten (±6) daha az kesindir. */
     sayac.sort((x, y) => (y.yuzde - y.pay) - (x.yuzde - x.pay) || y.n - x.n);
 
     res.set("Cache-Control", "public, max-age=120");
     res.json({
       hazir: tablo.hazir,
-      secilen: { koc: { id: kendi.id, ad: kendi.ad, e: kendi.e } },
+      secilen: { koc: { id: hedef.id, ad: hedef.ad, e: hedef.e } },
       esik: ANTI_ESIK, minOrnek: tablo.minOrnek,
       sezon: tablo.sezon, savas: tablo.savas, karma: tablo.karma,
-      /* Hepsi gönderiliyor (eşiğin altındakiler dahil): eşiği geçen hiç
-         yoksa arayüz "en yakınları" gösterebilsin, boş ekran kalmasın. */
-      sayac,
+      sayac: sayac.slice(0, ANTI_SAYI * 3),
     });
   } catch (e) { res.status(502).json({ error: "upstream_error", detail: String(e) }); }
 });

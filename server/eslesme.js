@@ -186,11 +186,49 @@ function kosulSec(kartlar) {
 }
 
 /* ---------- durum ---------- */
-const bosSezon = () => ({ savas: 0, cift: {} });   // cift: "küçükId|büyükId" → [maç, küçüğünGalibiyeti]
+/* ============================================================
+   NEDEN "ÇİFT" DEĞİL "HÜCRE"
+   ------------------------------------------------------------
+   Önce eşleşme iki KAZANMA KOŞULU arasında ölçülüyordu (Balon vs
+   Yaban Domuzu). Kullanıcı haklı olarak şunu bildirdi: iki bambaşka
+   Mega Şövalye destesi aynı ada düşüyor ve sistem "ayna eşleşme"
+   diyor — oysa desteler farklı.
+
+   Deste-deste ölçmeyi denedik, ÖLÇÜM izin vermedi: 11.646 maçta 30
+   arketiple en yoğun deste çiftine yalnızca 50 maç düşüyor, 100 maçlık
+   çift SIFIR. (Kazanma koşulu çiftlerinde en yoğunu 229'du.)
+
+   Tutan ara yol: SENİN DESTEN × RAKİBİN ARKETİPİ.
+     · Senin tarafın DESTE düzeyinde — iki farklı Mega Şövalye destesi
+       artık ayrı satır, "ayna" yanılgısı ortadan kalkıyor.
+     · Rakip tarafı arketip (kazanma koşulu) düzeyinde — örneklem ancak
+       böyle tutuyor.
+   Ölçüm (30 meta destesi, 5/8 örtüşme): 629 hücre, 84'ü 40+ maç,
+   en yoğunu 122. Bugünkü sistemle (86 çift ≥40) aynı kapsam.
+
+   Ayrıca rakip tarafında YALNIZCA katman 1 kabul ediliyor: "Mega
+   Şövalye arketipi" gibi katman 2 etiketleri zaten kullanıcının
+   şikâyet ettiği anlamsız etiketlerdi.
+
+   Desten meta destelerine benzemiyorsa HİÇBİR ŞEY gösterilmiyor —
+   "random bir destenin analizi zaten yapılmaz".
+   ============================================================ */
+const bosSezon = () => ({ savas: 0, hucre: {} });   // hucre: "desteAnahtarı||rakipKocId" → [maç, galibiyet]
+/* Meta desteleri taramanın KENDİSİNDEN çıkıyor: hangi sekizli kaç kez
+   oynandıysa o sayılıyor, en çok oynanan META_ADET tanesi arketip kabul
+   ediliyor. Ayrı bir meta hesabına bağlanmıyoruz — ölçüm de böyle
+   yapıldı ve indeks kendi kendine yetiyor. */
+const META_ADET = Math.max(8, sayi(process.env.ESLESME_META, 30));
+/* Bir deste, bir meta destesiyle kaç kart paylaşırsa "o deste" sayılsın.
+   Ölçüldü: 5/8'de kapsam %58,5 ve belirsiz eşleme %2,6; 6/8'de kapsam
+   %49,7'ye düşüyor ama hücre başına maç da düşüyor. 5 seçildi. */
+const ORTUSME = Math.max(4, Math.min(8, sayi(process.env.ESLESME_ORTUSME, 5)));
+
 const db = {
   sezon: sezonAdi(),
   bu: bosSezon(),
   onceki: bosSezon(),
+  desteSay: {},                 // "id,id,…" → kaç kez oynandı (arketip listesi buradan)
   kart: {},                 // id → { ad, e, k }  (görülen kazanma koşulları)
   gorulen: new Map(),       // jeton → maçın saniyesi
   guncel: 0,                // son başarılı tur
@@ -212,18 +250,61 @@ function crZaman(s) {
 const jeton = (zaman, a, b) =>
   crypto.createHash("sha1").update(`${zaman}|${[a, b].sort().join("|")}`).digest("base64").slice(0, 8);
 
-/* ---------- disk ---------- */
+true
+/* ============================================================
+   ARKETİP EŞLEME
+   ------------------------------------------------------------
+   Bir desteyi en çok kart paylaştığı meta destesine bağlar. Aynı kural
+   ön yüzde de çalışıyor (app.js → eslesmeMetaEsle); ikisi ayrışırsa
+   istatistik başka bir desteye ait olur, o yüzden liste ve eşik
+   sunucudan gönderiliyor.
+
+   Beraberlikte POPÜLERLİĞİ yüksek olan kazanıyor: liste zaten
+   popülerliğe göre sıralı ve karşılaştırma kesin büyüktür olduğu için
+   ilk gelen kalıyor. Böylece sonuç her koşuda aynı.
+   ============================================================ */
+function metaListesi() {
+  return Object.keys(db.desteSay)
+    .sort((a, b) => db.desteSay[b] - db.desteSay[a])
+    .slice(0, META_ADET)
+    .map((k) => ({ k, n: db.desteSay[k], ids: k.split(",").map(Number) }));
+}
+function metaEsle(ids, liste) {
+  let en = null, enSkor = 0;
+  for (const m of liste) {
+    let ortak = 0;
+    for (const id of ids) if (m.ids.includes(id)) ortak++;
+    if (ortak > enSkor) { enSkor = ortak; en = m; }
+  }
+  return enSkor >= ORTUSME ? en : null;
+}
+/* Deste anahtarı: kart kimlikleri küçükten büyüğe. Kart sırası oyuncuya
+   göre değişiyor, anahtar değişmemeli. */
+const desteAnahtari = (kartlar) => kartlar.map((c) => c.id).sort((a, b) => a - b).join(",");
+
+/* Deste sayacı sınırsız büyümesin: nadir görülen desteler arketip
+   olamayacağı için tutulmalarının anlamı yok. */
+function desteBuda() {
+  const anahtarlar = Object.keys(db.desteSay);
+  if (anahtarlar.length <= 800) return;
+  const kalan = anahtarlar.sort((a, b) => db.desteSay[b] - db.desteSay[a]).slice(0, 500);
+  const yeni = {};
+  for (const k of kalan) yeni[k] = db.desteSay[k];
+  db.desteSay = yeni;
+}
+
 function yukle() {
   try {
     const d = JSON.parse(fs.readFileSync(FILE, "utf8"));
     if (!d || typeof d !== "object") return;
     if (d.sezon) db.sezon = d.sezon;
-    if (d.bu && d.bu.cift) db.bu = { savas: d.bu.savas || 0, cift: d.bu.cift };
-    if (d.onceki && d.onceki.cift) db.onceki = { savas: d.onceki.savas || 0, cift: d.onceki.cift };
+    if (d.bu && d.bu.hucre) db.bu = { savas: d.bu.savas || 0, hucre: d.bu.hucre };
+    if (d.onceki && d.onceki.hucre) db.onceki = { savas: d.onceki.savas || 0, hucre: d.onceki.hucre };
+    if (d.desteSay) db.desteSay = d.desteSay;
     if (d.kart) db.kart = d.kart;
     if (Array.isArray(d.gorulen)) for (const [j, s] of d.gorulen) db.gorulen.set(j, s);
     db.guncel = d.guncel || 0;
-    console.log(`⚔️  Eşleşme tablosu yüklendi (${db.bu.savas.toLocaleString("tr")} maç · ${Object.keys(db.bu.cift).length} eşleşme).`);
+    console.log(`⚔️  Eşleşme tablosu yüklendi (${db.bu.savas.toLocaleString("tr")} maç · ${Object.keys(db.bu.hucre).length} hücre · ${Object.keys(db.desteSay).length} deste).`);
   } catch { /* ilk çalıştırma */ }
 }
 
@@ -236,7 +317,7 @@ function kaydet() {
       const tmp = FILE + ".tmp";
       fs.writeFileSync(tmp, JSON.stringify({
         sezon: db.sezon, bu: db.bu, onceki: db.onceki, kart: db.kart,
-        guncel: db.guncel, gorulen: [...db.gorulen],
+        desteSay: db.desteSay, guncel: db.guncel, gorulen: [...db.gorulen],
       }));
       fs.renameSync(tmp, FILE);
     } catch (e) { console.warn("⚠️  Eşleşme tablosu kaydedilemedi:", String(e)); }
@@ -289,7 +370,7 @@ async function tur(tamMerdiven = false) {
     });
 
     const simdi = Date.now();
-    let yeni = 0, aynaAtlandi = 0, kosulsuz = 0;
+    let yeni = 0, kosulsuz = 0;
     for (const log of logs) {
       if (!Array.isArray(log)) continue;
       for (const b of log) {
@@ -312,36 +393,50 @@ async function tur(tamMerdiven = false) {
         if (db.gorulen.has(j)) continue;
         db.gorulen.set(j, Math.round(z / 1000));
 
-        const a = kosulSec(tk), c = kosulSec(ok);
-        if (!a || !c) { kosulsuz++; continue; }
-        if (a.id === c.id) { aynaAtlandi++; continue; }      // ayna eşleşme zaten %50
+        /* Her deste sayılıyor: arketip listesi bu sayaçtan çıkıyor. */
+        for (const kartlar of [tk, ok]) {
+          const ak = desteAnahtari(kartlar);
+          db.desteSay[ak] = (db.desteSay[ak] || 0) + 1;
+        }
 
-        const [dus, yuk] = a.id < c.id ? [a, c] : [c, a];
-        const anahtar = `${dus.id}|${yuk.id}`;
-        const d = db.bu.cift[anahtar] || (db.bu.cift[anahtar] = [0, 0]);
-        const tacDus = a.id === dus.id ? (t.crowns || 0) : (o.crowns || 0);
-        const tacYuk = a.id === dus.id ? (o.crowns || 0) : (t.crowns || 0);
-        d[0]++;
-        /* Berabere (eşit taç) yarım galibiyet. Sıralamalı maçların
-           ~%0,4'ü berabere bitiyor; kaybetmiş saymak iki tarafı birden
-           haksız yere aşağı çekiyordu (bkz. buildMeta'daki aynı not). */
-        d[1] += tacDus === tacYuk ? 0.5 : tacDus > tacYuk ? 1 : 0;
-        db.bu.savas++;
-        yeni++;
-        for (const k of [a, c])
-          if (!db.kart[k.id]) db.kart[k.id] = { ad: k.ad, e: k.e, k: k.katman };
+        const kocT = kosulSec(tk), kocO = kosulSec(ok);
+        /* Rakip tarafında yalnızca KATMAN 1 kabul ediliyor — katman 2
+           etiketleri ("Mega Şövalye arketipi") anlamsızdı. */
+        const t1 = (k) => (k && k.katman === 1 ? k : null);
+        const liste = metaListesi();
+        const metaT = metaEsle(tk.map((c) => c.id), liste);
+        const metaO = metaEsle(ok.map((c) => c.id), liste);
+
+        let yazildi = false;
+        for (const [benimMeta, rakipKoc, benimTac, rakipTac] of [
+          [metaT, t1(kocO), t.crowns || 0, o.crowns || 0],
+          [metaO, t1(kocT), o.crowns || 0, t.crowns || 0],
+        ]) {
+          if (!benimMeta || !rakipKoc) continue;
+          const anahtar = `${benimMeta.k}||${rakipKoc.id}`;
+          const d = db.bu.hucre[anahtar] || (db.bu.hucre[anahtar] = [0, 0]);
+          d[0]++;
+          /* Berabere (eşit taç) yarım galibiyet — sıralamalı maçların
+             ~%0,4'ü berabere ve kaybetmiş saymak iki tarafı da haksız
+             yere aşağı çekiyordu. */
+          d[1] += benimTac === rakipTac ? 0.5 : benimTac > rakipTac ? 1 : 0;
+          yazildi = true;
+          if (!db.kart[rakipKoc.id])
+            db.kart[rakipKoc.id] = { ad: rakipKoc.ad, e: rakipKoc.e, k: rakipKoc.katman };
+        }
+        if (yazildi) { db.bu.savas++; yeni++; } else kosulsuz++;
       }
     }
 
-    buda();
+    buda(); desteBuda();
     db.guncel = Date.now();
     db.tur++;
     kaydet();
     console.log(`⚔️  Eşleşme turu ${db.tur}: ${dilim.length} günlük · +${yeni} yeni maç ` +
-                `(toplam ${db.bu.savas.toLocaleString("tr")}) · ${Object.keys(db.bu.cift).length} eşleşme · ` +
+                `(toplam ${db.bu.savas.toLocaleString("tr")}) · ${Object.keys(db.bu.hucre).length} hücre · ` +
                 `${((Date.now() - t0) / 1000).toFixed(1)} sn` +
                 (kosulsuz ? ` · ${kosulsuz} maçta koşul bulunamadı` : "") +
-                (aynaAtlandi ? ` · ${aynaAtlandi} ayna` : ""));
+                "");
   } catch (e) {
     console.warn("⚠️  Eşleşme taraması başarısız:", String(e));
   } finally { calisiyor = false; }
@@ -361,51 +456,70 @@ function durum() {
   /* Sezonun başında tablo henüz inceyse önceki sezonla birleştiriyoruz;
      `karma` ile bunu açıkça söylüyoruz, arayüz de öyle yazıyor. */
   const karma = db.bu.savas < KARMA_ESIK && db.onceki.savas > 0;
-  const cift = {};
+  const hucre = {};
   const ekle = (kaynak) => {
     for (const anahtar of Object.keys(kaynak)) {
       const v = kaynak[anahtar];
-      const d = cift[anahtar] || (cift[anahtar] = [0, 0]);
-      d[0] += v[0]; d[1] += v[1];
+      const h = hucre[anahtar] || (hucre[anahtar] = [0, 0]);
+      h[0] += v[0]; h[1] += v[1];
     }
   };
-  ekle(db.bu.cift);
-  if (karma) ekle(db.onceki.cift);
-  for (const k of Object.keys(cift)) cift[k][1] = Math.round(cift[k][1] * 2) / 2;
+  ekle(db.bu.hucre);
+  if (karma) ekle(db.onceki.hucre);
+  const meta = metaListesi();
+  /* Öksüz ve ince hücreleri ele.
 
+     Öksüz: meta listesi zamanla değişiyor; bir deste ilk META_ADET'ten
+     düşünce ona ait hücrelere ulaşılamıyor ama yükte taşınmaya devam
+     ediyordu. Ön yüz o desteyi zaten eşleyemez, yani ölü ağırlık.
+     İnce: MIN_ORNEK'in çok altındakiler hiçbir zaman gösterilmiyor. */
+  const gecerli = new Set(meta.map((m) => m.k));
+  for (const k of Object.keys(hucre)) {
+    if (hucre[k][0] < 5 || !gecerli.has(k.split("||")[0])) { delete hucre[k]; continue; }
+    hucre[k][1] = Math.round(hucre[k][1] * 2) / 2;
+  }
   return {
-    hazir: Object.keys(cift).length > 0,
+    hazir: Object.keys(hucre).length > 0 && meta.length > 0,
     sezon: db.sezon,
     karma,
     savas: karma ? db.bu.savas + db.onceki.savas : db.bu.savas,
     minOrnek: MIN_ORNEK,
+    ortusme: ORTUSME,
     guncel: db.guncel,
     kaynak: "Nihai Kademe ilk 1000 — iki tarafı da sıralamada olan maçlar",
-    /* Kazanma koşulları: ön yüz destenin ana kartını bu listeyle seçiyor,
-       yani kural sunucuyla ön yüzde AYNI kalıyor. */
-    koc: Object.keys(db.kart).map((id) => ({
-      id: +id, ad: db.kart[id].ad, e: db.kart[id].e, k: db.kart[id].k,
-      s: KOSUL.get(db.kart[id].ad)?.sira ?? 999,
-    })),
-    ciftler: cift,
+    /* META DESTELERİ — ön yüz kullanıcının destesini bu listeye eşliyor.
+       Sıra POPÜLERLİK sırası ve beraberlik bu sırayla çözülüyor, o yüzden
+       liste olduğu gibi gönderiliyor. */
+    metalar: meta.map((m) => ({ k: m.k, n: m.n, ids: m.ids })),
+    /* Rakip arketipleri (yalnızca katman 1 — katman 2 etiketleri
+       anlamsızdı, bkz. hücre yapısındaki not). */
+    koc: Object.keys(db.kart)
+      .filter((id) => db.kart[id].k === 1)
+      .map((id) => ({
+        id: +id, ad: db.kart[id].ad, e: db.kart[id].e, k: db.kart[id].k,
+        s: KOSUL.get(db.kart[id].ad)?.sira ?? 999,
+      })),
+    hucreler: hucre,
   };
 }
 
 /* Yönetici paneli için özet — hangi eşleşmeler ne kadar oturmuş. */
 function ozet(adet = 25) {
   const d = durum();
-  const satir = Object.keys(d.ciftler).map((k) => {
-    const [a, b] = k.split("|").map(Number);
-    const [n, w] = d.ciftler[k];
-    return { a, b, adA: db.kart[a]?.ad || a, adB: db.kart[b]?.ad || b, n, yuzde: +(w / n * 100).toFixed(1) };
+  const satir = Object.keys(d.hucreler).map((k) => {
+    const [desteK, kocId] = k.split("||");
+    const [n, w] = d.hucreler[k];
+    return { deste: desteK, koc: +kocId, kocAd: db.kart[kocId]?.ad || kocId,
+             n, yuzde: +(w / n * 100).toFixed(1) };
   }).sort((x, y) => y.n - x.n);
   return {
     sezon: d.sezon, karma: d.karma, savas: d.savas, guncel: d.guncel, tur: db.tur,
-    eslesme: satir.length, yeterli: satir.filter((s) => s.n >= MIN_ORNEK).length,
+    hucre: satir.length, meta: d.metalar.length, yeterli: satir.filter((s) => s.n >= MIN_ORNEK).length,
     minOrnek: MIN_ORNEK, gorulen: db.gorulen.size, ust: satir.slice(0, adet),
   };
 }
 
 yukle();
 
-module.exports = { basla, durum, ozet, kosulSec, KATMAN1, KATMAN2, MIN_ORNEK };
+module.exports = { basla, durum, ozet, kosulSec, metaListesi, metaEsle,
+                   KATMAN1, KATMAN2, MIN_ORNEK, ORTUSME };
