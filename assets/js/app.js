@@ -58,7 +58,7 @@ function toggleTheme(){
 /* ---------- i18n ---------- */
 const I18N = {
   tr: {
-    "nav.home":"ANA SAYFA","nav.meta":"META","nav.ranks":"SIRALAMALAR",
+    "nav.home":"ANA SAYFA","nav.meta":"META","nav.anti":"Anti Deste","nav.ranks":"SIRALAMALAR",
     "nav.live":"SON MAÇLAR","nav.cards":"KARTLAR","nav.updates":"GÜNCELLEMELER","nav.fun":"EĞLENCE","nav.cenabet":"CENABET",
     /* Mobil alt çubuk için kısa karşılıklar. Altı sekme 375 piksele
        bölününce sekme başına ~62 piksel düşüyor; "SIRALAMALAR" ve
@@ -133,6 +133,7 @@ const I18N = {
     "tile.live":"Son Maçlar","tile.live.s":"Nihai ilk 100",
     "tile.meta":"Meta Desteler","tile.meta.s":"Güncel meta",
     "tile.cards":"Kartlar","tile.cards.s":"Tüm kartlar",
+    "tile.anti":"Anti Deste","tile.anti.s":"Karşındakini ne yener?",
     "tile.fun":"Eğlence","tile.new":"Yeni Eğlenceler",
     "tile.pts":"Puanlı","tile.nopts":"Puansız",
     "home.searchP":"Oyuncu Ara","home.searchC":"Klan Ara",
@@ -156,7 +157,7 @@ const I18N = {
     "err.noResult":"Sonuç yok.","err.notFound":"Bulunamadı.",
   },
   en: {
-    "nav.home":"HOME","nav.meta":"META","nav.ranks":"RANKINGS",
+    "nav.home":"HOME","nav.meta":"META","nav.anti":"Counter Decks","nav.ranks":"RANKINGS",
     "nav.live":"RECENT MATCHES","nav.cards":"CARDS","nav.updates":"UPDATES","nav.fun":"FUN","nav.cenabet":"CENABET",
     "bn.home":"HOME","bn.ranks":"RANKS","bn.live":"MATCHES",
     "bn.meta":"META","bn.cards":"CARDS","bn.fun":"FUN",
@@ -225,6 +226,7 @@ const I18N = {
     "tile.live":"Recent Matches","tile.live.s":"Ranked top 100",
     "tile.meta":"Meta Decks","tile.meta.s":"Current meta",
     "tile.cards":"Cards","tile.cards.s":"Every card",
+    "tile.anti":"Counter Decks","tile.anti.s":"What beats what you face",
     "tile.fun":"Fun","tile.new":"New Games",
     "tile.pts":"Scored","tile.nopts":"No points",
     "home.searchP":"Search Player","home.searchC":"Search Clan",
@@ -871,6 +873,128 @@ function deckCopyBtn(cards){
     aria-label="${tr ? "Desteyi kopyala" : "Copy deck"}">${ICONS.copy}</button>`;
 }
 
+/* ============================================================
+   EŞLEŞME İSTATİSTİĞİ  ⚔️
+   ------------------------------------------------------------
+   "Bu karşılaşmada kim kazanıyor?" — Madenci vs Lav Tazısı gibi bir
+   eşleşmenin Nihai Kademe ilk 1000'inde gerçekte nasıl bittiği.
+
+   Tabloyu sunucu biriktiriyor (server/eslesme.js — nasıl ve neden orada
+   ölçümleriyle yazılı). Burada yapılan üç şey var: tabloyu bir kez
+   çekmek, bir destenin ANA KARTINI seçmek ve rozeti çizmek.
+
+   Ana kart seçimi sunucudaki kuralın AYNISI olmak zorunda, yoksa
+   istatistik başka bir eşleşmeye ait olurdu. O yüzden kural burada
+   tekrar yazılmıyor: sunucu kazanma koşullarını katman/iksir/sıra
+   bilgisiyle birlikte gönderiyor, karşılaştırma da aynı sırayla
+   yapılıyor.
+   ============================================================ */
+let ESLESME = null;          // { minOrnek, koc:Map(id→{k,e,s}), ciftler:Map }
+let eslesmeSozu = null;
+
+/* Tablo oturum başına BİR kez çekiliyor. Başarısız olursa `null` kalır ve
+   hiçbir rozet çizilmez — eşleşme bilgisi olmadan da sayfa tamdır. */
+function eslesmeYukle(){
+  if (eslesmeSozu) return eslesmeSozu;          // söz saklanıyor: tek istek
+  eslesmeSozu = HypnoAPI._get("/eslesme", 10000).then((d) => {
+    if (!d || !d.hazir) return null;
+    ESLESME = {
+      minOrnek: d.minOrnek || 60,
+      sezon: d.sezon || "", karma: !!d.karma, savas: d.savas || 0,
+      kaynak: d.kaynak || "",
+      koc: new Map((d.koc || []).map((c) => [c.id, c])),
+      ciftler: new Map(Object.keys(d.ciftler || {}).map((k) => [k, d.ciftler[k]])),
+    };
+    return ESLESME;
+  }).catch(() => null);
+  return eslesmeSozu;
+}
+
+/* Destenin ana kartı (kazanma koşulu). Kural sunucuyla birebir:
+   önce katman (1 gerçek kazanma koşulu, 2 yalnızca 1 hiç yoksa),
+   sonra sunucunun gönderdiği liste sırası. İksire BAKILMIYOR —
+   bkz. server/eslesme.js'deki not (Köstebek/Goblin Matkabı düzeltmesi). */
+function eslesmeAnaKart(keys){
+  if (!ESLESME) return null;
+  let en = null;
+  for (const k of keys || []){
+    const c = CARD_DB[k];
+    const m = c && ESLESME.koc.get(c.id);
+    if (!m) continue;
+    const aday = { id: c.id, key: k, katman: m.k, sira: m.s };
+    const daha = !en || (aday.katman !== en.katman ? aday.katman < en.katman
+                                                   : aday.sira < en.sira);
+    if (daha) en = aday;
+  }
+  return en;
+}
+
+/* İki deste için eşleşme kaydı. `null` = gösterilecek bir şey yok
+   (tablo yüklenmedi ya da bir tarafta kazanma koşulu bulunamadı). */
+function eslesmeBilgi(benimKeys, rakipKeys){
+  if (!ESLESME) return null;
+  const a = eslesmeAnaKart(benimKeys), b = eslesmeAnaKart(rakipKeys);
+  if (!a || !b) return null;
+  if (a.id === b.id) return { ayna: true, a, b };
+  const [dus, yuk] = a.id < b.id ? [a, b] : [b, a];
+  const kayit = ESLESME.ciftler.get(`${dus.id}|${yuk.id}`);
+  const n = kayit ? kayit[0] : 0;
+  if (!n) return { a, b, n: 0, yeterli: false };
+  const pDus = kayit[1] / n * 100;
+  const pA = a.id === dus.id ? pDus : 100 - pDus;
+  /* %95 güven aralığının yarı genişliği. Rozetin kendisinde değil
+     ipucunda yazıyor — 60 maçlık bir oranın ±13 puan oynayabildiğini
+     görmek, sayıyı kanun sanmayı engelliyor. */
+  const pay = 1.96 * Math.sqrt((pA / 100) * (1 - pA / 100) / n) * 100;
+  return { a, b, n, pA, pay, yeterli: n >= ESLESME.minOrnek };
+}
+
+/* Eşleşme rozeti.
+
+   Biçim iki ekranda da AYNI: "⚔️ Balon %58 – %42 Yaban Domuzu". Önce
+   yazan kart, ilk verilen destenin kazanma koşuludur — yani profildeki
+   savaş günlüğünde her zaman OYUNCUNUN kartı, akışta soldaki oyuncunun
+   kartı. Satırın altındaki "SENİN DESTEN / RAKİP" düzeniyle aynı sırada
+   okunuyor.
+
+   Önce "Eşleşme %52 sende" yazıyordu; hangi kartların karşılaştığı
+   yalnızca ipucundaydı. Telefonda ipucu diye bir şey yok — kullanıcıların
+   %90'ı mobilden geldiğine göre o bilgi pratikte hiç görünmüyordu. */
+function eslesmeRozeti(benimKeys, rakipKeys, benim){
+  const e = eslesmeBilgi(benimKeys, rakipKeys);
+  if (!e) return "";
+  const tr = LANG === "tr";
+  const adA = cardNameOf(e.a?.key) || "", adB = cardNameOf(e.b?.key) || "";
+  const yuzde = (n) => tr ? `%${n}` : `${n}%`;
+  if (e.ayna)
+    return `<span class="mu-chip even" title="${tr
+      ? "İki deste de aynı kazanma koşulunu oynuyor — eşleşme simetrik."
+      : "Both decks run the same win condition — the matchup is symmetric."}">⚔️ ${
+      tr ? "Ayna eşleşme" : "Mirror matchup"}${adA ? ` · ${esc(adA)}` : ""}</span>`;
+
+  if (!e.yeterli){
+    const az = e.n ? `${nfTR(e.n)} ${tr ? "maç" : "games"}` : (tr ? "veri yok" : "no data");
+    const nicin = e.n
+      ? (tr ? `elimizde ${nfTR(e.n)} maç var; güvenilir bir oran için en az ${nfTR(ESLESME.minOrnek)} maç gerekiyor.`
+            : `we have ${nfTR(e.n)} games; a reliable rate needs at least ${nfTR(ESLESME.minOrnek)}.`)
+      : (tr ? "henüz kayıt yok." : "no games recorded yet.");
+    return `<span class="mu-chip thin" title="${esc(adA)} – ${esc(adB)}: ${nicin}">` +
+           `⚔️ ${esc(adA)} – ${esc(adB)} · ${az}</span>`;
+  }
+
+  const p = Math.round(e.pA);
+  const cls = p >= 55 ? "up" : p <= 45 ? "down" : "even";
+  const ipucu = tr
+    ? `${benim ? "Senin destenin" : "Soldaki oyuncunun"} kazanma koşulu ${esc(adA)}, rakibinki ${esc(adB)}. ` +
+      `Nihai Kademe ilk 1000'de bu eşleşme ${nfTR(e.n)} kez oynandı; ` +
+      `${esc(adA)} %${p} kazandı (±${e.pay.toFixed(0)} puan belirsizlik)${ESLESME.karma ? " · iki sezon birleşik" : ""}.`
+    : `${benim ? "Your deck's" : "The left player's"} win condition is ${esc(adA)}, the opponent's ${esc(adB)}. ` +
+      `Played ${nfTR(e.n)} times in the Path of Legends top 1000; ` +
+      `${esc(adA)} won ${p}% (±${e.pay.toFixed(0)} points)${ESLESME.karma ? " · two seasons combined" : ""}.`;
+  return `<span class="mu-chip ${cls}" title="${ipucu}">` +
+         `⚔️ ${esc(adA)} <b>${yuzde(p)}</b> – <b>${yuzde(100 - p)}</b> ${esc(adB)}</span>`;
+}
+
 /* Desteyi oyunda aç.
 
    Bağlantı `clashroyale://` şemasını kullanıyor: telefonda oyunu açar ve
@@ -1256,11 +1380,19 @@ const HypnoAPI = {
    yüzden karşılaştırma neredeyse hiç tutmuyor, hemen her deste en yüksek
    iksirli kartın İngilizce adına düşüyordu. Kimlikler iki tarafta da aynı.
 
-   Sıra = öncelik: bir destede birden fazla koşul varsa üstteki kazanır. */
+   Sıra = öncelik: bir destede birden fazla koşul varsa üstteki kazanır.
+
+   ⚠️ BU LİSTE ARTIK YEDEK. Asıl kaynak sunucudaki kazanma koşulu listesi
+   (server/eslesme.js) ve o liste /api/eslesme ile buraya geliyor; aşağıdaki
+   nameDeck önce ONU kullanıyor. Sebebi bir çelişkiydi: burası kendi sırasına
+   göre "Goblin Matkabı destesi" derken sunucu aynı desteye "Köstebek" diyordu,
+   yani Anti Deste sayfasında başlık ve kart adları birbirini tutmuyordu.
+   Buradaki sıra da aynı mantığa göre düzeltildi (Köstebek, Matkap'ın üstünde)
+   ki eşleşme tablosu yüklenmemişken de aynı adı üretsin. */
 const WINCON_SIRA = [
-  "lavahound", "golem", "graveyard", "balloon", "xbow", "mortar",
-  "goblindrill", "goblinbarrel", "miner", "hog", "royalhogs", "royalgiant",
-  "giant", "goblingiant", "ramrider", "battleram", "wallbreakers",
+  "golem", "xbow", "royalgiant", "goblingiant", "graveyard", "giant",
+  "lavahound", "balloon", "ramrider", "royalhogs", "mortar", "hog",
+  "goblindrill", "battleram", "miner", "goblinbarrel", "wallbreakers",
   "megaknight", "pekka", "sparky", "royalghost",
   "archerqueen", "skeletonking", "goldenknight",
 ];
@@ -1279,8 +1411,15 @@ function nameDeck(keys){
 
   // Lava Devi + Balon ikilisinin oyundaki yerleşik adı ayrı.
   if (iceriyor("lavahound") && iceriyor("balloon")) return "LAVA BALON DESTESİ";
+
+  /* Eşleşme tablosu yüklüyse kazanma koşulunu ONDAN sor: site genelinde tek
+     kural olsun diye. Ad da oyunun kendi Türkçesinden gelir ("Köstebek"),
+     data.js'teki eski karşılıktan değil ("Madenci"). */
+  const koc = typeof eslesmeAnaKart === "function" ? eslesmeAnaKart(keys) : null;
+  if (koc) return trUp(cardNameOf(koc.key) + " destesi");
+
   for (const wk of WINCON_SIRA)
-    if (iceriyor(wk)) return trUp(CARD_DB[wk].name + " destesi");
+    if (iceriyor(wk)) return trUp(cardNameOf(wk) + " destesi");
 
   // Bilinen koşul yoksa: en yüksek iksirli kart.
   let best = keys[0];
@@ -1613,6 +1752,11 @@ function mapOwnBattle(b, myTag){
       deckSelection: b.deckSelection || "", hosted: !!b.isHostedMatch,
       eventTag: b.eventTag || "", tournamentTag: b.tournamentTag || "",
       ranked: b.type === "pathOfLegend",
+      /* Eşleşme rozeti için: maç TEK KİŞİLİK mi ve iki tarafın da sekiz
+         kartı belli mi? 2v2'de bir tarafta iki ayrı deste var, "destenin
+         kazanma koşulu" diye tek bir şey yok — orada rozet basılmıyor. */
+      tekTek: mine.length === 1 && theirs.length === 1
+              && (me.cards || []).length === 8 && (op.cards || []).length === 8,
       madalyonlu, lig: b.leagueNumber ?? null,
       rank: me.globalRank ?? null,
       before, after: change == null || before == null ? null : before + change, change,
@@ -1843,6 +1987,7 @@ function openDrawer(){
       <button class="dr-link" onclick="closeDrawer();openFavs()"><span class="dr-ic">❤️</span>${t("fav.title")}</button>
       ${link("canli.html", t("nav.live"), "🔴")}
       ${link("meta.html", t("nav.meta"), "🃏")}
+      ${link("anti.html", t("nav.anti"), "🛡️")}
       ${link("kartlar.html", t("nav.cards"), "📇")}
       ${link("oyuncu.html", t("home.player.title"), "👤")}
       ${link("klan.html", t("home.clan.title"), "🔍")}

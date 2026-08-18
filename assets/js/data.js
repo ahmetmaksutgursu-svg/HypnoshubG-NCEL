@@ -62,7 +62,8 @@ const CARD_DB = {
   giant:        { name: "Dev",              elixir: 5, rarity: "rare",      img: "giant",          id: 26000003 },
   lavahound:    { name: "Lav Devi",         elixir: 7, rarity: "legendary", img: "lava-hound",     id: 26000029 },
   megaknight:   { name: "Mega Şövalye",     elixir: 7, rarity: "legendary", img: "mega-knight",    id: 26000055 },
-  goblindrill:  { name: "Goblin Matkabı",   elixir: 4, rarity: "epic",      img: "goblin-drill",   id: 27000013 },
+  // Türkçe istemcide adı "Köstebek" — "Goblin Matkabı" eski/yanlış karşılıktı.
+  goblindrill:  { name: "Köstebek",         elixir: 4, rarity: "epic",      img: "goblin-drill",   id: 27000013 },
   barbbarrel:   { name: "Barbar Fıçısı",    elixir: 2, rarity: "epic",      img: "barbarian-barrel", id: 28000015 },
   snowball:     { name: "Kartopu",          elixir: 2, rarity: "common",    img: "giant-snowball", id: 28000017 },
   arrows:       { name: "Oklar",            elixir: 3, rarity: "common",    img: "arrows",         id: 28000001 },

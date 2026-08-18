@@ -507,6 +507,131 @@ table.data .rank.top3 { color: #c98a3f; }
 .result-pill.loss { background: rgba(224,60,60,.14); color: #d23c3c; }
 .result-pill.draw { background: var(--surface-2); color: var(--text-muted); }
 
+/* ---------- ANTİ DESTE  🛡️ ----------
+   Tasarımın tek kuralı: sekiz kart TEK SIRADA.
+
+   Önce yatay kaydırmalı bir ray vardı ve her deste iki satır hâlinde
+   çiziliyordu. Telefonda iki sorun birden çıkıyordu: listeye ancak iki
+   deste sığıyordu ve "hangi desteler var" sorusunun cevabı için parmakla
+   savurmak gerekiyordu. Sekiz kartı tek sıraya alınca bir deste ~90 piksel
+   tutuyor, sekiz deste tek ekrana giriyor ve seçim tek dokunuş oluyor.
+
+   390 px ekranda kart genişliği ~37 px; oyunun kendi deste ekranıyla aynı
+   mertebe, kart sanatı bu boyutta tanınıyor.
+   ---------------------------------------------------------------- */
+.anti-liste { display:flex; flex-direction:column; gap:8px; }
+
+.anti-satir { display:block; width:100%; text-align:left; cursor:pointer; font:inherit;
+  color:inherit; background:var(--surface); border:2px solid var(--border);
+  border-radius:14px; padding:10px 12px; transition:border-color .15s, background .15s; }
+.anti-satir:hover { border-color:var(--blue-600); }
+.anti-satir.secili { border-color:var(--blue-600); background:rgba(30,90,224,.06); }
+.anti-satir .as-ust { display:flex; align-items:baseline; gap:10px; margin-bottom:8px; }
+.anti-satir .as-ad { font-weight:900; font-size:.86rem; line-height:1.25;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+.anti-satir .as-bilgi { margin-left:auto; font-size:.74rem; color:var(--text-muted);
+  font-weight:700; white-space:nowrap; }
+
+/* Sekiz kartlık sıra. `.mini-cards` ızgarası her kullanıldığı yerde AYRI
+   tanımlı (`.metadeck`, `.modal-box`, …) — ortak kural yok, o yüzden burada
+   kendi ızgaramızı yazıyoruz. Yazmayı atlarsak kartlar alt alta diziliyor. */
+/* max-width ŞART: geniş ekranda sekiz kart 1/8'er pay alınca her biri
+   160 pikselin üstüne çıkıyor ve tek bir deste satırı 241 piksel oluyordu —
+   listenin kompakt olması bütün tasarımın amacıydı. Üst sınır kartı ~62
+   piksele sabitliyor; telefonda zaten sınırın altında kalıyor. */
+.as-kartlar { display:grid; grid-template-columns:repeat(8,1fr); gap:4px; max-width:540px; }
+.as-kartlar .cr-card { aspect-ratio:4/5; width:100%; }
+/* Evrim/kahraman etiketleri kart 37 piksele inince kartın yüzünü kaplıyor. */
+.as-kartlar .cr-card .evo-tag,
+.as-kartlar .cr-card .hero-tag,
+.as-kartlar .cr-card .heroslot-tag { font-size:.4rem; padding:0 2px; }
+/* Aynı sebeple seviye/iksir rozetleri de küçülüyor. */
+.as-kartlar .cr-card .lvl, .as-kartlar .cr-card .cost { font-size:.5rem; }
+
+/* Arketip çipleri tek satırda yana kayıyor: 24 çip sarınca telefonda sekiz
+   satır tutuyor ve asıl deste listesini ekranın dışına itiyor. */
+.anti-koclar { display:flex; gap:7px; overflow-x:auto; padding-bottom:10px;
+  margin-bottom:4px; scrollbar-width:thin; }
+.anti-koc { flex:0 0 auto; font:inherit; font-size:.75rem; font-weight:800; cursor:pointer;
+  padding:5px 11px; border-radius:999px; border:1px solid var(--border);
+  background:var(--surface-2); color:var(--text-soft); }
+.anti-koc:hover { border-color:var(--blue-600); color:var(--blue-600); }
+.anti-koc.secili { background:var(--blue-600); border-color:var(--blue-600); color:#fff; }
+
+/* ---- sonuç ---- */
+.anti-bas-kart { margin-bottom:14px; }
+.anti-sonuc { margin-bottom:12px; }
+.anti-sonuc .as-ust { display:flex; align-items:center; gap:10px; }
+.anti-sonuc .as-sira { flex:0 0 auto; width:22px; height:22px; border-radius:50%;
+  background:var(--surface-2); color:var(--text-muted); font-size:.72rem; font-weight:900;
+  display:grid; place-items:center; }
+.anti-sonuc .as-yuzde { font-size:1.6rem; font-weight:900; color:var(--green-600);
+  font-variant-numeric:tabular-nums; line-height:1; }
+.anti-sonuc .as-ad { display:flex; flex-direction:column; line-height:1.3;
+  font-weight:900; font-size:.92rem; min-width:0; }
+.anti-sonuc .as-ad .muted { font-weight:600; font-size:.75rem; }
+/* Oranı GÖZLE okutuyor: %66 ile %56 farkı sayıdan çok buradan anlaşılıyor.
+   Boş kalan kısım rakibin payı, o yüzden zemin şeffaf değil kırmızıya çalıyor. */
+.anti-cubuk { height:7px; border-radius:999px; background:rgba(224,60,60,.2);
+  overflow:hidden; margin:10px 0 12px; }
+.anti-cubuk span { display:block; height:100%; border-radius:999px; background:var(--green-600); }
+.anti-sonuc .as-alt { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:12px;
+  font-size:.78rem; }
+.as-kopya { margin-left:auto; display:inline-flex; align-items:center; gap:6px;
+  font-size:.8rem; padding:8px 14px; }
+.as-kopya svg { width:15px; height:15px; }
+
+.anti-kisa { display:flex; align-items:center; gap:10px; padding:8px 0;
+  border-bottom:1px solid var(--border); font-size:.86rem; }
+.anti-kisa:last-child { border-bottom:none; }
+.anti-kisa-p { font-weight:900; font-variant-numeric:tabular-nums;
+  color:var(--text-muted); min-width:44px; }
+.anti-kisa-p.iyi { color:var(--green-600); }
+
+@media (max-width: 560px){
+  .anti-satir { padding:9px 10px; }
+  .as-kartlar { gap:3px; }
+  .anti-sonuc .as-yuzde { font-size:1.35rem; }
+  /* Kopyala düğmesi tam genişliğe geçiyor: asıl eylem o, köşede küçük
+     kalmamalı ve başparmakla rahat basılmalı. */
+  .as-kopya { margin-left:0; flex-basis:100%; justify-content:center; padding:11px 14px; }
+}
+
+/* ---------- Eşleşme rozeti  ⚔️ ----------
+   "Bu karşılaşmada kim kazanıyor?" — savaş günlüğünde ve Son Maçlar
+   akışında görünüyor. Dört hâli var: oyuncu favori (up), rakip favori
+   (down), başabaş/ayna (even) ve örneklem yetersiz (thin).
+
+   `thin` bilerek soluk ve çerçevesiz: "60 maçtan az veri" bir sonuç
+   değil, sonucun HENÜZ olmadığının bildirimi — diğer üçüyle aynı
+   görsel ağırlıkta durursa okuyan onu da bir oran sanıyor.
+
+   Renkler yalnız arka planı taşıyor, metin her iki temada da kendi
+   belirteciyle yazılıyor; alfa'lı zeminler koyu temada da okunur. */
+.mu-chip { display:inline-flex; align-items:center; gap:5px; max-width:100%;
+  font-size:.72rem; font-weight:800; line-height:1.35; padding:3px 9px; border-radius:999px;
+  background:var(--surface-2); color:var(--text-soft); border:1px solid transparent;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mu-chip b { font-weight:900; }
+.mu-chip.up   { background:rgba(47,191,106,.16); color:var(--green-600); }
+.mu-chip.down { background:rgba(224,60,60,.14);  color:#d23c3c; }
+.mu-chip.even { background:var(--surface-2); color:var(--text-soft); border-color:var(--border); }
+.mu-chip.thin { background:transparent; color:var(--text-muted); font-weight:700;
+  border-color:var(--border); }
+/* Günlükte kendi satırında durur: taç/lig etiketlerinin arasına
+   sıkışınca dar ekranda okunmuyordu. */
+.bl-mu { margin:0 0 10px; }
+/* Akışta maç türü ile zaman damgasının arasında. `mago` zaten
+   margin-left:auto ile sağa yaslı, yani rozet ortada kalıyor. */
+.match-top .mu-chip { flex:0 1 auto; min-width:0; }
+@media (max-width: 560px){
+  /* Dar ekranda iki kart adı + iki yüzde tek satıra sığmıyor; rozet
+     tam genişliğe geçiyor ve kısaltma yerine sarmalıyor. */
+  .mu-chip { white-space:normal; font-size:.7rem; }
+  .match-top .mu-chip { order:3; flex-basis:100%; }
+  .match-top .mago { order:2; }
+}
+
 /* Profile battle log */
 .bl-row { border-bottom: 1px solid var(--border); padding: 14px 0; }
 .bl-row:last-child { border-bottom: none; }

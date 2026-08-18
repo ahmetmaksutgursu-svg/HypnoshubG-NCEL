@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<!-- viewport-fit=cover: bu olmadan env(safe-area-inset-*) HER ZAMAN 0 döner,
+     yani alt çubuğun iPhone çentik/ana-ekran çubuğu payı hiç uygulanmıyordu. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Anti Deste — HYPNOSHUB</title>
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<div id="app-header"></div>
+
+<section class="page-strip">
+  <div class="container">
+    <p class="eyebrow">KARŞINDAKİ DESTEYİ SEÇ — ONU YENENLERİ GÖSTERELİM</p>
+    <h1>ANTİ DESTE</h1>
+    <p><span class="api-status" data-api-status style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2);color:#eaf0fb"><span class="led"></span>Veri alınamadı</span></p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+
+    <!-- Sonuç YUKARIDA duruyor: seçim yapıldığında kullanıcı zaten oraya
+         kaydırılıyor ve yeni bir deste seçmek için listeye geri dönebiliyor. -->
+    <div id="sonuc"></div>
+
+    <div class="card" id="secimKart">
+      <div class="card-head"><span class="dot">🛡️</span><h3>Hangi desteye karşı oynuyorsun?</h3></div>
+      <p class="muted" style="font-size:.84rem;margin:0 0 12px">
+        Desteye <b>dokun</b>, onu yenen desteler çıksın.
+      </p>
+      <div class="anti-koclar" id="kocRow"></div>
+      <div id="desteListe" class="anti-liste"></div>
+      <button class="btn btn-ghost" id="dahaBtn" hidden onclick="dahaGoster()" style="margin-top:12px;width:100%">
+        Daha fazla deste göster
+      </button>
+    </div>
+  </div>
+</section>
+
+<div id="app-footer"></div>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+mountChrome("anti.html");
+const TRL = () => LANG === "tr";
+const ILK_GOSTER = 8;         // listede başlangıçta görünen deste sayısı
+const ANTI_SAYI  = 5;         // sonuçta gösterilen anti deste sayısı
+let LISTE = null, KOCLAR = [], SECIM = null, hepsiAcik = false;
+
+/* Sunucudan gelen meta destesini ekranda kullanılabilir hâle getirir. */
+function desteCevir(d){
+  const cards = [], evo = [], champ = [], hero = [];
+  (d.cards || []).forEach((c) => {
+    const k = registerApiCard(c);
+    cards.push(k);
+    if (c.evo) evo.push(k);
+    if (c.hero) hero.push(k);
+    if (c.champion) champ.push(k);
+  });
+  return { ...d, cards, evo, champ, hero, name: nameDeck(cards) };
+}
+
+/* Sekiz kart TEK SIRADA. İki satır hâlinde çizmek her desteyi iki kat
+   uzatıyordu ve telefonda listeye ancak iki deste sığıyordu. */
+function kartSirasi(d){
+  const ciz = (c) => renderCard(c, { evo:(d.evo||[]).includes(c),
+    heroSlot:(d.hero||[]).includes(c), hero:(d.champ||[]).includes(c) });
+  return `<span class="as-kartlar">${d.cards.map(ciz).join("")}</span>`;
+}
+
+/* ---------- 1. adım: seçim listesi ---------- */
+function cizSecim(){
+  document.getElementById("kocRow").innerHTML = KOCLAR.map((k) => `
+    <button class="anti-koc ${SECIM && SECIM.kocId === k.id && !SECIM.key ? "secili" : ""}"
+            onclick="secKoc(${k.id})" title="${k.mac} maç · ${k.desteSayisi} deste">
+      ${esc(cardName({ name: k.ad }))}
+    </button>`).join("");
+
+  const goster = hepsiAcik ? LISTE.length : Math.min(ILK_GOSTER, LISTE.length);
+  document.getElementById("desteListe").innerHTML = LISTE.slice(0, goster).map((d, i) => `
+    <button class="anti-satir ${SECIM && SECIM.key === d.key ? "secili" : ""}" onclick="secDeste(${i})">
+      <span class="as-ust">
+        <span class="as-ad">${esc(d.name)}</span>
+        <span class="as-bilgi">💧 ${deckElixir(d.cards)}${d.usage != null ? ` · %${d.usage}` : ""}</span>
+      </span>
+      ${kartSirasi(d)}
+    </button>`).join("");
+
+  const btn = document.getElementById("dahaBtn");
+  btn.hidden = hepsiAcik || LISTE.length <= ILK_GOSTER;
+  btn.textContent = TRL() ? `Daha fazla deste göster (${LISTE.length - goster})`
+                          : `Show more decks (${LISTE.length - goster})`;
+}
+function dahaGoster(){ hepsiAcik = true; cizSecim(); }
+
+function secDeste(i){
+  const d = LISTE[i];
+  SECIM = { key: d.key, name: d.name, kocId: d.koc?.id || null,
+            ids: d.cards.map((k) => CARD_DB[k]?.id).filter(Boolean).join(",") };
+  cizSecim();
+  bul({ deste: SECIM.ids }, d.name);
+}
+function secKoc(id){
+  const k = KOCLAR.find((x) => x.id === id);
+  if (!k) return;
+  SECIM = { key: null, name: cardName({ name: k.ad }), kocId: id };
+  cizSecim();
+  bul({ koc: id }, TRL() ? `${cardName({ name: k.ad })} desteleri` : `${k.ad} decks`);
+}
+
+/* ---------- 2. adım: sonuç ---------- */
+async function bul(sorgu, baslik){
+  const kutu = document.getElementById("sonuc");
+  kutu.innerHTML = `<div class="card">${spinnerBox(TRL() ? "Eşleşmeler taranıyor…" : "Scanning matchups…")}</div>`;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  const d = await HypnoAPI._get("/anti?" + new URLSearchParams(sorgu).toString(), 20000);
+  paintApiStatus();
+  if (!d) { kutu.innerHTML = apiDownBox("yenile"); return; }
+  if (d.kocYok) { kutu.innerHTML = notice(`<span>🤔</span><span>${esc(d.mesaj || "")}</span>`, "warn"); return; }
+  ciz(d, baslik);
+}
+function yenile(){
+  if (!SECIM) return;
+  if (SECIM.ids) bul({ deste: SECIM.ids }, SECIM.name);
+  else if (SECIM.kocId) secKoc(SECIM.kocId);
+}
+
+/* Anti destelerini seçer.
+
+   Tek bir kazanma koşulunun altındaki altı varyantı arka arkaya basmak
+   yerine ÖNCE her koşuldan birer deste alınıyor, sonra ikinciler. Böylece
+   beş öneri beş farklı arketipten geliyor — kullanıcıya gerçek bir seçenek
+   sunmak istiyorsak liste çeşitli olmalı, aynı destenin beş kopyası değil. */
+function antiDesteleriSec(sayac, adet){
+  const cikti = [];
+  for (let tur = 0; tur < 4 && cikti.length < adet; tur++)
+    for (const x of sayac){
+      const d = (x.desteler || [])[tur];
+      if (!d) continue;
+      cikti.push({ deste: d, kaynak: x });
+      if (cikti.length >= adet) break;
+    }
+  return cikti;
+}
+
+function ciz(d, baslik){
+  const kocAdi = esc(cardName({ name: d.secilen.koc.ad }));
+  const anti = d.sayac.filter((x) => x.yuzde >= d.esik);
+  const secilen = antiDesteleriSec(anti, ANTI_SAYI);
+  const kutu = document.getElementById("sonuc");
+
+  const bas = `
+    <div class="anti-bas-kart card">
+      <h2 style="margin:0 0 4px;font-size:1.15rem">${esc(baslik)} <span class="muted" style="font-weight:600">${TRL()?"antisi":"counters"}</span></h2>
+      <p class="muted" style="font-size:.8rem;margin:0">
+        ${TRL()
+          ? `Kazanma koşulu <b>${kocAdi}</b>. Oranlar Nihai Kademe ilk 1000'de, iki tarafı da
+             sıralamada olan ${nfTR(d.savas)} maçtan ölçüldü ve <b>kazanma koşuluna</b> aittir —
+             tek bir desteye değil. Sıralama ham yüzdeye değil kesinliğe göre: az maçlı bir oran
+             daha az güvenilirdir, ± payı yanında yazıyor.`
+          : `Win condition <b>${kocAdi}</b>. Rates come from ${nfTR(d.savas)} Path of Legends
+             top-1000 games where both players were ranked, and belong to the <b>win condition</b>,
+             not to one exact deck. Ordered by confidence, not the raw rate.`}
+      </p>
+    </div>`;
+
+  if (!secilen.length){
+    kutu.innerHTML = bas + notice(`<span>🛡️</span><span>${TRL()
+      ? `<b>${kocAdi}</b> için henüz %${d.esik} ve üzeri bir anti bulunamadı — ya bu arketip
+         dengeli, ya da eşleşmeler ${nfTR(d.minOrnek)} maçlık eşiği yeni geçiyor. Tablo her gün
+         büyüyor.` : `No counter at ${d.esik}% or above yet for <b>${kocAdi}</b>.`}</span>`)
+      + (d.sayac.length ? `<div class="card"><h4 style="margin:0 0 10px;font-size:.92rem">${
+          TRL()?"Eşiğe en yakın eşleşmeler":"Closest matchups"}</h4>${
+          d.sayac.slice(0, 5).map((x) => `<div class="anti-kisa">
+            <span class="anti-kisa-p ${x.yuzde>=50?"iyi":""}">%${Math.round(x.yuzde)}</span>
+            <span><b>${esc(cardName({ name: x.koc.ad }))}</b></span>
+            <span class="muted" style="margin-left:auto">${nfTR(x.n)} ${TRL()?"maç":"games"}</span>
+          </div>`).join("")}</div>` : "");
+    return;
+  }
+
+  kutu.innerHTML = bas + secilen.map(({ deste, kaynak }, i) => {
+    const dd = desteCevir(deste);
+    /* Ad, grubu kuran kazanma koşulundan geliyor — nameDeck'ten değil.
+       İkisi ayrı listeler kullanıyordu ve "Köstebek desteleri" başlığının
+       altında "Goblin Matkabı destesi" yazabiliyordu. */
+    const ad = trUp(`${cardName({ name: kaynak.koc.ad })} ${TRL() ? "destesi" : "deck"}`);
+    const p = Math.round(kaynak.yuzde);
+    const link = copyDeckLink(dd.cards);
+    return `
+    <div class="card anti-sonuc">
+      <div class="as-ust">
+        <span class="as-sira">${i + 1}</span>
+        <span class="as-yuzde">%${p}</span>
+        <span class="as-ad">${esc(ad)}
+          <span class="muted">${nfTR(kaynak.n)} ${TRL()?"maç":"games"} · ±${Math.round(kaynak.pay)} ${TRL()?"puan":"pts"}</span>
+        </span>
+      </div>
+      <div class="anti-cubuk"><span style="width:${p}%"></span></div>
+      ${kartSirasi(dd)}
+      <div class="as-alt">
+        <span class="elixir-badge">💧 ${deckElixir(dd.cards)}</span>
+        ${dd.usage != null ? `<span class="muted">${TRL()?"kullanım":"usage"} %${dd.usage}</span>` : ""}
+        ${link ? `<button class="btn btn-primary as-kopya" onclick="openDeck(${jsArg(link)},this)">
+            ${ICONS.copy} ${TRL() ? "Desteyi Kopyala" : "Copy deck"}</button>` : ""}
+      </div>
+    </div>`;
+  }).join("") + `<p class="muted" style="font-size:.78rem;margin:0 0 18px">${TRL()
+      ? "Kopyala düğmesi desteyi oyunda açar; telefonda doğrudan deste kopyalama ekranına düşer."
+      : "Copy opens the deck in game."}</p>`;
+}
+
+/* ---------- açılış ---------- */
+async function yukle(){
+  const liste = document.getElementById("desteListe");
+  liste.innerHTML = spinnerBox(TRL() ? "Meta desteleri yükleniyor…" : "Loading meta decks…");
+  /* Eşleşme tablosu deste ADLARINI belirliyor (nameDeck onu kaynak alıyor),
+     o yüzden desteler çevrilmeden önce yüklenmeli. */
+  await eslesmeYukle();
+  const d = await HypnoAPI._get("/anti/desteler", 30000);
+  paintApiStatus();
+  if (!d || !d.items || !d.items.length){
+    liste.innerHTML = "";
+    document.getElementById("sonuc").innerHTML = apiDownBox("yukle");
+    return;
+  }
+  LISTE = d.items.map(desteCevir);
+  KOCLAR = d.koclar || [];
+  cizSecim();
+  /* ?koc=<id> · ?kartlar=<id,id,…>&ad=<ad> · ?deste=<meta anahtarı> */
+  const q = new URLSearchParams(location.search);
+  if (q.get("koc")) secKoc(parseInt(q.get("koc"), 10));
+  else if (q.get("kartlar")){
+    const ids = q.get("kartlar").split(",").filter(Boolean).join(",");
+    const ad = q.get("ad") || (TRL() ? "Seçilen deste" : "Selected deck");
+    SECIM = { key: null, name: ad, kocId: null, ids };
+    bul({ deste: ids }, ad);
+  }
+  else if (q.get("deste")){
+    const i = LISTE.findIndex((x) => x.key === q.get("deste"));
+    if (i >= 0) secDeste(i);
+  }
+}
+yukle();
+window.onLangChange = () => { paintApiStatus(); yukle(); };
+window.repaint = () => yukle();
+</script>
+</body>
+</html>

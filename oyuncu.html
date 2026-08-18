@@ -292,6 +292,17 @@ function battleRow(b){
   const oppName = b.oppTag
     ? `<a href="oyuncu.html?tag=${encodeURIComponent(b.oppTag)}"><b>${esc(b.opp)}</b>${oppRozet}</a>`
     : `<b>${esc(b.opp)}</b>${oppRozet}`;
+  /* Eşleşme oranı artık MÜCADELELERDE de görünüyor. Önce yalnızca sıralamalı
+     maçlara basılıyordu; oysa mücadele de bire bir, sekiz kartlık, aynı
+     kurallarla oynanan bir maç — eşleşme bilgisi orada da geçerli. Tek sınır
+     2v2: orada bir tarafta iki ayrı deste var, "destenin kazanma koşulu"
+     diye tek bir şey yok (bkz. mapOwnBattle → tekTek).
+
+     Oranın nereden geldiği ipucunda yazılı ("Nihai Kademe ilk 1000"), yani
+     mücadele maçında da kaynağı gizlemiyoruz. */
+  const eslesmeSatiri = b.tekTek
+    ? (() => { const r = eslesmeRozeti(b.myDeck, b.opDeck, true); return r ? `<div class="bl-mu">${r}</div>` : ""; })()
+    : "";
   return `
     <div class="bl-row">
       <div class="flex center gap-12 wrap" style="margin-bottom:8px">
@@ -304,6 +315,7 @@ function battleRow(b){
         <span style="margin-left:auto" class="tag">${t("profile.vs")} ${oppName}${b.oppClan?" · "+esc(b.oppClan):""}</span>
         ${ledger}${b.madalyonlu?polDelta(b.change,14):""}
       </div>
+      ${eslesmeSatiri}
       <div class="flex between wrap gap-12">
         <div><div class="bl-lbl">SENİN DESTEN · 💧 ${deckElixir(b.myDeck)}</div>
           <span class="deck-cell">${deckIcons(b.myDeck,b.myEvo,"",b.myHero)}</span>${deckCopyBtn(b.myDeck)}</div>
@@ -432,8 +444,11 @@ async function openProfile(tag){
      destenin evrim/kahraman yuvalarını oradan doğruluyoruz. Eskiden günlük
      profilden SONRA çekiliyordu; paralele almak toplam süreyi de kısaltıyor.
      Lig rozetleri klasörü yerel okuma, ikisinin yanında hiç sayılır. */
+  /* Eşleşme tablosu da buraya eklendi: savaş satırları çizilirken hazır
+     olması gerekiyor, sonradan gelirse satırlar rozetsiz kalırdı. Oturum
+     başına bir kez çekiliyor ve başarısız olursa hiçbir şeyi bekletmiyor. */
   const [p, savaslar] = await Promise.all([
-    HypnoAPI.player(tag), HypnoAPI.battlelog(tag), window.LIG_HAZIR,
+    HypnoAPI.player(tag), HypnoAPI.battlelog(tag), window.LIG_HAZIR, eslesmeYukle(),
   ]);
   paintApiStatus();
   if (p.offline){

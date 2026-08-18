@@ -28,6 +28,7 @@
         <button class="active" data-sort="usage" onclick="setSort('usage',this)" data-i18n="meta.sortUsage">🔥 En Çok Kullanılan</button>
         <button data-sort="winrate" onclick="setSort('winrate',this)" data-i18n="meta.sortWin">🏅 En Yüksek Galibiyet</button>
       </div>
+      <a class="btn btn-ghost" href="anti.html">🛡️ <span data-i18n="nav.anti">Anti Deste</span></a>
       <span class="muted" style="font-size:.8rem" data-i18n="meta.clickHint">Bir desteye tıklayın → o desteyle en yükseğe çıkan oyuncular</span>
     </div>
     <div class="grid grid-3" id="metaGrid"></div>
@@ -140,7 +141,10 @@ function render(){
         <span class="elixir-badge">💧 ${deckElixir(d.cards)}</span>
         ${d.usage!=null?`<span>${t("word.usage")}: <b>%${d.usage}</b></span>`:""}
         ${d.battles?`<span class="muted">${nfTR(d.battles)} ${t("unit.battle")} · ${d.pilots} ${t("unit.players")}</span>`:""}
-        ${link?`<a class="wr" style="margin-left:auto" href="${link}" onclick="event.stopPropagation()">${t("word.copy")} ↗</a>`:""}
+        <a class="wr" style="margin-left:auto"
+           href="anti.html?kartlar=${d.cards.map(k=>CARD_DB[k]?.id).filter(Boolean).join(",")}&amp;ad=${encodeURIComponent(d.name)}"
+           onclick="event.stopPropagation()" title="${TRL()?"Bu desteyi ne yener?":"What beats this deck?"}">🛡️</a>
+        ${link?`<a class="wr" href="${link}" onclick="event.stopPropagation()">${t("word.copy")} ↗</a>`:""}
       </div>
     </div>`;}).join("");
 }
@@ -183,6 +187,11 @@ function showDeckPlayers(key){
 
 async function loadMeta(){
   document.getElementById("metaGrid").innerHTML = spinnerBox(TRL()?"Sezon meta verisi maç kayıtlarından hesaplanıyor…":"Computing the season meta from battle logs…");
+  /* Eşleşme tablosu deste ADLARINI da belirliyor (nameDeck onu kaynak
+     alıyor), o yüzden metadan ÖNCE yüklenmeli — paralel çalıştırınca
+     HypnoAPI.meta() adları tablo gelmeden hesaplayabiliyor ve bu sayfa
+     Anti Deste sayfasından farklı adlar yazıyordu. */
+  await eslesmeYukle();
   DECKS = await HypnoAPI.meta();
   paintApiStatus();
   summary();

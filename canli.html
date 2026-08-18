@@ -69,9 +69,14 @@ function side(pl, right){
 }
 function matchHtml(m){
   const w1 = m.winner===1, w2 = m.winner===2;
+  /* Eşleşme oranı: burada "senin desten" diye bir taraf yok, o yüzden iki
+     kazanma koşulu da adıyla yazılıyor. Yalnızca sıralamalı maçlarda —
+     akıştaki maçların hepsi öyle ama kural tek yerde dursun. */
+  const mu = m.ranked ? eslesmeRozeti(m.p1.deck, m.p2.deck, false) : "";
   return `<div class="match-card">
     <div class="match-top">
       <span class="mtype" title="${esc(battleTypeHint(m))}">${esc(battleTypeName(m))}</span>
+      ${mu}
       ${m.ago?`<span class="mago">${m.ago}</span>`:''}
     </div>
     <div class="match-grid">
@@ -88,7 +93,9 @@ function matchHtml(m){
 async function loadLive(){
   const feed = document.getElementById("liveFeed");
   feed.innerHTML = `<div class="text-center muted" style="padding:40px"><span class="spinner" style="border-color:rgba(30,90,224,.3);border-top-color:var(--blue-600)"></span></div>`;
-  const matches = await HypnoAPI.battles();
+  /* Eşleşme tablosu maçlarla PARALEL çekiliyor ve ikisi de gelmeden
+     çizilmiyor — sonradan gelseydi kartlar rozetsiz basılırdı. */
+  const [matches] = await Promise.all([HypnoAPI.battles(), eslesmeYukle()]);
   /* null = maçlar çekilemedi. Eskiden burada data.js'teki örnek maçlar
      basılıyordu ve gerçek maç sanılıyordu; artık sebebini yazıyoruz. */
   feed.innerHTML = matches ? matches.map(matchHtml).join("") : apiDownBox("loadLive");
