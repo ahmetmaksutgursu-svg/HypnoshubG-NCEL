@@ -62,8 +62,12 @@ const RATE_PER_MIN = 300;          // kullanıcı başına dakikalık tavan
    kullansaydık o aralık iki ayrı haftaya bölünür, hiçbir tablo tam olarak
    o aralığı göstermezdi. Yedi günlük dönemler başlangıçtan itibaren
    sayılınca 1. dönem tam olarak 20–27 Ağustos oluyor. */
-const BASLANGIC = new Date(2026, 7, 20);          // 20 Ağustos 2026, yerel 00:00
-const DONEM_GUN = 7;
+/* Açılış anı ve dönem uzunluğu artık takvim.js'de — oyun hakları, tablo ve
+   kilit aynı saati kullanmak zorunda. Açılış 20 Ağustos 18.00 olduğu için
+   dönemler de 18.00'da dönüyor (1. dönem 20 Ağu 18.00 → 27 Ağu 18.00). */
+const takvim = require("./takvim");
+const BASLANGIC = takvim.ACILIS;
+const DONEM_GUN = takvim.DONEM_GUN;
 
 /* ---------- ödül duyurusu ----------
    Belirli bir dönemi 1. sırada bitirene verilecek ödül. Tabloda not olarak
@@ -73,6 +77,15 @@ const DONEM_GUN = 7;
    `hafta` o dönemin BAŞLANGIÇ tarihi (weekKey ile aynı biçim).
    Duyuru dönem başlamadan da görünür ("gelecek hafta"), böylece önceden
    ilan edilebiliyor. Ödülü kaldırmak için: hafta: null. */
+/* ODUL.hafta GERÇEK bir dönem başlangıcı olmak zorunda. Yanlış bir tarih
+   yazılırsa ödül hiçbir döneme bağlanmaz ve kimse fark etmez; açılışta
+   kontrol edip uyarıyoruz. */
+function odulAnahtariGecerliMi(anahtar) {
+  const [y, ay, g] = String(anahtar || "").split("-").map(Number);
+  if (!y || !ay || !g) return false;
+  const d = new Date(y, ay - 1, g, takvim.GUN_SAATI, 0, 0, 0);
+  return takvim.donemAnahtari(d) === anahtar;
+}
 const ODUL = {
   hafta: "2026-08-20",                 // 20–27 Ağustos 2026 (1. dönem)
   baslik: "Açılış ödülü",
@@ -111,13 +124,10 @@ const gunFarki = (a, b) =>
 
 /* İçinde bulunulan yedi günlük dönemin başlangıcı. Başlangıç tarihinden
    önceyse null — tablo henüz açılmamış demektir. */
-function weekStart(d = new Date()) {
-  const gecen = gunFarki(d, BASLANGIC);
-  if (gecen < 0) return null;
-  const s = new Date(BASLANGIC);
-  s.setDate(s.getDate() + Math.floor(gecen / DONEM_GUN) * DONEM_GUN);
-  return s;
-}
+/* Dönem başlangıcı. Hesap takvim.js'de: gün farkını değil GERÇEK ZAMANI
+   ölçüyor, çünkü sınır artık gece yarısı değil 18.00 ve gün farkı
+   yuvarlaması 18.00'dan önceki saatleri yanlış döneme atıyordu. */
+const weekStart = (d = new Date()) => takvim.donemBasi(d);
 const tarihAnahtari = (s) =>
   `${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, "0")}-${String(s.getDate()).padStart(2, "0")}`;
 function weekKey(d = new Date()) {
@@ -145,9 +155,16 @@ function odulDurumu() {
   if (!ODUL || !ODUL.hafta) return null;
   const [y, ay, g] = ODUL.hafta.split("-").map(Number);
   if (!y || !ay || !g) return null;
-  const bas = new Date(y, ay - 1, g);
-  const bit = new Date(bas); bit.setDate(bit.getDate() + 7);
-  if (Date.now() >= bit) return null;                 // hafta geçti
+  /* Pencere GECE YARISINDAN değil dönem saatinden (18.00) başlıyor.
+     Eskiden gece yarısı alınıyordu ve iki hata birden çıkıyordu:
+       · ekranda "20 Ağustos 00.00 – 27 Ağustos 00.00" yazıyordu, oysa
+         dönem 18.00'da başlayıp 18.00'da bitiyor,
+       · ödül notu "Date.now() >= bit" kontrolüyle 27 Ağustos 00.00'da
+         kayboluyordu — yani dönem hâlâ sürerken 18 SAAT ÖNCE. Yarışan
+         insan ödülün durduğunu göremezdi. */
+  const bas = new Date(y, ay - 1, g, takvim.GUN_SAATI, 0, 0, 0);
+  const bit = new Date(bas); bit.setDate(bit.getDate() + DONEM_GUN);
+  if (Date.now() >= bit) return null;                 // dönem geçti
   return {
     baslik: ODUL.baslik, metin: ODUL.metin,
     hafta: ODUL.hafta, start: bas.toISOString(), end: bit.toISOString(),
@@ -288,6 +305,8 @@ function mount(app, { readSession, listUsers, isAdmin, banUser, userInfo }) {
     res.json({ ok: true, points, total: row.points, week: weekKey() });
   });
 
+  if (ODUL && ODUL.hafta && !odulAnahtariGecerliMi(ODUL.hafta))
+    console.warn(`⚠️  ODUL.hafta (${ODUL.hafta}) bir dönem başlangıcı DEĞİL — ödül hiçbir döneme bağlanmaz.`);
   console.log("🔨  Tokmakçılar uçları hazır (/api/board/*). Puan veren oyun: " +
     [...Object.keys(GAME_POINTS), ...WIRED_GAMES].join(", "));
 }

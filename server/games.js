@@ -49,9 +49,7 @@ function save() {
     } catch (e) { console.warn("⚠️  Oyun hakları kaydedilemedi:", String(e)); }
   }, 500);
 }
-function dayKey(d = new Date()) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+const dayKey = (d = new Date()) => takvim.gunAnahtari(d);
 const used = (uid, game) => plays[`${game}|${uid}|${dayKey()}`] || 0;
 function note(uid, game) {
   const k = `${game}|${uid}|${dayKey()}`;
@@ -63,11 +61,10 @@ const left = (uid, game) => Math.max(0, RULES[game].perDay - used(uid, game));
 /* Haklar günlük ve gün sunucunun yerel saatine göre dönüyor (dayKey).
    Hakkı biten kişiye "yarın gel" demek yerine kaç saat kaldığını
    söyleyebilmek için bir sonraki gece yarısını da veriyoruz. */
-function resetAt() {
-  const d = new Date();
-  d.setHours(24, 0, 0, 0);
-  return d.getTime();
-}
+/* Günlük haklar GECE YARISI değil 18.00'da sıfırlanıyor; kural takvim.js'de
+   (tek kaynak — eskiden burada, quiz.js'de ve board.js'de üç ayrı kopyaydı). */
+const takvim = require("./takvim");
+const resetAt = () => takvim.sifirlanmaAni();
 
 /* ---------- yardımcılar ---------- */
 const rnd = (n) => Math.floor(Math.random() * n);
@@ -102,9 +99,21 @@ function mount(app, deps) {
     return s;
   };
 
+  /* AÇILIŞ KİLİDİ. Yarışma 20 Ağustos 18.00'da başlıyor; o ana kadar puanlı
+     oyunlar OYNANAMAZ. Eskiden oynanıyor ama puan yazmıyordu — bu, tabloyu
+     bozmuyordu ama insanlar hakkını boşa harcıyordu ve soruların cevabı da
+     baştan öğrenilmiş oluyordu. Kilit SUNUCUDA: istemciyi gizlemek yetmez,
+     uca doğrudan istek atılabilir. */
+  const acikMi = (res) => {
+    if (takvim.acikMi()) return true;
+    res.status(423).json({ error: "kapali", ...takvim.durum(),
+      message: "Puanlı oyunlar 20 Ağustos 18.00'da açılıyor." });
+    return false;
+  };
+
   app.get("/api/games/status", (req, res) => {
     const s = readSession(req);
-    const out = { loggedIn: !!s, resetAt: resetAt(), games: {} };
+    const out = { loggedIn: !!s, resetAt: resetAt(), ...takvim.durum(), games: {} };
     for (const g of Object.keys(RULES))
       out.games[g] = { perDay: RULES[g].perDay, left: s ? left(s.user.id, g) : RULES[g].perDay };
     res.json(out);
@@ -112,6 +121,7 @@ function mount(app, deps) {
 
   /* ================= 1) GÜNÜN KARTI ================= */
   app.post("/api/games/gunun/start", async (req, res) => {
+    if (!acikMi(res)) return;
     const s = needAuth(req, res); if (!s) return;
     if (left(s.user.id, "gunun") <= 0)
       return res.status(429).json({ error: "limit", resetAt: resetAt(), message: "Günün kartını bugün zaten oynadın." });
@@ -172,6 +182,7 @@ function mount(app, deps) {
 
   /* ================= 2) DESTE DÜELLOSU ================= */
   app.post("/api/games/duello/start", async (req, res) => {
+    if (!acikMi(res)) return;
     const s = needAuth(req, res); if (!s) return;
     if (left(s.user.id, "duello") <= 0)
       return res.status(429).json({ error: "limit", resetAt: resetAt(), message: "Bugünlük düello hakkın bitti." });
@@ -230,6 +241,7 @@ function mount(app, deps) {
      Doğru cevap istemciye gitmiyor: gizli kartın kimliği sunucudaki
      oturumda duruyor, sayfanın kaynağında yok. */
   app.post("/api/games/eksik/start", async (req, res) => {
+    if (!acikMi(res)) return;
     const s = needAuth(req, res); if (!s) return;
     if (left(s.user.id, "eksik") <= 0)
       return res.status(429).json({ error: "limit", resetAt: resetAt(),
@@ -320,6 +332,7 @@ function mount(app, deps) {
   }
 
   app.post("/api/games/kapisma/start", async (req, res) => {
+    if (!acikMi(res)) return;
     const s = needAuth(req, res); if (!s) return;
     if (left(s.user.id, "kapisma") <= 0)
       return res.status(429).json({ error: "limit", resetAt: resetAt(),

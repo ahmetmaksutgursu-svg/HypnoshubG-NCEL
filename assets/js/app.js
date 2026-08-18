@@ -236,7 +236,7 @@ const I18N = {
     "fun.rank":"Kart Sıralama Oyunu","fun.deck":"Deste Jeneratörü","fun.wheel":"Rastgele Meta Deste Çarkı","fun.cenabet":"Cenabet Buton",
     "fun.pts":"puanlı","fun.earns":"Bu oyun Tokmakçılar tablosuna puan kazandırır","fb.section":"BİZE YAZ","fb.title":"Şikayet & Öneri","fb.inbox":"Gelen Mesajlar","fun.daily":"Günün Kartı","fun.duel":"Deste Düellosu","fun.missing":"Eksik Kartı Bul","fun.clash":"Kart Kapışması","fun.quiz":"Tokmak Yarışması","fun.guess":"Kart Tahmin Oyunu","fun.title":"Oyunlar & Eğlence",
     /* --- home tiles --- */
-    "tile.ranks":"Sıralamalar","tile.ranks.s":"Nihai Kademe & Kupa Yolu",
+    "tile.ranks":"Sıralamalar","tile.ranks.s":"Nihai Kademe & Türkiye",
     "tile.clans":"Klan Liderlik","tile.clans.s":"En iyi klanlar",
     "tile.live":"Son Maçlar","tile.live.s":"Nihai ilk 100",
     "tile.meta":"Meta Desteler","tile.meta.s":"Güncel meta",
@@ -329,7 +329,7 @@ const I18N = {
     "fun.rank":"Card Ranking Game","fun.deck":"Deck Generator","fun.wheel":"Random Meta Deck Wheel","fun.cenabet":"Cursed Deck Button",
     "fun.pts":"points","fun.earns":"This game earns points on the Tokmakçılar board","fb.section":"CONTACT","fb.title":"Feedback","fb.inbox":"Inbox","fun.daily":"Card of the Day","fun.duel":"Deck Duel","fun.missing":"Find the Missing Card","fun.clash":"Card Clash","fun.quiz":"Hammer Quiz","fun.guess":"Card Guessing Game","fun.title":"Games & Fun",
     /* --- home tiles --- */
-    "tile.ranks":"Rankings","tile.ranks.s":"Path of Legends & Trophy Road",
+    "tile.ranks":"Rankings","tile.ranks.s":"Path of Legends & Turkey",
     "tile.clans":"Clan Leaderboard","tile.clans.s":"The best clans",
     "tile.live":"Recent Matches","tile.live.s":"Ranked top 100",
     "tile.meta":"Meta Decks","tile.meta.s":"Current meta",
@@ -728,11 +728,18 @@ function deckIcons(cards, evoList = [], cls = "", heroList = []){
     return `<span class="di${cls}" title="${tip}" data-ab="${(nm||'?').slice(0,2)}"><img ${artAttrs(art)} alt="${nm}" loading="lazy" onerror="diFail(this)"></span>`;
   }).join("")}</span>`;
 }
-/* Render an 8-card deck grid, marking only this deck's evolution cards. */
+/* Sekiz kartlık deste ızgarası. ÜÇ özel yuvayı da işaretliyor: evrim,
+   kahraman ve şampiyon. Eskiden yalnızca evrimi işaretliyordu, yani kahraman
+   yuvası sessizce kayboluyordu — aynı hata çarkta gerçekten yaşandı, bu
+   yardımcı da onu tekrarlamasın. */
 function deckCards(deck, opts = {}){
   const cards = deck.cards || deck;
   const evoSet = new Set(deck.evo || []);
-  return cards.map(k => renderCard(k, { evo: evoSet.has(k), level: opts.level, max: opts.max, onClick: opts.onClick })).join("");
+  const heroSet = new Set(deck.hero || []);
+  const champSet = new Set(deck.champ || []);
+  return cards.map(k => renderCard(k, { evo: evoSet.has(k), heroSlot: heroSet.has(k),
+    hero: champSet.has(k) || undefined,
+    level: opts.level, max: opts.max, onClick: opts.onClick })).join("");
 }
 function diFail(img){
   if (nextArt(img)) return;
@@ -1342,7 +1349,16 @@ const HypnoAPI = {
     const q = location ? "?location=" + encodeURIComponent(location) : "";
     return this._mapRanks(await this._get("/rankings/pathoflegend" + q, 30000));
   },
-  async trophy(){ return this._mapRanks(await this._get("/rankings/global")); },
+  /* Kupa Yolu (kupa) sıralaması ARTIK YOK. Ölçüldü: Supercell'in kendi ucu
+     /locations/global/rankings/players HTTP 200 ile BOŞ liste döndürüyor —
+     sıralamayı Nihai Kademe'ye taşıdılar. Bu yüzden sitede kupa sekmesi de
+     yok; sekmeler "Nihai Kademe" ve "Türkiye". Uç, Supercell bir gün yeniden
+     doldurursa çalışsın diye duruyor ama BOŞ dönerse çağıran taraf bunu
+     ayırt edebilsin: veri yoksa null döner, boş liste değil. */
+  async trophy(){
+    const d = await this._get("/rankings/global");
+    return (d && d.items && d.items.length) ? this._mapRanks(d) : null;
+  },
   async rankings(){ return this.pol(); },
   async clanRankings(){
     const data = await this._get("/rankings/clans");

@@ -35,11 +35,9 @@ const DAILY_LIMIT = 3;               // hesap başına günlük hak
 
 /* Haklar gece yarısı yenileniyor. Hakkı bitene "yarın gel" demek yerine
    ne kadar kaldığını gösterebilmek için o anı da veriyoruz. */
-function resetAt() {
-  const d = new Date();
-  d.setHours(24, 0, 0, 0);
-  return d.getTime();
-}
+/* Günlük haklar 18.00'da sıfırlanıyor — kural takvim.js'de. */
+const takvim = require("./takvim");
+const resetAt = () => takvim.sifirlanmaAni();
 const SESSION_TTL = 40 * 60e3;       // yarım saatten uzun süren oturum düşer
 
 /* ---------- bot koruması ----------
@@ -101,9 +99,7 @@ function savePlays() {
     } catch (e) { console.warn("⚠️  Yarışma hakları kaydedilemedi:", String(e)); }
   }, 500);
 }
-function dayKey(d = new Date()) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+const dayKey = (d = new Date()) => takvim.gunAnahtari(d);
 const playsToday = (userId) => plays[`${userId}|${dayKey()}`] || 0;
 function notePlay(userId) {
   const k = `${userId}|${dayKey()}`;
@@ -358,11 +354,16 @@ function mount(app, deps) {
       total: TOTAL_Q, checkpoints: CHECKPOINTS, dailyLimit: DAILY_LIMIT,
       played: s ? playsToday(s.user.id) : 0,
       left: s ? Math.max(0, DAILY_LIMIT - playsToday(s.user.id)) : DAILY_LIMIT,
-      loggedIn: !!s, resetAt: resetAt(),
+      loggedIn: !!s, resetAt: resetAt(), ...takvim.durum(),
     });
   });
 
   app.post("/api/quiz/start", async (req, res) => {
+    /* Açılış kilidi — bkz. games.js'deki not. Yarışma soruları da açılmadan
+       görülmesin: hakkını harcamasa bile soruları önden öğrenmiş olurdu. */
+    if (!takvim.acikMi())
+      return res.status(423).json({ error: "kapali", ...takvim.durum(),
+        message: "Tokmak Yarışması 20 Ağustos 18.00'da başlıyor." });
     const s = readSession(req);
     if (!s) return res.status(401).json({ error: "auth", message: "Yarışmaya girmek için giriş yapmalısın." });
     if (playsToday(s.user.id) >= DAILY_LIMIT)

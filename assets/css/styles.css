@@ -2195,3 +2195,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
    düşmesin diye boyut sabit. */
 .ses-btn { flex:0 0 auto; width:46px; height:46px; font-size:1.15rem; line-height:1; }
 .ses-btn[aria-pressed="false"] { opacity:.55; }
+
+/* Yarışma açılmadan önce oyunların yerinde duran kilit kutusu. Nötr ve
+   sakin: bir HATA değil, henüz gelmemiş bir zaman. */
+.quiz-mid.kilitli { background: var(--surface-2); border: 1px dashed var(--border);
+  border-radius: 14px; padding: 22px 18px; }
+.quiz-mid.kilitli .cd-line b { font-variant-numeric: tabular-nums; }

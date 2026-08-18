@@ -2566,6 +2566,7 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log(`    Veri klasörü: ${DATA_DIR}${process.env.DATA_DIR ? "" : "  ⚠️  DATA_DIR ayarlı değil — bulutta veri kalıcı OLMAZ"}`);
   console.log(`    CR API: ${CR_BASE}${/royaleapi/.test(CR_BASE) ? "  (vekil)" : "  (doğrudan — IP beyaz listesi gerekir)"}`);
   if (!CRAWL_CLANS) console.log("    Oyuncu adı indeksi KAPALI (CRAWL_CLANS=0) — arama yalnızca etiketle.");
+  require("./takvim").banner();
   console.log("");
   // Warm the badge map and the player-name index so the first search is instant
   // (~255 ladder requests, a few seconds) instead of making a user wait.

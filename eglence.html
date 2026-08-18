@@ -430,11 +430,25 @@ function spinWheel(){
   setTimeout(()=>{ showDeck(wheelDecks[idx]); btn.disabled=false; spinning=false; }, 4700);
 }
 
+/* Bir meta destesinin kart seçenekleri.
+
+   ÖNCE yalnızca `evo` veriliyordu, o yüzden çarkta çıkan destede KAHRAMAN
+   yuvası hiç görünmüyordu: "Balon destesi"nin kahraman Balonu düz Balon gibi
+   çiziliyordu. renderCard kahraman yuvasını kendiliğinden bulamaz — hangi
+   kartın o yuvada olduğu DESTENİN bilgisidir, kartın değil. Şampiyon ise
+   kartın kendi özelliği olduğu için varsayılana bırakılabilir; yine de
+   burada açıkça veriliyor ki üç yuva tek yerde görünsün. */
+function desteYuva(d, c){
+  return { level: GAME_MAX_LEVEL,
+           evo: (d.evo || []).includes(c),
+           heroSlot: (d.hero || []).includes(c),
+           hero: (d.champ || []).includes(c) || undefined };
+}
 function showDeck(d){
   document.getElementById("deckName").textContent = d.name;
   document.getElementById("deckUsage").textContent = d.usage!=null ? "%"+d.usage : "—";
   document.getElementById("deckElixir").textContent = deckElixir(d.cards);
-  document.getElementById("deckCards").innerHTML = d.cards.map(c=>renderCard(c,{level:GAME_MAX_LEVEL,evo:(d.evo||[]).includes(c)})).join("");
+  document.getElementById("deckCards").innerHTML = d.cards.map(c=>renderCard(c,desteYuva(d,c))).join("");
   document.getElementById("deckResult").classList.add("show");
   const link = copyDeckLink(d.cards);
   const copyBtn = link
@@ -448,7 +462,7 @@ function showDeck(d){
       ${d.usage!=null?`<span>Kullanım: <b>%${d.usage}</b></span>`:""}
       <span>Ort. İksir: <b>💧 ${deckElixir(d.cards)}</b></span>
     </div>
-    <div class="card-grid eight">${d.cards.map(c=>renderCard(c,{level:GAME_MAX_LEVEL,evo:(d.evo||[]).includes(c)})).join("")}</div>
+    <div class="card-grid eight">${d.cards.map(c=>renderCard(c,desteYuva(d,c))).join("")}</div>
     ${d.tip?`<div class="modal-tip"><b>Oynanış İpucu:</b> ${d.tip}</div>`:""}
     <div class="flex gap-8 wrap" style="margin-top:16px">${copyBtn}</div>
   `);
@@ -604,6 +618,43 @@ function kalanSure(ms){
   return `${k} saniye`;
 }
 
+/* ============ YARIŞMA HENÜZ AÇILMADI ============
+   Puanlı oyunlar 20 Ağustos 18.00'da açılıyor. Kilit SUNUCUDA duruyor
+   (uç 423 döner), buradaki kutu onu sadece anlaşılır hâle getiriyor:
+   kullanıcı düğmeye basıp hata almasın, ne zaman açılacağını görsün.
+   Sayaç sıfırlanınca oyun kendiliğinden tazeleniyor. */
+let ACILIS_SAYAC = null;
+function kilitliKutu(s, yenile){
+  if (ACILIS_SAYAC) { clearInterval(ACILIS_SAYAC); ACILIS_SAYAC = null; }
+  const hedef = s && s.acilis ? new Date(s.acilis).getTime() : 0;
+  const ne = hedef ? new Date(hedef).toLocaleString("tr-TR",
+    { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) : "";
+  setTimeout(() => {
+    if (!hedef) return;
+    ACILIS_SAYAC = setInterval(() => {
+      const el = document.getElementById("acVal");
+      if (!el) { clearInterval(ACILIS_SAYAC); ACILIS_SAYAC = null; return; }
+      const kalan = hedef - Date.now();
+      if (kalan <= 0) {
+        clearInterval(ACILIS_SAYAC); ACILIS_SAYAC = null;
+        if (typeof yenile === "function") yenile();
+        return;
+      }
+      el.textContent = kalanSure(kalan);
+    }, 1000);
+  }, 0);
+  return `<div class="quiz-mid kilitli">
+      <p style="font-size:1.6rem;margin:0 0 6px">🔒</p>
+      <p><b>Yarışma henüz başlamadı.</b></p>
+      ${ne ? `<p class="cd-line">Başlangıç: <b>${ne}</b></p>
+              <p class="cd-line">Kalan süre: <b><span id="acVal">${kalanSure(hedef - Date.now())}</span></b></p>` : ""}
+      <p class="muted" style="font-size:.8rem">O ana kadar puanlı oyunlar kapalı ve
+         Tokmakçılar tablosu da o an başlıyor — kimse öne geçemiyor.</p>
+      <p class="muted" style="font-size:.8rem">Puansız oyunlar (çark, jeneratör,
+         kart sıralama, tahmin) şimdi de oynanabilir.</p>
+    </div>`;
+}
+
 /* Aynı anda tek bir sayaç yeter; oyun değiştirilince öncekini durduruyoruz. */
 let GERI_SAYIM = null;
 function bitmisKutu(baslik, resetAt, yenile){
@@ -612,7 +663,7 @@ function bitmisKutu(baslik, resetAt, yenile){
   const html = `<div class="quiz-mid">
       <p><b>${baslik}</b></p>
       ${hedef ? `<p class="cd-line">Yeni hakların <b><span id="cdVal">${kalanSure(hedef - Date.now())}</span></b> sonra açılıyor.</p>
-                 <p class="muted" style="font-size:.78rem">Haklar her gece yarısı yenilenir.</p>`
+                 <p class="muted" style="font-size:.78rem">Haklar her gün <b>18.00</b>'da yenilenir.</p>`
               : `<p class="muted">Yarın tekrar gel.</p>`}
     </div>`;
   if (hedef) {
@@ -637,6 +688,7 @@ const GN = { id: null, tries: 0, names: [], hints: [] };
 async function gnInit(){
   const s = await gmStatus();
   const body = document.getElementById("gnBody");
+  if (s.acik === false){ body.innerHTML = kilitliKutu(s, gnInit); return; }
   if (!s.loggedIn){ body.innerHTML = gmLoginBox("Günün kartını oynamak için hesabın olmalı."); return; }
   if (s.games.gunun.left <= 0){
     body.innerHTML = bitmisKutu("Bugünün kartını çoktan oynadın.", s.resetAt, gnInit);
@@ -707,6 +759,7 @@ let DU = { id: null };
 async function duInit(){
   const s = await gmStatus();
   const body = document.getElementById("duBody");
+  if (s.acik === false){ body.innerHTML = kilitliKutu(s, duInit); return; }
   if (!s.loggedIn){ body.innerHTML = gmLoginBox("Düelloya girmek için hesabın olmalı."); return; }
   if (s.games.duello.left <= 0){
     body.innerHTML = bitmisKutu("Bugünlük düello hakkın bitti.", s.resetAt, duInit); return;
@@ -768,6 +821,7 @@ const EK = { id: null };
 async function ekInit(){
   const s = await gmStatus();
   const body = document.getElementById("ekBody");
+  if (s.acik === false){ body.innerHTML = kilitliKutu(s, ekInit); return; }
   if (!body) return;
   if (!s.loggedIn){ body.innerHTML = gmLoginBox("Bu oyuna girmek için hesabın olmalı."); return; }
   if (s.games.eksik.left <= 0){
@@ -991,6 +1045,7 @@ const KP_ETIKET = { hp:"can", dmg:"hasar", sn:"vuruş aralığı" };
 async function kpInit(){
   const s = await gmStatus();
   const body = document.getElementById("kpBody");
+  if (s.acik === false){ body.innerHTML = kilitliKutu(s, kpInit); return; }
   if (!body) return;
   if (!s.loggedIn){ body.innerHTML = gmLoginBox("Bu oyuna girmek için hesabın olmalı."); return; }
   if (s.games.kapisma.left <= 0){
@@ -1123,6 +1178,7 @@ async function qzInit(){
   const s = await qzStatus();
   const body = document.getElementById("qzBody");
   QZ.step = 0; qzLadder();
+  if (s.acik === false){ body.innerHTML = kilitliKutu(s, qzInit); return; }
   if (!s.loggedIn){
     body.innerHTML = `<div class="quiz-mid">
       <p>Yarışmaya girip <b>Tokmakçılar</b> tablosuna puan yazmak için hesabın olmalı.</p>
@@ -1133,7 +1189,7 @@ async function qzInit(){
   if (s.left <= 0){
     body.innerHTML = `<div class="quiz-mid">
       <p><b>Bugünlük hakkın doldu.</b> (${s.dailyLimit}/${s.dailyLimit})</p>
-      <p class="muted">Yarın yeniden 3 hakkın olacak.</p></div>`;
+      <p class="muted">Haklar her gün <b>18.00</b>'da yenilenir.</p></div>`;
     return;
   }
   body.innerHTML = `<div class="quiz-mid">
