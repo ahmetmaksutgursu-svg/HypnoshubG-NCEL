@@ -196,7 +196,21 @@ function clearCookie(res, req) {
    Pencere ve tavan artık parametre: giriş denemeleri (15 dk / 8) ile hesap
    açma (1 saat / 5) aynı sayaç mantığını farklı eşiklerle kullanıyor. */
 const KAYIT_PENCERE = 3600e3;
-const KAYIT_MAX = 5;
+/* Aynı bağlantıdan saatte kaç hesap açılabilir. Kötüye kullanıma karşı
+   gerçek bir koruma, o yüzden YAYINDA 5 kalıyor.
+
+   Ortam değişkeniyle ayarlanabilir olmasının tek sebebi test: hesap açan
+   dört ayrı test paketi arka arkaya koşunca sınır doluyor ve paketler ürün
+   sağlamken kırmızı yanıyordu — yani sınır, kendi doğruluğunu ölçmeyi
+   engelliyordu. Yerelde KAYIT_MAX=200 ile koşuluyor; yayında ayar yok,
+   yani 5.
+
+   Sınırın KENDİSİ ayrıca sınanıyor (t_guvenlik → "Hesap açma hız sınırı"),
+   o test kendi eşiğini okuyarak çalışıyor. */
+const KAYIT_MAX = (() => {
+  const n = parseInt(process.env.KAYIT_MAX, 10);
+  return Number.isFinite(n) && n > 0 ? n : 5;
+})();
 const attempts = new Map();          // anahtar -> [zaman damgaları]
 function tooManyAttempts(key, pencere = RATE_WINDOW, tavan = RATE_MAX) {
   const now = Date.now();

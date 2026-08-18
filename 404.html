@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Sayfa bulunamadı — HYPNOSHUB</title>
+<!-- Arama motoru bu sayfayı dizine almasın: içeriği yok, olmayan bir
+     adresin karşılığı. noindex olmadan Google yüzlerce "404" sayfasını
+     ayrı sayfa sanabiliyor. -->
+<meta name="robots" content="noindex, follow">
+<link rel="icon" href="assets/img/hammer-logo.jpg">
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<div id="app-header"></div>
+
+<section class="section">
+  <div class="container">
+    <div class="card text-center" style="max-width:640px;margin:40px auto;padding:36px 24px">
+      <p style="font-size:3.2rem;margin:0 0 4px">🔨</p>
+      <h1 style="font-size:1.6rem;margin:0 0 10px">Böyle bir sayfa yok</h1>
+      <p class="muted" style="margin:0 0 22px">
+        Aradığın adres taşınmış ya da hiç var olmamış olabilir.
+        Aşağıdakilerden biri işine yarayabilir:
+      </p>
+
+      <div class="search-box" style="border-radius:12px;max-width:420px;margin:0 auto 18px">
+        <input id="q404" type="text" placeholder="Oyuncu adı veya #etiket" style="flex:1;min-width:0"
+               onkeydown="if(event.key==='Enter')ara()">
+        <button class="search-go" onclick="ara()" aria-label="Ara"></button>
+      </div>
+
+      <div class="flex center wrap gap-8" style="justify-content:center">
+        <a class="btn btn-primary" href="index.html">Ana sayfa</a>
+        <a class="btn btn-ghost" href="siralamalar.html">Sıralamalar</a>
+        <a class="btn btn-ghost" href="meta.html">Meta desteler</a>
+        <a class="btn btn-ghost" href="anti.html">Anti deste</a>
+        <a class="btn btn-ghost" href="eglence.html">Oyunlar</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div id="app-footer"></div>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+mountChrome("");
+document.querySelector(".search-go").innerHTML = ICONS.search;
+function ara(){
+  const v = document.getElementById("q404").value.trim();
+  if (v) location.href = "oyuncu.html?q=" + encodeURIComponent(v);
+}
+</script>
+</body>
+</html>

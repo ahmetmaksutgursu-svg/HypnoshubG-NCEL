@@ -63,6 +63,38 @@ if (!TOKEN) {
   console.warn("   Until then the frontend will show demo data.\n");
 }
 
+/* ============================================================
+   GÜVENLİK BAŞLIKLARI
+   ------------------------------------------------------------
+   Sitede giriş, parola ve KVKK kapsamında kişisel veri var; tarayıcıya
+   birkaç temel kuralı söylemek gerekiyor. Ölçüldü — yayında bunların
+   HİÇBİRİ yoktu.
+
+   · HSTS: tarayıcı bu siteye bir daha ASLA http ile bağlanmasın. Yalnız
+     https üzerinden gönderiliyor, yoksa yerelde (http) tarayıcıyı
+     kilitleyip geliştirmeyi bozardı.
+   · nosniff: tarayıcı dosya türünü tahmin etmeye çalışmasın.
+   · SAMEORIGIN: site başka bir sayfanın içine <iframe> ile gömülemesin.
+     Giriş kutusu olan bir sitede tıklama hırsızlığının önündeki engel bu.
+   · Referrer-Policy: başka siteye geçerken tam adres sızmasın (oyuncu
+     etiketi arama adreslerinde geçiyor).
+
+   İçerik Güvenlik Politikası (CSP) BİLEREK eklenmedi: sayfalar satır içi
+   script kullanıyor, katı bir CSP siteyi anında bozar. Doğru yapılması
+   ayrı ve dikkatli bir iş.
+   ============================================================ */
+const GUVENLIK_BASLIKLARI = true;
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  /* Kullanılmayan güçlü tarayıcı özellikleri kapalı olsun. */
+  res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=(), payment=()");
+  if (req.secure || req.headers["x-forwarded-proto"] === "https")
+    res.setHeader("Strict-Transport-Security", "max-age=15552000; includeSubDomains");
+  next();
+});
+
 /* --- CORS (allow the static frontend to call this proxy) --- */
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", process.env.ALLOW_ORIGIN || "*");
@@ -2572,6 +2604,22 @@ app.use(express.static(path.join(__dirname, ".."), {
     if (tur) res.type(tur);
   },
 }));
+
+/* ============================================================
+   BULUNAMAYAN ADRES
+   ------------------------------------------------------------
+   Eskiden Express'in kendi hatası çıkıyordu: İngilizce, başlığı "Error",
+   gövdesi "Cannot GET /...". Adresi yanlış yazan ziyaretçi siteyi bozuk
+   sanıyordu.
+
+   /api/ AYRI tutuluyor: oradan HTML dönerse istemci JSON bekleyip
+   çözümleme hatası alır. API için kısa bir JSON, insanlar için sayfa.
+   ============================================================ */
+app.use((req, res) => {
+  if (req.path.startsWith("/api/"))
+    return res.status(404).json({ error: "not_found", path: req.path });
+  res.status(404).sendFile(path.join(__dirname, "..", "404.html"));
+});
 
 /* `0.0.0.0`: kap (container) içinde yalnız 127.0.0.1'e bağlanan bir sunucuya
    dışarıdan ulaşılamaz, sağlayıcı "uygulama ayağa kalkmadı" der. Yerelde
