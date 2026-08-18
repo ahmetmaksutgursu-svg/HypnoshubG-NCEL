@@ -17,6 +17,28 @@ const fs = require("fs");
 // .env her zaman bu klasörden okunur — sunucu hangi dizinden başlatılırsa başlatılsın.
 require("dotenv").config({ path: path.join(__dirname, ".env") });
 
+/* ============================================================
+   SAAT DİLİMİ — her şeyden ÖNCE ayarlanmalı
+   ------------------------------------------------------------
+   Sitedeki bütün saatler TÜRKİYE saatine göre: yarışma 20 Ağustos
+   18.00'da açılıyor, oyun hakları her gün 18.00'da yenileniyor,
+   dönemler 18.00'da dönüyor.
+
+   Ama sunucu Türkiye'de çalışmıyor. Railway kabı UTC ile açılıyor ve
+   yerel saatle kurulan bir tarih orada 18.00 UTC üretiyor — yani
+   Türkiye'de 21.00. Ölçüldü: ilk yayında açılış saati canlıda 21.00
+   göründü. Aynı kayma günlük sıfırlamayı ve dönem sınırlarını da
+   üç saat öteliyordu.
+
+   Bu satır saat dilimini sabitliyor. En üstte olmak ZORUNDA: Node
+   ilk Date işleminden sonra saat dilimini önbelleğe alıyor, sonradan
+   ayarlamak geç kalır. Bu yüzden takvim.js dahil hiçbir modül bu
+   satırdan önce yüklenmiyor.
+
+   SITE_TZ ile değiştirilebilir (ör. site başka bir ülkeye açılırsa).
+   ============================================================ */
+process.env.TZ = process.env.SITE_TZ || "Europe/Istanbul";
+
 const app = express();
 const PORT = process.env.PORT || 8787;
 const TOKEN = process.env.CR_API_TOKEN;

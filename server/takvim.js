@@ -124,6 +124,11 @@ function durum(d = new Date()) {
 }
 
 function banner() {
+  /* Saat dilimini de yazıyoruz: "18.00" hangi ülkenin 18.00'ı olduğu
+     günlükten görülebilsin. Kap UTC ile açılırsa saatler üç saat kayar
+     ve bu satır olmadan fark edilmesi zor (server.js en üstte sabitliyor). */
+  const dilim = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  console.log(`    Saat dilimi: ${dilim} · sunucu saati ${new Date().toLocaleString("tr-TR")}`);
   const tr = (x) => x.toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" });
   if (acikMi()) {
     console.log(`🗓️  Yarışma AÇIK · gün ${String(GUN_SAATI).padStart(2, "0")}.00'da dönüyor · ` +
