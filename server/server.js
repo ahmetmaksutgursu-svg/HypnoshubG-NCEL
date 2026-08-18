@@ -2583,7 +2583,11 @@ app.get("/api/pro/granted", (req, res) => {
 
    Bu yüzden statik katmandan ÖNCE kapıyı kapatıyoruz: izin listesi değil,
    açıkça yasak listesi + bütün gizli (nokta ile başlayan) yollar. */
-const GIZLI_YOL = /^\/(server|node_modules|scripts|tools)(\/|$)/i;
+/* `package.json` de kapalı. İçinde gizli bir şey YOK (ölçüldü: token/şifre
+   araması sıfır sonuç) ama dışarıya vermenin de bir faydası yok: kullanılan
+   Node sürümünü, başlatma komutlarını ve bellek ayarlarına dair iç notları
+   yayınlıyor. Saldırıya uğramak için gereken bilgiyi bedavaya vermeyelim. */
+const GIZLI_YOL = /^\/(server|node_modules|scripts|tools)(\/|$)|^\/package(-lock)?\.json$/i;
 app.use((req, res, next) => {
   const parcalar = req.path.split("/");
   if (GIZLI_YOL.test(req.path) || parcalar.some((p) => p.length > 1 && p.startsWith(".")))
