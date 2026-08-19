@@ -2073,6 +2073,46 @@ app.get("/api/eslesme", (req, res) => {
 });
 
 /* ============================================================
+   MAÇ ANALİZİ  —  /api/analiz?a=…&b=…
+   ------------------------------------------------------------
+   İki somut destenin karşılaşma oranı. Örneklem kademeli aranıyor
+   (tam deste → ≥7 → ≥6 → ≥5 ortak kart → arketip); hangi kademeden
+   geldiği ve kaç maça dayandığı yanıtta yazıyor.
+
+   Sayı ne kadar sağlam, onu SAKLAMIYORUZ: `pay` alanı %95 güven
+   payını puan cinsinden veriyor. 12 maçlık bir ölçüm ±25 puan
+   oynuyor; bunu göstermeden yüzde basmak okuyucuyu yanıltır.
+   ============================================================ */
+const analizKimlik = (s) =>
+  String(s || "").split(",").map((x) => parseInt(x, 10)).filter(Number.isFinite);
+
+app.get("/api/analiz", (req, res) => {
+  const a = analizKimlik(req.query.a), b = analizKimlik(req.query.b);
+  const tekil = (d) => new Set(d).size === 8;
+  if (a.length !== 8 || b.length !== 8 || !tekil(a) || !tekil(b))
+    return res.status(400).json({ error: "deste", mesaj: "Her iki deste de 8 farklı kart içermeli." });
+
+  const s = eslesme.analiz(a, b);
+  res.set("Cache-Control", "public, max-age=120");
+  const yuzde = (v) => (v == null ? null : Math.round(v * 1000) / 10);
+  res.json({
+    kaynak: s.kaynak,                     // "deste" | "arketip" | "yok"
+    katman: s.katman ?? null,             // kaç ortak kartla eşlendi (8..5), arketipte 0
+    mac: s.mac || 0,
+    minOrnek: eslesme.MIN_ORNEK,
+    oran: yuzde(s.oran),                  // senin deste yüzden
+    alt: yuzde(s.alt), ust: yuzde(s.ust), // %95 aralık
+    pay: yuzde(s.pay),                    // ± puan
+    arketip: s.arketip || null,
+    /* Hangi kademede kaç maç bulundu — arayüz "tam eşleşme yoktu,
+       6 ortak karta düşüldü" diyebilsin diye. */
+    denenen: s.denenen || [],
+    hata: s.hata || null,
+  });
+});
+
+
+/* ============================================================
    ANTİ DESTE — yeniden kuruldu
    ------------------------------------------------------------
    Eski hâli iki KAZANMA KOŞULU arasında ölçüyordu ve kullanıcı haklı

@@ -98,6 +98,12 @@ const FILE = veriYolu("eslesme.json");
    Sürüm tutmuyorsa sayaçlar korunur, görülen listesi bırakılır.
    Sayılmamış bir maçı yeniden görmek mükerrer sayım değil, ilk sayım. */
 const SURUM = 2;
+/* Deste çifti tablosunun KENDİ sürümü. Ayrı tutuluyor çünkü bu tablo
+   hücrelerin yanına EKLENDİ, onların yapısını değiştirmedi: ana sürümü
+   artırmak görülen-maç listesini attırır ve hücreler yerinde kaldığı
+   için son ~4 günün maçları ikinci kez sayılırdı. Çift tablosu
+   uyumsuzsa yalnızca o sıfırlanıyor, sayaçlar bozulmuyor. */
+const CIFT_SURUM = 1;
 
 const sayi = (v, varsayilan) => {
   const n = parseInt(v, 10);
@@ -246,6 +252,10 @@ const db = {
   desteSay: {},                 // "id,id,…" → kaç kez oynandı (arketip listesi buradan)
   kart: {},                 // id → { ad, e, k }  (görülen kazanma koşulları)
   gorulen: new Map(),       // jeton → maçın saniyesi
+  /* MAÇ ANALİZİ tabanı — bkz. DESTE ÇİFTLERİ başlığı. */
+  desteDizin: [],           // sıra → deste anahtarı (sözlük)
+  desteNo: new Map(),       // deste anahtarı → sıra
+  cift: {},                 // "a>b" → [maç, a’nın galibiyeti]
   guncel: 0,                // son başarılı tur
   tur: 0,
 };
@@ -316,6 +326,14 @@ function yukle() {
     if (d.bu && d.bu.hucre) db.bu = { savas: d.bu.savas || 0, hucre: d.bu.hucre };
     if (d.onceki && d.onceki.hucre) db.onceki = { savas: d.onceki.savas || 0, hucre: d.onceki.hucre };
     if (d.desteSay) db.desteSay = d.desteSay;
+    /* Çift tablosu yalnızca sürüm tutuyorsa yükleniyor: sözlük
+       numaraları biçime bağlı, eski numaralar yeni sözlükte başka
+       desteyi gösterirdi. */
+    if (d.ciftSurum === CIFT_SURUM && Array.isArray(d.desteDizin) && d.cift) {
+      db.desteDizin = d.desteDizin;
+      db.desteNo = new Map(d.desteDizin.map((a, i) => [a, i]));
+      db.cift = d.cift;
+    }
     if (d.kart) db.kart = d.kart;
     /* BİÇİM DEĞİŞİMİ GÖÇÜ.
 
@@ -351,6 +369,7 @@ function kaydet() {
         surum: SURUM,
         sezon: db.sezon, bu: db.bu, onceki: db.onceki, kart: db.kart,
         desteSay: db.desteSay, guncel: db.guncel, gorulen: [...db.gorulen],
+        ciftSurum: CIFT_SURUM, desteDizin: db.desteDizin, cift: db.cift,
       }));
       fs.renameSync(tmp, FILE);
     } catch (e) { console.warn("⚠️  Eşleşme tablosu kaydedilemedi:", String(e)); }
@@ -427,10 +446,13 @@ async function tur(tamMerdiven = false) {
         db.gorulen.set(j, Math.round(z / 1000));
 
         /* Her deste sayılıyor: arketip listesi bu sayaçtan çıkıyor. */
-        for (const kartlar of [tk, ok]) {
-          const ak = desteAnahtari(kartlar);
-          db.desteSay[ak] = (db.desteSay[ak] || 0) + 1;
-        }
+        const akT = desteAnahtari(tk), akO = desteAnahtari(ok);
+        db.desteSay[akT] = (db.desteSay[akT] || 0) + 1;
+        db.desteSay[akO] = (db.desteSay[akO] || 0) + 1;
+        /* MAÇ ANALİZİ için deste-deste kaydı. Arketip hücresi yazılmasa
+           bile (deste hiçbir metaya benzemiyorsa) bu satır yazılıyor —
+           kullanıcı meta olmayan bir deste de sorabilir. */
+        ciftYaz(akT, akO, t.crowns || 0, o.crowns || 0);
 
         const kocT = kosulSec(tk), kocO = kosulSec(ok);
         /* Rakip tarafında yalnızca KATMAN 1 kabul ediliyor — katman 2
@@ -461,7 +483,7 @@ async function tur(tamMerdiven = false) {
       }
     }
 
-    buda(); desteBuda();
+    buda(); desteBuda(); ciftBuda();
     db.guncel = Date.now();
     db.tur++;
     kaydet();
@@ -536,6 +558,169 @@ function durum() {
   };
 }
 
+
+/* ============================================================
+   DESTE ÇİFTLERİ  —  MAÇ ANALİZİ'nin veri tabanı
+   ------------------------------------------------------------
+   Arketip tablosu (hucre) "meta destem × rakibin kazanma koşulu"
+   düzeyinde. MAÇ ANALİZİ ise kullanıcının yazdığı İKİ SOMUT desteyi
+   karşılaştırıyor, yani daha ince bir kırılım gerekiyor: hangi sekizli
+   hangi sekizliyle kaç kez karşılaştı.
+
+   ÖLÇÜM (6.541 sıralamalı maç, 350 oyuncunun günlüğü):
+     tekil deste çifti          4.880
+     en kalabalık çift          19 maç
+     ortanca örneklem, ilk 10 destede:
+        tam 8/8 eşleşme          7 maç
+        ≥7 kart ortak           10 maç
+        ≥6 kart ortak           12 maç
+        ≥5 kart ortak           23 maç
+     31-80. sıradaki destelerde bu sayılar 0-2'ye düşüyor.
+
+   Yani TAM deste eşleşmesi neredeyse hiç örneklem vermiyor. Bu yüzden
+   sorgu KADEMELİ: önce tam eşleşme denenir, yetmezse ortak kart eşiği
+   birer birer gevşetilir, o da yetmezse arketip tablosuna düşülür.
+   Hangi kademenin kullanıldığı ve kaç maça dayandığı her zaman geri
+   döndürülüyor — sayının ne kadar sağlam olduğunu ekranda yazabilmek
+   için (12 maçta %50 ölçmek "gerçek oran %25 ile %75 arasında"
+   demektir; bunu gizlemek okuyucuyu yanıltır).
+
+   SAKLAMA BİÇİMİ: deste anahtarları uzun ("26000010,26000014,…" ~70
+   karakter). Çift başına iki anahtar yazmak dosyayı şişirirdi, o yüzden
+   bir sözlük tutuluyor: her tekil deste bir sayı alıyor, çift anahtarı
+   "12>47" gibi kısa oluyor. Ölçülen kazanç ~5 kat.
+   ============================================================ */
+const CIFT_TAVAN = Math.max(5000, sayi(process.env.ESLESME_CIFT, 60000));
+const ANALIZ_KADEME = [8, 7, 6, 5];
+
+function desteNo(anahtar) {
+  let no = db.desteNo.get(anahtar);
+  if (no == null) { no = db.desteDizin.length; db.desteDizin.push(anahtar); db.desteNo.set(anahtar, no); }
+  return no;
+}
+
+/* Bir maçı çift tablosuna yaz. `w` her zaman KÜÇÜK numaralı destenin
+   galibiyeti; yön anahtarın kendisinden okunuyor. */
+function ciftYaz(anahtarA, anahtarB, tacA, tacB) {
+  const a = desteNo(anahtarA), b = desteNo(anahtarB);
+  const [k1, k2, kazanan] = a <= b ? [a, b, tacA] : [b, a, tacB];
+  const kaybeden = a <= b ? tacB : tacA;
+  const k = `${k1}>${k2}`;
+  const d = db.cift[k] || (db.cift[k] = [0, 0]);
+  d[0]++;
+  d[1] += kazanan === kaybeden ? 0.5 : kazanan > kaybeden ? 1 : 0;
+}
+
+/* Tablo sınırsız büyümesin. Tek maçlık çiftler zaten hiçbir kademede
+   eşiği geçiremiyor; önce onlar gidiyor, yetmezse en seyrekler. Budama
+   sonrası sözlük de sıkıştırılıyor, yoksa artık kimsenin göstermediği
+   deste anahtarları dosyada kalırdı. */
+function ciftBuda() {
+  const k = Object.keys(db.cift);
+  if (k.length <= CIFT_TAVAN) return;
+  const kalan = k.sort((x, y) => db.cift[y][0] - db.cift[x][0]).slice(0, Math.floor(CIFT_TAVAN * 0.8));
+  const yeniCift = {}, eskiyeYeni = new Map(), yeniDizin = [];
+  for (const anahtar of kalan) {
+    const [a, b] = anahtar.split(">").map(Number);
+    const ye = [a, b].map((no) => {
+      let y = eskiyeYeni.get(no);
+      if (y == null) { y = yeniDizin.length; yeniDizin.push(db.desteDizin[no]); eskiyeYeni.set(no, y); }
+      return y;
+    });
+    yeniCift[`${ye[0]}>${ye[1]}`] = db.cift[anahtar];
+  }
+  db.cift = yeniCift;
+  db.desteDizin = yeniDizin;
+  db.desteNo = new Map(yeniDizin.map((a, i) => [a, i]));
+}
+
+/* Wilson %95 güven aralığı. Normal yaklaşım (p ± 1,96·√(p(1-p)/n))
+   küçük örneklemde %100'ü aşan sınırlar üretiyor; Wilson üretmiyor. */
+function guvenAraligi(galibiyet, mac) {
+  if (!mac) return null;
+  const z = 1.96, p = galibiyet / mac;
+  const payda = 1 + (z * z) / mac;
+  const orta = (p + (z * z) / (2 * mac)) / payda;
+  const yari = (z * Math.sqrt((p * (1 - p)) / mac + (z * z) / (4 * mac * mac))) / payda;
+  return { alt: Math.max(0, orta - yari), ust: Math.min(1, orta + yari), pay: yari };
+}
+
+const ortakSayisi = (x, y) => { let n = 0, i = 0, j = 0;
+  while (i < x.length && j < y.length) { if (x[i] === y[j]) { n++; i++; j++; } else if (x[i] < y[j]) i++; else j++; }
+  return n; };
+
+/* Sözlükteki hangi desteler verilen desteyle en az `esik` kart paylaşıyor. */
+function esikleEsle(idler, esik) {
+  const küme = new Set();
+  for (let i = 0; i < db.desteDizin.length; i++) {
+    const ids = db.desteDizin[i].split(",").map(Number);
+    if (ortakSayisi(ids, idler) >= esik) küme.add(i);
+  }
+  return küme;
+}
+
+/* `kosulSec` kart ADINA bakıyor, elimizde ise yalnızca kimlik var.
+   Görülen kazanma koşullarının adı zaten `db.kart` içinde tutuluyor —
+   kazanma koşulu OLMAYAN kartların adına da ihtiyacımız yok. */
+function kosulSecIdler(idler) {
+  let en = null;
+  for (const id of idler) {
+    const k = db.kart[id];
+    const m = k && KOSUL.get(k.ad);
+    if (!m) continue;
+    const aday = { id, ad: k.ad, e: k.e, katman: m.katman, sira: m.sira };
+    if (!en || ustun(aday, en)) en = aday;
+  }
+  return en;
+}
+
+/* ---------- MAÇ ANALİZİ ----------
+   A ve B: 8'er kart kimliği. Dönen sonuçta `katman` hangi kademeden
+   geldiğini söylüyor; ekranda bunu yazmak zorundayız. */
+function analiz(A, B) {
+  const a = [...A].sort((x, y) => x - y), b = [...B].sort((x, y) => x - y);
+  if (a.length !== 8 || b.length !== 8) return { hata: "deste-8-kart" };
+
+  const denenen = [];
+  for (const esik of ANALIZ_KADEME) {
+    const kA = esikleEsle(a, esik), kB = esikleEsle(b, esik);
+    if (!kA.size || !kB.size) { denenen.push({ esik, mac: 0 }); continue; }
+    let mac = 0, gal = 0;
+    for (const anahtar in db.cift) {
+      const kes = anahtar.indexOf(">");
+      const x = +anahtar.slice(0, kes), y = +anahtar.slice(kes + 1);
+      const [n, w] = db.cift[anahtar];
+      /* x sende, y rakipte → w doğrudan senin galibiyetin. */
+      if (kA.has(x) && kB.has(y)) { mac += n; gal += w; }
+      /* Ters yön: y sende, x rakipte → senin galibiyetin n-w. */
+      if (kA.has(y) && kB.has(x)) { mac += n; gal += n - w; }
+    }
+    denenen.push({ esik, mac });
+    if (mac >= MIN_ORNEK) {
+      const ga = guvenAraligi(gal, mac);
+      return { kaynak: "deste", katman: esik, mac, oran: gal / mac,
+               alt: ga.alt, ust: ga.ust, pay: ga.pay, denenen };
+    }
+  }
+
+  /* Deste düzeyinde örneklem yoksa arketip tablosuna düşülüyor: senin
+     desten hangi meta destesine benziyor, rakibin kazanma koşulu ne. */
+  const liste = metaListesi();
+  const metaA = metaEsle(a, liste);
+  const kocB = kosulSecIdler(b);
+  if (metaA && kocB && kocB.katman === 1) {
+    const tablo = durum().hucreler;
+    const h = tablo[`${metaA.k}||${kocB.id}`];
+    if (h && h[0] >= MIN_ORNEK) {
+      const ga = guvenAraligi(h[1], h[0]);
+      return { kaynak: "arketip", katman: 0, mac: h[0], oran: h[1] / h[0],
+               alt: ga.alt, ust: ga.ust, pay: ga.pay,
+               arketip: { benim: metaA.k, rakipKoc: kocB.id, rakipAd: kocB.ad }, denenen };
+    }
+  }
+  return { kaynak: "yok", mac: denenen.length ? Math.max(...denenen.map((d) => d.mac)) : 0, denenen };
+}
+
 /* Yönetici paneli için özet — hangi eşleşmeler ne kadar oturmuş. */
 function ozet(adet = 25) {
   const d = durum();
@@ -554,5 +739,5 @@ function ozet(adet = 25) {
 
 yukle();
 
-module.exports = { basla, durum, ozet, kosulSec, metaListesi, metaEsle,
-                   KATMAN1, KATMAN2, MIN_ORNEK, ORTUSME };
+module.exports = { basla, durum, ozet, analiz, kosulSec, metaListesi, metaEsle,
+                   KATMAN1, KATMAN2, MIN_ORNEK, ORTUSME, ANALIZ_KADEME };
