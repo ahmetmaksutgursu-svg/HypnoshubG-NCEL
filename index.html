@@ -238,9 +238,10 @@ async function loadBoard(){
     body.innerHTML = (d.odul ? odulHtml(d, fmt, TRb) : "") + `
       <p class="board-empty">
         <b>${TRb?"Yarış henüz başlamadı.":"The race has not started yet."}</b><br>
-        ${TRb ? `Tokmakçılar tablosu <b>${acilisAni(a)}</b>'de açılıyor. O güne kadar oyunlar
-                 oynanabilir ama <b>puan yazmaz</b> — herkes aynı yerden başlasın diye.`
-              : `The board opens <b>${acilisAni(a)}</b>. Until then games can be played but award no points.`}
+        ${TRb ? `Tokmakçılar tablosu <b>${acilisAni(a)}</b>'de açılıyor. O ana kadar <b>puanlı oyunlar oynanamıyor</b>;
+                 sıralama da o anda başlıyor — herkes aynı yerden başlasın diye.
+                 <b>Puansız oyunlar</b> her zaman açık.`
+              : `The board opens <b>${acilisAni(a)}</b>. Scored games are locked until then and the leaderboard starts at the same moment, so everyone begins together. Unscored games are always open.`}
       </p>`;
     return;
   }

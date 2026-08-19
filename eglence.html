@@ -1700,11 +1700,11 @@ async function puanUyarisi(){
   const gun = a.toLocaleString(tr ? "tr-TR" : "en-GB",
     { timeZone: "Europe/Istanbul", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
   el.innerHTML = notice(`<span>⏳</span><span>${tr
-    ? `<b>Tokmakçılar tablosu ${gun}'de açılıyor.</b> O güne kadar oyunları
-       oynayabilirsin ama <b>kazandığın puanlar tabloya yazılmaz</b> — yarış herkes için
-       aynı anda başlasın diye.`
-    : `<b>The leaderboard opens ${gun}.</b> You can play until then, but points are not
-       recorded yet so everyone starts together.`}</span>`, "warn");
+    ? `<b>Tokmakçılar tablosu ${gun}'de açılıyor.</b> O ana kadar <b>puanlı oyunlar oynanamıyor</b>
+       ve sıralama da o anda başlıyor — yarış herkes için aynı anda başlasın diye.
+       <b>Puansız oyunlar</b> her zaman açık.`
+    : `<b>The leaderboard opens ${gun}.</b> Scored games are locked until then and the
+       leaderboard starts at the same moment. Unscored games are always open.`}</span>`, "warn");
 }
 function reloadFun(){ loadFun(); }
 

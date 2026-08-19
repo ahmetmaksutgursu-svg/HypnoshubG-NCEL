@@ -1131,43 +1131,52 @@ function eslesmeBilgi(benimKeys, rakipKeys){
 
 /* Eşleşme rozeti.
 
-   Ne söylüyor: "SENİN DESTEN, rakibin arketipine karşı %X kazanıyor".
+   Ne söylüyor: bir destenin, RAKİBİN ARKETİPİNE karşı ölçülmüş oranı.
    Oran destenin kendisine ait — aynı arketipteki iki farklı deste ayrı
-   satırlardır. Önce iki kazanma koşulu karşılaştırılıyordu ve iki
-   bambaşka Mega Şövalye destesi "ayna eşleşme" görünüyordu; artık öyle
-   bir durum yok, çünkü senin tarafın DESTE düzeyinde eşleşiyor.
+   satırlardır.
 
-   Desten meta destelerine benzemiyorsa ya da rakipte tanınan bir
-   arketip yoksa rozet HİÇ çizilmiyor — random destelerin analizi
-   yapılmaz. */
+   İKİ DÜZELTME (kullanıcı bildirimi):
+
+   1. Yeterli veri yokken rozet ARTIK HİÇ ÇİZİLMİYOR. Önce "vs Domuz
+      Binicisi · 20 maç" gibi bir etiket basılıyordu: oran göstermediği
+      hâlde yer kaplıyor ve sistem bozukmuş gibi duruyordu.
+
+   2. Oranın KİME ait olduğu artık açık. Akışta iki oyuncu var ve yalın
+      "vs Domuz Binicisi" hangi tarafın kazandığını söylemiyordu; şimdi
+      önce oranın sahibi yazılıyor (profilde "Desten", akışta soldaki
+      destenin arketip adı).
+
+   Desten meta destelerine benzemiyorsa ya da rakipte tanınan bir arketip
+   yoksa rozet çizilmiyor — random destelerin analizi yapılmaz. */
 function eslesmeRozeti(benimKeys, rakipKeys, benim){
   const e = eslesmeBilgi(benimKeys, rakipKeys);
-  if (!e) return "";
+  if (!e || !e.yeterli) return "";              // örneklem yetersiz → rozet yok
   const tr = LANG === "tr";
   const rakipAd = esc(cardNameOf(e.rakip.key) || "");
-  const yuzde = (n) => tr ? `%${n}` : `${n}%`;
-  const kimin = benim ? (tr ? "Senin desten" : "Your deck") : (tr ? "Soldaki deste" : "The left deck");
-
-  if (!e.yeterli){
-    const az = e.n ? `${nfTR(e.n)} ${tr ? "maç" : "games"}` : (tr ? "veri yok" : "no data");
-    const nicin = e.n
-      ? (tr ? `bu deste ${rakipAd} destelerine karşı ${nfTR(e.n)} kez oynanmış; güvenilir bir oran için en az ${nfTR(ESLESME.minOrnek)} maç gerekiyor.`
-            : `${nfTR(e.n)} games recorded; a reliable rate needs at least ${nfTR(ESLESME.minOrnek)}.`)
-      : (tr ? "bu eşleşme henüz hiç kaydedilmemiş." : "no games recorded yet.");
-    return `<span class="mu-chip thin" title="${nicin}">⚔️ ${tr ? "vs" : "vs"} ${rakipAd} · ${az}</span>`;
-  }
-
   const p = Math.round(e.p);
   const cls = p >= 55 ? "up" : p <= 45 ? "down" : "even";
+  const yuzde = tr ? ("%" + p) : (p + "%");
+  /* Profilde "senin desten" belli; akışta soldaki destenin arketibini
+     yazıyoruz ki oranın kime ait olduğu anlaşılsın. */
+  const sahip = benim
+    ? (tr ? "Desten" : "Your deck")
+    : esc(cardNameOf(eslesmeArketip(benimKeys)?.key) || (tr ? "Soldaki" : "Left"));
+
   const ipucu = tr
-    ? `${kimin} ${nfTR(e.meta.n)} kez oynanmış bir meta destesi. ${rakipAd} destelerine karşı ` +
-      `${nfTR(e.n)} maçta %${p} kazanmış (±${e.pay.toFixed(0)} puan belirsizlik). ` +
-      `Kaynak: Nihai Kademe ilk 1000${ESLESME.karma ? " · iki sezon birleşik" : ""}.`
-    : `${kimin} is a meta deck. Against ${rakipAd} decks it won ${p}% over ${nfTR(e.n)} games ` +
-      `(±${e.pay.toFixed(0)} points).`;
-  return `<span class="mu-chip ${cls}" title="${ipucu}">` +
-         `⚔️ <b>${yuzde(p)}</b> ${tr ? "vs" : "vs"} ${rakipAd}</span>`;
+    ? (benim ? "Senin desten" : "Soldaki oyuncunun destesi")
+      + " " + nfTR(e.meta.n) + " kez oynanmış bir meta destesi. "
+      + rakipAd + " destelerine karşı " + nfTR(e.n) + " maçta %" + p
+      + " kazanmış (±" + e.pay.toFixed(0) + " puan belirsizlik). "
+      + "Kaynak: Nihai Kademe ilk 1000"
+      + (ESLESME.karma ? " · iki sezon birleşik" : "") + "."
+    : (benim ? "Your deck" : "The left deck") + " is a meta deck. Against "
+      + rakipAd + " decks it won " + p + "% over " + nfTR(e.n)
+      + " games (±" + e.pay.toFixed(0) + " points).";
+
+  return '<span class="mu-chip ' + cls + '" title="' + ipucu + '">'
+       + '⚔️ ' + sahip + ' <b>' + yuzde + '</b> vs ' + rakipAd + '</span>';
 }
+
 
 /* Desteyi oyunda aç.
 
