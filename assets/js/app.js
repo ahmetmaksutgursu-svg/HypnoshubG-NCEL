@@ -1016,34 +1016,38 @@ function deckElixir(cards){
 /* ============================================================
    DESTEYİ OYUNDA AÇAN BAĞLANTI
    ------------------------------------------------------------
-   HATA (kullanıcı bildirdi): çark ve Cenabet destesinde oyun açılıyor,
-   "Yapıştır" çıkıyor, basınca deste GELMİYOR. Başka sitelerde sorun yok.
+   Kullanıcı bildirdi: çark ve Cenabet destesi oyuna YAPIŞMIYOR. Oyun
+   açılıyor, deste görünüyor, "Yapıştır"a basınca hiçbir şey olmuyor.
+   Başka sitelerin bağlantısı aynı telefonda çalışıyor.
 
-   SEBEP: eskiden ham uygulama şeması üretiliyordu —
-       clashroyale://copyDeck?deck=…
-   Supercell'in kendi bağlantı sayfası incelendiğinde görülüyor ki bu
-   şemayı SAYFANIN KENDİSİ kuruyor; yayımlanan adres https:
+   Ölçülenler:
+     · Üretilen kimlikler geçerli — 6 destede 48 kartın hepsi /api/cards
+       listesinde, tekrar eden kart yok, kule askeri sızmıyor.
+     · Supercell'in kendi bağlantı sayfası, bu adresten doğru derin
+       bağlantıyı kuruyor: clashroyale://copyDeck?deck=…%3B…
+       (sayfa ayarı: "linkCommandOverride":"copyDeck?")
+     · `tt` gibi fazladan parametreler sayfa tarafından atılıyor, yani
+       kule askeri bağlantının parçası değil.
 
-       link.clashroyale.com/deck/<dil>?deck=…
-       sayfa ayarı: "linkCommandOverride":"copyDeck?", "appScheme":"clashroyale"
+   Geriye TEK yapısal fark kalıyordu: DİL PARÇASI. Bağlantı önce ham
+   uygulama şemasıyla (clashroyale://…) üretiliyordu, sonra evrensel
+   https adrese geçirildi ama dil parçası kullanıcının diline göre
+   yazılıyordu — "/deck/tr". Çalışan sitelerin hepsi "/deck/en"
+   gönderiyor. Oyunun pano okuyucusu sabit bir kalıp arıyorsa "tr"
+   eşleşmez; kullanıcının gördüğü davranış buna birebir uyuyor.
 
-   İki ayrı yerde bozuluyordu:
-     1) Adres — ham şema uygulamayı açıyor ama iOS/Android evrensel
-        bağlantı aktarımını atladığı için deste verisi uygulamaya
-        geçmiyor. Uygulama kurulu değilse de sayfa hiç açılmıyordu.
-     2) PANO — açılıştan önce bağlantıyı panoya da yazıyoruz. Oyunun
-        "Yapıştır" ekranı panodaki metni ayrıştırıyor ve `clashroyale://…`
-        metnini tanımıyor. Kullanıcının gördüğü tam olarak buydu.
-   İkisi de https adrese geçirildi: hem doğrudan açılış hem panodan
-   yapıştırma artık diğer siteler ne gönderiyorsa onu gönderiyor.
+   Bu yüzden dil ARTIK SABİT "en". Bu parça yalnızca oyun kurulu
+   DEĞİLKEN açılan yedek sayfanın dilini belirliyor, o sayfa da kendi
+   dil seçicisini gösteriyor — yani kaybımız yok, kazancımız bağlantının
+   çalışan sitelerle birebir aynı olması.
 
-   Dil parçası yalnızca uygulama kurulu değilken açılan yedek sayfanın
-   dilini belirliyor; ikisi de sınandı (200 döndü). */
-const DESTE_BAG_DIL = () => (typeof LANG !== "undefined" && LANG === "tr" ? "tr" : "en");
+   Biçim bilerek harfi harfine kopyalanıyor: sondaki eğik çizgi yok,
+   noktalı virgüller ham. Değiştirmeye değecek bir sebep çıkmadıkça
+   burada hiçbir şeye dokunmayın. */
 function copyDeckLink(cards){
   const ids = cards.map(k => CARD_DB[k]?.id).filter(Boolean);
   if (ids.length !== cards.length) return null;
-  return `https://link.clashroyale.com/deck/${DESTE_BAG_DIL()}?deck=${ids.join(";")}`;
+  return `https://link.clashroyale.com/deck/en?deck=${ids.join(";")}`;
 }
 
 /* "Desteyi oyunda aç" düğmesi. Tek yerde duruyor çünkü artık üç ekranda
