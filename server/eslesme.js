@@ -83,6 +83,21 @@ const crypto = require("crypto");
 const { veriYolu } = require("./veriyolu");
 
 const FILE = veriYolu("eslesme.json");
+/* Kayıt biçiminin sürümü.
+
+   Yapı değiştiğinde artırılır. "Görülen maç" listesi yalnızca AYNI
+   sürümde anlamlı: liste bir maçı "sayıldı" diye işaretler, ama sayım
+   eski yapıya yapılmıştır. Yeni yapıya geçince o maçlar hiç sayılmamış
+   olur ve liste onları atlatırsa tablo günlerce boş kalır.
+
+   Yayında bunu ölçtük: yapı değişiminden sonra ilk tur 9.000 maç
+   yerine 363 getirdi, tablo 7 hücrede kaldı ve gösterilecek tek bir
+   oran çıkmadı. Sürüm damgası olmadığı için ilk düzeltme de yetmedi —
+   arada yapılan kayıt, yeni yapıyla birlikte ESKİ listeyi de yazmıştı.
+
+   Sürüm tutmuyorsa sayaçlar korunur, görülen listesi bırakılır.
+   Sayılmamış bir maçı yeniden görmek mükerrer sayım değil, ilk sayım. */
+const SURUM = 2;
 
 const sayi = (v, varsayilan) => {
   const n = parseInt(v, 10);
@@ -314,8 +329,8 @@ function yukle() {
        günlüklerdeki ~4 günlük geçmiş baştan taranıp tablo hemen doluyor.
        Bedeli yok: sayılmamış maçları yeniden görmek mükerrer sayım
        değil, ilk sayım. */
-    const yeniYapiVar = !!(d.bu && d.bu.hucre);
-    if (yeniYapiVar && Array.isArray(d.gorulen))
+    const uygun = d.surum === SURUM && !!(d.bu && d.bu.hucre);
+    if (uygun && Array.isArray(d.gorulen))
       for (const [j, s] of d.gorulen) db.gorulen.set(j, s);
     else if (Array.isArray(d.gorulen) && d.gorulen.length)
       console.log("\u2694\ufe0f  Tablo yapisi degismis \u2014 " + d.gorulen.length +
@@ -333,6 +348,7 @@ function kaydet() {
       fs.mkdirSync(path.dirname(FILE), { recursive: true });
       const tmp = FILE + ".tmp";
       fs.writeFileSync(tmp, JSON.stringify({
+        surum: SURUM,
         sezon: db.sezon, bu: db.bu, onceki: db.onceki, kart: db.kart,
         desteSay: db.desteSay, guncel: db.guncel, gorulen: [...db.gorulen],
       }));
