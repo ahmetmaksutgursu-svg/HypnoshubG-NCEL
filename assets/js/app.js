@@ -1016,38 +1016,41 @@ function deckElixir(cards){
 /* ============================================================
    DESTEYİ OYUNDA AÇAN BAĞLANTI
    ------------------------------------------------------------
-   Kullanıcı bildirdi: çark ve Cenabet destesi oyuna YAPIŞMIYOR. Oyun
-   açılıyor, deste görünüyor, "Yapıştır"a basınca hiçbir şey olmuyor.
-   Başka sitelerin bağlantısı aynı telefonda çalışıyor.
+   Kullanıcı ÇALIŞAN bir bağlantı gönderdi (başka bir siteden):
 
-   Ölçülenler:
-     · Üretilen kimlikler geçerli — 6 destede 48 kartın hepsi /api/cards
-       listesinde, tekrar eden kart yok, kule askeri sızmıyor.
-     · Supercell'in kendi bağlantı sayfası, bu adresten doğru derin
-       bağlantıyı kuruyor: clashroyale://copyDeck?deck=…%3B…
-       (sayfa ayarı: "linkCommandOverride":"copyDeck?")
-     · `tt` gibi fazladan parametreler sayfa tarafından atılıyor, yani
-       kule askeri bağlantının parçası değil.
+     link.clashroyale.com/en?clashroyale://copyDeck?deck=…;…&tt=159000000&l=Royals
 
-   Geriye TEK yapısal fark kalıyordu: DİL PARÇASI. Bağlantı önce ham
-   uygulama şemasıyla (clashroyale://…) üretiliyordu, sonra evrensel
-   https adrese geçirildi ama dil parçası kullanıcının diline göre
-   yazılıyordu — "/deck/tr". Çalışan sitelerin hepsi "/deck/en"
-   gönderiyor. Oyunun pano okuyucusu sabit bir kalıp arıyorsa "tr"
-   eşleşmez; kullanıcının gördüğü davranış buna birebir uyuyor.
+   Bizimki şuydu ve çalışmıyordu:
 
-   Bu yüzden dil ARTIK SABİT "en". Bu parça yalnızca oyun kurulu
-   DEĞİLKEN açılan yedek sayfanın dilini belirliyor, o sayfa da kendi
-   dil seçicisini gösteriyor — yani kaybımız yok, kazancımız bağlantının
-   çalışan sitelerle birebir aynı olması.
+     link.clashroyale.com/deck/en?deck=…;…
 
-   Biçim bilerek harfi harfine kopyalanıyor: sondaki eğik çizgi yok,
-   noktalı virgüller ham. Değiştirmeye değecek bir sebep çıkmadıkça
-   burada hiçbir şeye dokunmayın. */
+   İki yapısal fark var ve ikisi de bu bağlantıda düzeltildi:
+
+   1) KULE ASKERİ (tt). Deste artık 8 kart + bir kule askeri. Bağlantı
+      kule askerini taşımayınca oyun desteyi eksik/geçersiz sayıyor —
+      anlatılan davranışın tamamı bu: bağlantı tanınıyor, oyun açılıyor,
+      deste ekranı geliyor, deste gelmiyor. 159000000 = Kule Prensesi,
+      oyunun varsayılanı.
+
+   2) SARMALAYICI BİÇİM. "/deck/en?deck=" değil, "/en?clashroyale://
+      copyDeck?deck=" kullanılıyor. Supercell'in sayfası ikisini de
+      tanıyor ama uygulamaya giden dize farklı; çalıştığı ölçülmüş olan
+      bu ikincisi.
+
+   Noktalı virgüller HAM bırakıldı. Bir ara "%3B kodlanmalı" diye
+   düşünülmüştü — çalışan bağlantı bunun yanlış olduğunu gösterdi.
+
+   `l` parametresi çalışan bağlantıda vardı ve dokunulmadı: hangi işe
+   yaradığı belgeli değil, üç başarısız denemeden sonra çalışan dizeyi
+   birebir korumak tercih edildi. İşlevsiz olduğu doğrulanırsa çıkarılır.
+
+   Bu bağlantı biçimini ÖLÇMEDEN değiştirmeyin. */
+const DESTE_KULE = "159000000";        // Kule Prensesi — varsayılan kule askeri
 function copyDeckLink(cards){
   const ids = cards.map(k => CARD_DB[k]?.id).filter(Boolean);
   if (ids.length !== cards.length) return null;
-  return `https://link.clashroyale.com/deck/en?deck=${ids.join(";")}`;
+  return "https://link.clashroyale.com/en?clashroyale://copyDeck?deck="
+       + ids.join(";") + "&tt=" + DESTE_KULE + "&l=Royals";
 }
 
 /* "Desteyi oyunda aç" düğmesi. Tek yerde duruyor çünkü artık üç ekranda
