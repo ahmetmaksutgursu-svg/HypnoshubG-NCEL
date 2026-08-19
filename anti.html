@@ -149,6 +149,30 @@ function yenile(){
   else if (SECIM.kocId) secKoc(SECIM.kocId);
 }
 
+/* Aynı arketipin iki destesi AYNI adı alıyor (nameDeck adı kazanma
+   koşulundan üretiyor), yani yan yana iki "BALON DESTESİ" çıkıyordu ve
+   hangisinin hangi oran olduğu anlaşılmıyordu. Burada her desteye onu
+   diğerlerinden AYIRAN kart ekleniyor.
+
+   Tek kart yetmeyebiliyor: iki deste aynı "en pahalı farklı kartı"
+   paylaşıp başka yerde ayrışabiliyor. O yüzden adaylar kart ekleyerek
+   uzatılıyor ve ilk BENZERSİZ olan seçiliyor. */
+function adlariAyir(desteler){
+  if (desteler.length < 2) return desteler;
+  const ortak = desteler[0].cards.filter((k) => desteler.every((d) => d.cards.includes(k)));
+  const kullanilan = new Set();
+  return desteler.map((d) => {
+    const fark = d.cards.filter((k) => !ortak.includes(k))
+      .sort((a, b) => (CARD_DB[b]?.elixir || 0) - (CARD_DB[a]?.elixir || 0));
+    const adaylar = [d.name, ...fark.map((_, i) =>
+      d.name + " · " + fark.slice(0, i + 1).map(cardNameOf).join(" + "))];
+    let ad = adaylar.find((a) => !kullanilan.has(a));
+    if (!ad) { let n = 2; ad = d.name + " (" + n + ")"; while (kullanilan.has(ad)) ad = d.name + " (" + (++n) + ")"; }
+    kullanilan.add(ad);
+    return { ...d, name: ad };
+  });
+}
+
 function ciz(d, baslik){
   const hedefAd = esc(cardName({ name: d.secilen.koc.ad }));
   const anti = (d.sayac || []).filter((x) => x.yuzde >= d.esik).slice(0, ANTI_SAYI);
@@ -184,8 +208,11 @@ function ciz(d, baslik){
     return;
   }
 
+  /* Adları önce ayır: iki farklı Balon destesi aynı ada düşüp hangi
+     oranın hangisine ait olduğu anlaşılmıyordu. */
+  const cizilecek = adlariAyir(anti.map(desteCevir));
   kutu.innerHTML = bas + anti.map((x, i) => {
-    const dd = desteCevir(x);
+    const dd = cizilecek[i];
     const p = Math.round(x.yuzde);
     const link = copyDeckLink(dd.cards);
     return `
