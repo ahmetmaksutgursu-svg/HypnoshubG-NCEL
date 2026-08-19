@@ -473,8 +473,19 @@ function showDeck(d){
   document.getElementById("deckCards").innerHTML = d.cards.map(c=>renderCard(c,desteYuva(d,c))).join("");
   document.getElementById("deckResult").classList.add("show");
   const link = copyDeckLink(d.cards);
+  /* "Oyunda Aç" PANOYA DA YAZMAK ZORUNDA.
+
+     Kullanıcı bildirdi: çarkta ve Cenabet'te deste oyuna yapışmıyor.
+     Sebep buydu — bu iki yerde "Oyunda Aç" düz bir <a href> idi. Oyun
+     açılıyor, deste ekranındaki "Yapıştır" düğmesi PANOYU okuyor ve
+     pano boş olduğu için hiçbir şey olmuyordu. Sitenin geri kalanı
+     (Sıralamalar, Son Maçlar, profil, Deste Kur) zaten openDeck
+     kullanıyor: o önce panoya yazıp sonra oyunu açıyor.
+
+     Bağlantı href'te de duruyor ki uzun basıp paylaşmak çalışsın;
+     tıklamada varsayılan gezinme durdurulup openDeck'e veriliyor. */
   const copyBtn = link
-    ? `<button class="btn btn-primary" onclick="copyText('${link}',this)">${ICONS.copy}<span>Desteyi Kopyala</span></button><a class="btn btn-ghost" href="${link}">Oyunda Aç</a>`
+    ? `<button class="btn btn-primary" onclick="copyText('${link}',this)">${ICONS.copy}<span>Desteyi Kopyala</span></button><a class="btn btn-ghost" href="${link}" onclick="event.preventDefault();openDeck(${jsArg(link)},this)">Oyunda Aç</a>`
     : `<span class="muted" style="font-size:.82rem">Kopyalama linki canlı API bağlıyken tüm kart id'leriyle oluşur.</span>`;
   openModal(`
     <button class="btn btn-ghost icon-btn modal-close" onclick="closeModal()">${ICONS.x}</button>
@@ -567,8 +578,19 @@ function cenFinish(pick){
   document.getElementById("cenElixir").textContent = "💧 " + deckElixir(pick);
   document.getElementById("cenabetBtn").disabled = false;
   const link = copyDeckLink(pick);
+  /* "Oyunda Aç" PANOYA DA YAZMAK ZORUNDA.
+
+     Kullanıcı bildirdi: çarkta ve Cenabet'te deste oyuna yapışmıyor.
+     Sebep buydu — bu iki yerde "Oyunda Aç" düz bir <a href> idi. Oyun
+     açılıyor, deste ekranındaki "Yapıştır" düğmesi PANOYU okuyor ve
+     pano boş olduğu için hiçbir şey olmuyordu. Sitenin geri kalanı
+     (Sıralamalar, Son Maçlar, profil, Deste Kur) zaten openDeck
+     kullanıyor: o önce panoya yazıp sonra oyunu açıyor.
+
+     Bağlantı href'te de duruyor ki uzun basıp paylaşmak çalışsın;
+     tıklamada varsayılan gezinme durdurulup openDeck'e veriliyor. */
   document.getElementById("cenActions").innerHTML = link
-    ? `<button class="btn btn-primary" onclick="copyText('${link}',this)">${ICONS.copy}<span>${LANG==="tr"?"Desteyi Kopyala":"Copy Deck"}</span></button><a class="btn btn-ghost" href="${link}">${t("word.open")}</a>`
+    ? `<button class="btn btn-primary" onclick="copyText('${link}',this)">${ICONS.copy}<span>${LANG==="tr"?"Desteyi Kopyala":"Copy Deck"}</span></button><a class="btn btn-ghost" href="${link}" onclick="event.preventDefault();openDeck(${jsArg(link)},this)">${t("word.open")}</a>`
     : `<span class="muted" style="font-size:.82rem">${LANG==="tr"?"Kopyalama linki canlı API bağlıyken oluşur.":"The copy link needs the live API."}</span>`;
 }
 
