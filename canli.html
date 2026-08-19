@@ -106,6 +106,7 @@ function matchHtml(m){
     <div class="match-top">
       <span class="mtype" title="${esc(battleTypeHint(m))}">${esc(battleTypeName(m))}</span>
       ${mu}
+      ${m.galibiyet!=null?`<span class="mac-galibiyet" title="Bu mücadelede toplanan galibiyet">🏆 ${m.galibiyet} galibiyet</span>`:''}
       ${m.ago?`<span class="mago">${m.ago}</span>`:''}
     </div>
     <div class="match-grid">

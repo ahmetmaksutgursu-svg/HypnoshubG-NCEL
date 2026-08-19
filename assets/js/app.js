@@ -1750,6 +1750,8 @@ function mapBattle(b){
       tekTek: (b.team || []).length === 1 && (b.opponent || []).length === 1,
       c1, c2, crowns:`${c1}-${c2}`, winner:c1>=c2?1:2,
       ranked: b.type === "pathOfLegend",
+      /* Mücadelede madalyon yok, GALİBİYET sayısı var — bkz. mucadeleGalibiyeti. */
+      galibiyet: mucadeleGalibiyeti(b, me),
       madalyonlu, lig: b.leagueNumber ?? null,
       rawType:b.type||"", modeName:b.gameMode?.name||"",
       deckSelection:b.deckSelection||"", hosted:!!b.isHostedMatch,
@@ -2005,6 +2007,8 @@ function mapOwnBattle(b, myTag){
       deckSelection: b.deckSelection || "", hosted: !!b.isHostedMatch,
       eventTag: b.eventTag || "", tournamentTag: b.tournamentTag || "",
       ranked: b.type === "pathOfLegend",
+      /* Mücadelede madalyon yok, GALİBİYET sayısı var — bkz. mucadeleGalibiyeti. */
+      galibiyet: mucadeleGalibiyeti(b, me),
       /* Eşleşme rozeti için: maç TEK KİŞİLİK mi ve iki tarafın da sekiz
          kartı belli mi? 2v2'de bir tarafta iki ayrı deste var, "destenin
          kazanma koşulu" diye tek bir şey yok — orada rozet basılmıyor. */
@@ -2026,6 +2030,33 @@ function mapOwnBattle(b, myTag){
       ago: b.battleTime ? relativeTime(crTime(b.battleTime)) : "",
     };
   } catch { return null; }
+}
+
+/* ============================================================
+   MÜCADELE GALİBİYET SAYISI
+   ------------------------------------------------------------
+   Mücadele ve turnuvalarda `startingTrophies` madalyon değil, o
+   mücadeledeki GALİBİYET SAYISINI tutuyor. Kullanıcının kendi
+   maçında 7 yazıyor ve oyun ekranında da "7 wins" görünüyor.
+
+   Aynı alan başka modlarda puan taşıyor, o yüzden ada değil DEĞERE
+   bakıyoruz. Ölçüm — 300 oyuncunun 8.000+ maçı:
+       galibiyet sayısı olanlar : 224 kayıt, aralık 1–15
+       puan olanlar             : 833 kayıt, aralık 1500–15000
+   Arada tek bir değer yok. Eşik bu boşluğun ortasına konuyor;
+   ada göre liste tutmak yeni bir mücadele modunda hemen bozulurdu.
+
+   Sıralamalı maçlar hariç: orada alan gerçekten madalyondur ve
+   madalyon defteri zaten ayrıca yazılıyor.
+   ============================================================ */
+const GALIBIYET_TAVAN = 100;
+function mucadeleGalibiyeti(b, yan){
+  if (!b || !yan || b.type === "pathOfLegend") return null;
+  const v = yan.startingTrophies;
+  if (v == null || v > GALIBIYET_TAVAN || v < 0) return null;
+  /* Bu maçın kendisi kazanıldıysa sayaç bir artıyor; ekranda maç
+     SONRASI durum gösteriliyor, oyun ekranıyla aynı. */
+  return v + (yan.trophyChange > 0 ? yan.trophyChange : 0);
 }
 
 /* CR stamps time as 20260814T174653.000Z, which Date can't parse — insert the

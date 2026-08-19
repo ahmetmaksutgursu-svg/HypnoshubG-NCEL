@@ -2356,3 +2356,56 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
 @media (max-width:1020px){
   .match-team > .match-side { flex:1 1 auto; }
 }
+
+/* ---------- Mücadele galibiyet rozeti ----------
+   Mücadelede madalyon yok, galibiyet sayısı var. Oyunun kendi
+   ekranındaki "7 wins" ile aynı bilgi. Altın ton madalyon defteriyle
+   karışmasın diye kupa emojisiyle birlikte veriliyor. */
+.mac-galibiyet {
+  display:inline-flex; align-items:center; gap:4px;
+  font-size:.7rem; font-weight:900; padding:3px 9px; border-radius:999px;
+  background:rgba(201,154,58,.16); color:var(--gold-500);
+  border:1px solid rgba(201,154,58,.28); white-space:nowrap;
+}
+
+/* ---------- Mobilde skor satırı ----------
+   "1 - 0 KARŞI [kazanan]" tek satıra sıkışıyor ve okunmuyordu
+   (kullanıcı: "şu 1 0 kısmı çok kötü duruyor"). Skor büyüyor, gereksiz
+   "KARŞI" etiketi gizleniyor (skorun yanında zaten anlamsız) ve kazanan
+   rozeti kendi satırına iniyor. */
+@media (max-width:1020px){
+  .match-score {
+    flex-direction:column; gap:4px;
+    padding:2px 0 8px; border-bottom:1px solid var(--border); margin-bottom:4px;
+  }
+  .match-score .sc { font-size:1.45rem; font-weight:900; letter-spacing:.02em; }
+  .match-score .vs { display:none; }
+  .win-badge { margin-top:0; font-size:.6rem; padding:3px 10px; }
+  /* İki deste birbirine giriyordu — sütunlar arası boşluk açıldı ve
+     araya ince bir ayraç kondu ki hangi destenin kime ait olduğu
+     bakışta anlaşılsın. */
+  .match-grid { column-gap:14px; }
+  .match-grid > .match-team.right, .match-grid > .match-side.right {
+    border-left:1px solid var(--border); padding-left:12px;
+  }
+}
+@media (max-width:620px){
+  .match-grid { column-gap:10px; }
+  .match-grid > .match-team.right, .match-grid > .match-side.right { padding-left:8px; }
+  .match-score .sc { font-size:1.3rem; }
+}
+
+/* ---------- Profil savaş günlüğü: dar ekranda deste genişliği ----------
+   Hata: telefonda kartlar 2 piksele çöküyordu. Sebebi `.deck-cell`in
+   inline-flex olması — genişliğini İÇERİĞİNDEN alıyor, kart görselleri de
+   tembel yüklendiği için ölçüm anında genişlikleri sıfır. Böylece 4'lü
+   ızgara sıfır genişliğe kadar iniyordu.
+
+   Çözüm: deste genişliğini görsele değil sütuna bağlamak. Kopyala düğmesi
+   dar ekranda kartların altına iniyor — Son Maçlar kartlarındaki düzenin
+   aynısı. Masaüstünde yer bol olduğu için orada eski görünüm korunuyor. */
+@media (max-width:620px){
+  .bl-row .bl-deste .deck-cell { display:flex; width:100%; }
+  .bl-row .bl-deste .deck-icons.iki-sira { max-width:none; }
+  .bl-yan.sag .bl-deste .deck-cell { justify-content:flex-end; }
+}

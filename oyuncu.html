@@ -354,6 +354,8 @@ function battleRow(b){
         <span class="badge ${b.madalyonlu?"gold":""}" title="${esc(battleTypeHint(b))}">${esc(battleTypeName(b))}</span>
         ${ligEtiketi}
         ${b.rank?`<span class="rank-chip" title="Maç oynandığındaki dünya sırası">#${nf(b.rank)}</span>`:""}
+        <!-- Mücadelede madalyon yok, GALİBİYET sayısı var (bkz. app.js). -->
+        ${b.galibiyet!=null?`<span class="mac-galibiyet" title="Bu mücadelede toplanan galibiyet">🏆 ${b.galibiyet} galibiyet</span>`:""}
         <span class="muted" style="font-size:.76rem">${b.ago}</span>
         <span style="margin-left:auto" class="tag">${t("profile.vs")} ${oppName}${b.oppClan?" · "+esc(b.oppClan):""}</span>
         ${ledger}${b.madalyonlu?polDelta(b.change,14):""}
