@@ -302,7 +302,24 @@ function yukle() {
     if (d.onceki && d.onceki.hucre) db.onceki = { savas: d.onceki.savas || 0, hucre: d.onceki.hucre };
     if (d.desteSay) db.desteSay = d.desteSay;
     if (d.kart) db.kart = d.kart;
-    if (Array.isArray(d.gorulen)) for (const [j, s] of d.gorulen) db.gorulen.set(j, s);
+    /* BİÇİM DEĞİŞİMİ GÖÇÜ.
+
+       "Görülen maç" listesi mükerrer sayımı önlüyor. Ama tablo yapısı
+       değiştiğinde (cift → hucre) eski liste yüklenirse yeni indeks o
+       maçları "zaten sayıldı" diye ATLIYOR ve tablo günlerce boş kalıyor.
+       Yayında ölçüldü: ilk turda 9.000 maç beklenirken 363 geldi, tablo
+       7 hücrede kaldı.
+
+       Yeni yapıda veri yoksa görülen listesi de BIRAKILIYOR; böylece
+       günlüklerdeki ~4 günlük geçmiş baştan taranıp tablo hemen doluyor.
+       Bedeli yok: sayılmamış maçları yeniden görmek mükerrer sayım
+       değil, ilk sayım. */
+    const yeniYapiVar = !!(d.bu && d.bu.hucre);
+    if (yeniYapiVar && Array.isArray(d.gorulen))
+      for (const [j, s] of d.gorulen) db.gorulen.set(j, s);
+    else if (Array.isArray(d.gorulen) && d.gorulen.length)
+      console.log("\u2694\ufe0f  Tablo yapisi degismis \u2014 " + d.gorulen.length +
+                  " gorulen mac kaydi birakildi, indeks bastan kuruluyor.");
     db.guncel = d.guncel || 0;
     console.log(`⚔️  Eşleşme tablosu yüklendi (${db.bu.savas.toLocaleString("tr")} maç · ${Object.keys(db.bu.hucre).length} hücre · ${Object.keys(db.desteSay).length} deste).`);
   } catch { /* ilk çalıştırma */ }
