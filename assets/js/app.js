@@ -1013,11 +1013,37 @@ function deckElixir(cards){
   return (sum / cards.length).toFixed(1);
 }
 
-/* in-game copy link: clashroyale://copyDeck?deck=id;id;... (needs all 8 ids) */
+/* ============================================================
+   DESTEYİ OYUNDA AÇAN BAĞLANTI
+   ------------------------------------------------------------
+   HATA (kullanıcı bildirdi): çark ve Cenabet destesinde oyun açılıyor,
+   "Yapıştır" çıkıyor, basınca deste GELMİYOR. Başka sitelerde sorun yok.
+
+   SEBEP: eskiden ham uygulama şeması üretiliyordu —
+       clashroyale://copyDeck?deck=…
+   Supercell'in kendi bağlantı sayfası incelendiğinde görülüyor ki bu
+   şemayı SAYFANIN KENDİSİ kuruyor; yayımlanan adres https:
+
+       link.clashroyale.com/deck/<dil>?deck=…
+       sayfa ayarı: "linkCommandOverride":"copyDeck?", "appScheme":"clashroyale"
+
+   İki ayrı yerde bozuluyordu:
+     1) Adres — ham şema uygulamayı açıyor ama iOS/Android evrensel
+        bağlantı aktarımını atladığı için deste verisi uygulamaya
+        geçmiyor. Uygulama kurulu değilse de sayfa hiç açılmıyordu.
+     2) PANO — açılıştan önce bağlantıyı panoya da yazıyoruz. Oyunun
+        "Yapıştır" ekranı panodaki metni ayrıştırıyor ve `clashroyale://…`
+        metnini tanımıyor. Kullanıcının gördüğü tam olarak buydu.
+   İkisi de https adrese geçirildi: hem doğrudan açılış hem panodan
+   yapıştırma artık diğer siteler ne gönderiyorsa onu gönderiyor.
+
+   Dil parçası yalnızca uygulama kurulu değilken açılan yedek sayfanın
+   dilini belirliyor; ikisi de sınandı (200 döndü). */
+const DESTE_BAG_DIL = () => (typeof LANG !== "undefined" && LANG === "tr" ? "tr" : "en");
 function copyDeckLink(cards){
   const ids = cards.map(k => CARD_DB[k]?.id).filter(Boolean);
   if (ids.length !== cards.length) return null;
-  return `clashroyale://copyDeck?deck=${ids.join(";")}`;
+  return `https://link.clashroyale.com/deck/${DESTE_BAG_DIL()}?deck=${ids.join(";")}`;
 }
 
 /* "Desteyi oyunda aç" düğmesi. Tek yerde duruyor çünkü artık üç ekranda
@@ -1194,11 +1220,16 @@ function eslesmeRozeti(benimKeys, rakipKeys, benim){
 
 /* Desteyi oyunda aç.
 
-   Bağlantı `clashroyale://` şemasını kullanıyor: telefonda oyunu açar ve
-   desteyi doğrudan deste kopyalama ekranına koyar. Masaüstünde bu şemayı
-   karşılayan bir uygulama yok, yani tıklamak görünürde hiçbir şey yapmaz —
-   o yüzden bağlantıyı panoya da alıyoruz ve ne olduğunu söylüyoruz.
-   Böylece tek düğme her iki yerde de işe yarıyor. */
+   Bağlantı artık Supercell'in EVRENSEL bağlantısı
+   (link.clashroyale.com/deck/…). Telefonda oyun kuruluysa işletim
+   sistemi bağlantıyı doğrudan oyuna aktarıyor ve deste kopyalama
+   ekranına düşüyor; kurulu değilse Supercell'in kendi sayfası açılıyor.
+   Eski ham `clashroyale://` şeması ikisini de yapmıyordu (bkz.
+   copyDeckLink başlığındaki hata notu).
+
+   Panoya da AYNI https adres yazılıyor: oyunun "Yapıştır" ekranı
+   panodaki metni ayrıştırıyor ve tanıdığı biçim bu. Hatanın asıl
+   sebebi buydu — pano ham şemayı taşıyordu ve oyun onu okuyamıyordu. */
 async function openDeck(link, btn){
   if (!link) return;
   const tr = LANG === "tr";

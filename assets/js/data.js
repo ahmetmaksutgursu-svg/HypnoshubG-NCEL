@@ -4,7 +4,7 @@
    same render code works for live and demo data.
 
    `id` = official Supercell card id, used to build in-game
-   copyDeck links (clashroyale://copyDeck?deck=...). When the
+   copyDeck bağlantıları (link.clashroyale.com/deck/…?deck=...). When the
    live API is connected, real ids from the API override these.
    ============================================================ */
 
