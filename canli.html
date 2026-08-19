@@ -62,6 +62,10 @@ mountChrome("canli.html");
    name (+ world rank at match time), clan, then the medal ledger
    "before → after" with the signed change. They used to share a line and ran
    into each other on narrow screens. */
+/* Bir tarafın TÜM oyuncuları. 2v2'de iki kişi, bire birde tek kişi. */
+function taraf(liste, right){
+  return (liste || []).map((p) => side(p, right)).join("");
+}
 function side(pl, right){
   const link = pl.tag ? `oyuncu.html?tag=${encodeURIComponent(pl.tag)}` : "";
   const rozet = verifyTick(pl);        // resmi hesap tiki + dünya ilk 100 (PRO)
@@ -93,7 +97,8 @@ function matchHtml(m){
   /* Eşleşme oranı: burada "senin desten" diye bir taraf yok, o yüzden iki
      kazanma koşulu da adıyla yazılıyor. Yalnızca sıralamalı maçlarda —
      akıştaki maçların hepsi öyle ama kural tek yerde dursun. */
-  const mu = m.ranked ? eslesmeRozeti(m.p1.deck, m.p2.deck, false) : "";
+  /* 2v2'de rozet yok: bir tarafta iki ayrı deste var. */
+  const mu = (m.ranked && m.tekTek !== false) ? eslesmeRozeti(m.p1.deck, m.p2.deck, false) : "";
   return `<div class="match-card">
     <div class="match-top">
       <span class="mtype" title="${esc(battleTypeHint(m))}">${esc(battleTypeName(m))}</span>
@@ -101,13 +106,13 @@ function matchHtml(m){
       ${m.ago?`<span class="mago">${m.ago}</span>`:''}
     </div>
     <div class="match-grid">
-      ${side(m.p1,false)}
+      <div class="match-team">${taraf(m.takim1 && m.takim1.length ? m.takim1 : [m.p1], false)}</div>
       <div class="match-score">
         <div class="sc"><span style="color:${w1?'var(--green-600)':'var(--text-muted)'}">${m.c1}</span><span class="l"> - </span><span style="color:${w2?'var(--green-600)':'var(--text-muted)'}">${m.c2}</span></div>
         <div class="vs">${t("live.vs")}</div>
-        <div class="win-badge">${w1?m.p1.name:m.p2.name} 👑</div>
+        <div class="win-badge">${(w1 ? (m.takim1 || [m.p1]) : (m.takim2 || [m.p2])).map((p) => esc(p.name)).join(" + ")} 👑</div>
       </div>
-      ${side(m.p2,true)}
+      <div class="match-team right">${taraf(m.takim2 && m.takim2.length ? m.takim2 : [m.p2], true)}</div>
     </div>
   </div>`;
 }

@@ -1158,9 +1158,19 @@ function eslesmeRozeti(benimKeys, rakipKeys, benim){
   const yuzde = tr ? ("%" + p) : (p + "%");
   /* Profilde "senin desten" belli; akışta soldaki destenin arketibini
      yazıyoruz ki oranın kime ait olduğu anlaşılsın. */
+  /* Etiket: önce arketip adı. Deste bir meta destesi olduğu hâlde katman 1
+     kazanma koşulu taşımıyorsa (havan/kontrol desteleri gibi) deste adına
+     düşülüyor — eskiden orada "Soldaki" yazıyordu ve oranın kime ait olduğu
+     yine anlaşılmıyordu. */
+  const arketipAd = cardNameOf(eslesmeArketip(benimKeys)?.key);
+  /* nameDeck BÜYÜK HARF döndürüyor; rozette "ELİT BARBARLAR %59 – %41 Havan"
+     gibi karışık bir görünüm çıkıyordu. Baş harf büyük, gerisi küçük. */
+  const desteAd = String(nameDeck(benimKeys) || "").replace(/\s*(DESTESİ|DECK)$/i, "")
+    .toLocaleLowerCase("tr")
+    .replace(/(^|\s)(\S)/g, (m, a, b) => a + b.toLocaleUpperCase("tr"));
   const sahip = benim
     ? (tr ? "Desten" : "Your deck")
-    : esc(cardNameOf(eslesmeArketip(benimKeys)?.key) || (tr ? "Soldaki" : "Left"));
+    : esc(arketipAd || desteAd || (tr ? "Soldaki" : "Left"));
 
   const ipucu = tr
     ? (benim ? "Senin desten" : "Soldaki oyuncunun destesi")
@@ -1173,8 +1183,12 @@ function eslesmeRozeti(benimKeys, rakipKeys, benim){
       + rakipAd + " decks it won " + p + "% over " + nfTR(e.n)
       + " games (±" + e.pay.toFixed(0) + " points).";
 
+  /* İKİ oranı da yaz. Tek taraf yazılınca 'Havan %57 vs Golem' okunuyordu
+     ve Golem'in oranı yok sanılıyordu (kullanıcı bildirimi). Karşı taraf
+     AYNI hücrenin tümleyeni: aynı maçların kalanını o kazanmış. */
+  const karsi = tr ? ('%' + (100 - p)) : ((100 - p) + '%');
   return '<span class="mu-chip ' + cls + '" title="' + ipucu + '">'
-       + '⚔️ ' + sahip + ' <b>' + yuzde + '</b> vs ' + rakipAd + '</span>';
+       + '⚔️ ' + sahip + ' <b>' + yuzde + '</b> – <b>' + karsi + '</b> ' + rakipAd + '</span>';
 }
 
 
@@ -1723,8 +1737,17 @@ function mapBattle(b){
         deck:d.keys, evo:d.evo, hero:d.hero,
       };
     };
+    /* 2v2'de bir tarafta İKİ oyuncu var. Eskiden yalnızca team[0] ve
+       opponent[0] alınıyordu; ekranda takım arkadaşının adı ve destesi hiç
+       görünmüyordu (kullanıcı bildirimi). Sunucu zaten iki tarafın da bütün
+       oyuncularını rozetleriyle gönderiyor, eksik olan yalnızca burasıydı. */
+    const takim = (arr) => (arr || []).filter(Boolean).map((p) => side(p, reg(p.cards)));
     return {
       p1: side(me, md), p2: side(op, od),
+      takim1: takim(b.team), takim2: takim(b.opponent),
+      /* Eşleşme oranı yalnızca bire birde anlamlı: 2v2'de bir tarafta iki
+         ayrı deste var, "destenin oranı" diye tek bir şey yok. */
+      tekTek: (b.team || []).length === 1 && (b.opponent || []).length === 1,
       c1, c2, crowns:`${c1}-${c2}`, winner:c1>=c2?1:2,
       ranked: b.type === "pathOfLegend",
       madalyonlu, lig: b.leagueNumber ?? null,
