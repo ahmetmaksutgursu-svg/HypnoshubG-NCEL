@@ -2018,6 +2018,11 @@ function mapOwnBattle(b, myTag){
       oppVerified: !!op.verified, oppNote: op.note || "", oppPro: !!op.pro, oppProRank: op.proRank || null,
       oppClan: op.clan?.name || "", oppClanTag: op.clan?.tag || "",
       myDeck: md.keys, myEvo: md.evo, myHero: md.hero, opDeck: od.keys, opEvo: od.evo, opHero: od.hero,
+      /* 2v2'de bir tarafta İKİ oyuncu var. Eskiden yalnızca mine[0] ve
+         theirs[0] okunuyordu; profil savaş günlüğünde takım arkadaşının
+         adı ve destesi hiç görünmüyordu (kullanıcı bildirimi). */
+      benimTakim: mine.map((p) => ({ ad: p.name || "", tag: p.tag || "", ...reg(p.cards) })),
+      rakipTakim: theirs.map((p) => ({ ad: p.name || "", tag: p.tag || "", ...reg(p.cards) })),
       ago: b.battleTime ? relativeTime(crTime(b.battleTime)) : "",
     };
   } catch { return null; }

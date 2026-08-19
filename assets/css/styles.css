@@ -1576,7 +1576,7 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
 
 /* collection grid */
 .collection { display:grid; grid-template-columns:repeat(8,1fr); gap:8px; }
-@media (max-width:1020px){ .collection { grid-template-columns:repeat(6,1fr);} .match-grid{ grid-template-columns:1fr; text-align:left;} .match-side.right{ text-align:left;} .match-side.right .decks{ justify-content:flex-start;} .match-score{ order:3;} }
+@media (max-width:1020px){ .collection { grid-template-columns:repeat(6,1fr);} }
 @media (max-width:620px){ .collection { grid-template-columns:repeat(4,1fr);} .deck-icons .di{ width:22px; height:27px;} }
 
 /* ---------- Search results (oyuncu.html / klan.html) ----------
@@ -2282,3 +2282,77 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
 .bl-row .deck-cell { align-items:flex-start; }
 .bl-row .deck-icons.iki-sira { max-width:220px; }
 .bl-row .deck-cell + .deck-copy { align-self:flex-start; margin-top:2px; }
+
+/* ---------- Savaş günlüğünde takım desteleri ----------
+   İki sütun: solda oyuncunun takımı, sağda rakip. 2v2'de her sütunda iki
+   oyuncu alt alta dizilir, yani ekranda 2x2 bir düzen çıkar — oyunun
+   kendi maç özetiyle aynı. Bire birde sütun başına tek deste düşer ve
+   görünüm eskisiyle aynı kalır. */
+.bl-desteler { display:grid; grid-template-columns:1fr 1fr; gap:12px 16px; align-items:start; }
+.bl-yan { display:flex; flex-direction:column; gap:12px; min-width:0; }
+.bl-yan.sag { align-items:flex-end; text-align:right; }
+.bl-deste { min-width:0; }
+.bl-yan.sag .deck-cell { justify-content:flex-end; }
+@media (max-width:560px){
+  /* Dar ekranda kartlar sütuna sığsın diye biraz küçülüyor; yine de
+     8 kart yan yana dizildiği eski hâlinden çok daha büyük. */
+  .bl-desteler { gap:10px; }
+  .bl-row .deck-icons.iki-sira { gap:3px; }
+}
+
+/* ---------- Son Maçlar mobilde de YAN YANA ----------
+   Dar ekranda iki taraf alt alta diziliyordu ve maç bir karşılaşma gibi
+   okunmuyordu (kullanıcı: "alt alta kötü duruyor"). İki sütun korunuyor,
+   skor ortada; sığması için kartlar ve yazılar küçülüyor.
+
+   Ölçüm (390 px): sütun başına ~150 px kalıyor, dört kartlık satırda kart
+   ~34 px oluyor — sekizi yan yana dizen eski hâlin (22 px) hâlâ üstünde
+   ve iki deste artık aynı anda görünüyor. */
+@media (max-width:1020px){
+  /* Skor ORTADAN ÜSTE alınıyor: ortadaki sütun 60 piksel yiyordu ve iki
+     deste ona sıkışıyordu. Üste alınca sütun başına ~160 piksel kalıyor,
+     kart 28 px yerine ~38 px oluyor (ölçüldü). */
+  .match-grid {
+    grid-template-columns:1fr 1fr;
+    grid-template-areas:"skor skor" "sol sag";
+    /* stretch: sütunlar eşit boyda olsun ki desteler margin-top:auto ile
+       aynı hizaya otursun.  iken sütunlar içeriğe göre kısalıyor
+       ve uzun isimli taraf desteyi aşağı itiyordu. */
+    gap:8px; align-items:stretch;
+  }
+  .match-score { grid-area:skor; display:flex; align-items:center; justify-content:center; gap:10px; }
+  .match-grid > .match-team:first-of-type, .match-grid > .match-side:first-of-type { grid-area:sol; }
+  .match-grid > .match-team.right, .match-grid > .match-side.right { grid-area:sag; }
+}
+@media (max-width:620px){
+  .match-grid { gap:6px; }
+  .match-side .pn { font-size:.82rem; }
+  .match-side .pc { font-size:.68rem; }
+  .match-side .mledger, .match-side .pdelta { font-size:.68rem; }
+  .match-side .decks { margin-top:6px; gap:4px; }
+  .deck-icons.iki-sira { gap:3px; }
+  /* Kopyala düğmesi kartların ALTINA geçsin, yanlarında yer kalmıyor. */
+  .match-side .decks { flex-direction:column; align-items:flex-start; }
+  .match-side.right .decks { align-items:flex-end; }
+  .match-score .sc { font-size:1.1rem; }
+  .match-score .vs { font-size:.6rem; }
+  .win-badge { font-size:.55rem; }
+}
+
+/* İki tarafın desteleri AYNI HİZADA başlasın. Oyuncu adı sarınca ya da
+   klan adı uzun olunca üst blokların yüksekliği farklı oluyor ve desteler
+   kaykılıyordu. Taraf bir sütun olarak esnetiliyor, deste bloğu da
+   `margin-top:auto` ile en alta itiliyor — böylece iki deste hep aynı
+   satırdan başlıyor. */
+@media (max-width:1020px){
+  .match-grid > .match-team, .match-grid > .match-side { height:100%; }
+  .match-team { height:100%; }
+  .match-side { display:flex; flex-direction:column; }
+  .match-side .decks { margin-top:auto; padding-top:6px; }
+}
+
+/* .match-side, .match-team'in (flex sütun) içinde ESNEMEK zorunda; yoksa
+   içeriği kadar kısa kalıyor ve margin-top:auto çalışmıyor. */
+@media (max-width:1020px){
+  .match-team > .match-side { flex:1 1 auto; }
+}

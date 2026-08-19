@@ -289,6 +289,28 @@ function paintPlayer(p, savaslar){
   applyLang(LANG);
 }
 
+/* Bir takımın deste bloğu. Bire birde tek oyuncu, 2v2'de iki oyuncu.
+   Takım dizisi yoksa (eski kayıt) tek desteye düşülüyor. */
+function takimDesteleri(takim, b, benim){
+  const tekli = benim
+    ? [{ ad: "", deste: b.myDeck, evo: b.myEvo, hero: b.myHero }]
+    : [{ ad: "", deste: b.opDeck, evo: b.opEvo, hero: b.opHero }];
+  const liste = (takim && takim.length)
+    ? takim.map((p) => ({ ad: p.ad, deste: p.keys, evo: p.evo, hero: p.hero }))
+    : tekli;
+  return liste.map((p, i) => {
+    /* Başlık: bire birde 'SENİN DESTEN / RAKİP', 2v2'de oyuncu adı —
+       yoksa hangi destenin kime ait olduğu anlaşılmıyor. */
+    const baslik = liste.length > 1
+      ? esc(p.ad || (benim ? "Takım arkadaşı" : "Rakip"))
+      : (benim ? "SENİN DESTEN" : "RAKİP");
+    return `<div class="bl-deste">
+      <div class="bl-lbl">${baslik} · 💧 ${deckElixir(p.deste)}</div>
+      <span class="deck-cell">${deckIcons(p.deste, p.evo, "iki-sira", p.hero)}</span>${deckCopyBtn(p.deste)}
+    </div>`;
+  }).join("");
+}
+
 /* One row of the battle log. The medal ledger matches the Son Maçlar feed:
    the count going in, the count coming out, and the swing. */
 function battleRow(b){
@@ -336,11 +358,11 @@ function battleRow(b){
         ${ledger}${b.madalyonlu?polDelta(b.change,14):""}
       </div>
       ${eslesmeSatiri}
-      <div class="flex between wrap gap-12">
-        <div><div class="bl-lbl">SENİN DESTEN · 💧 ${deckElixir(b.myDeck)}</div>
-          <span class="deck-cell">${deckIcons(b.myDeck,b.myEvo,"iki-sira",b.myHero)}</span>${deckCopyBtn(b.myDeck)}</div>
-        <div style="text-align:right"><div class="bl-lbl">RAKİP · 💧 ${deckElixir(b.opDeck)}</div>
-          <span class="deck-cell">${deckIcons(b.opDeck,b.opEvo,"iki-sira",b.opHero)}</span>${deckCopyBtn(b.opDeck)}</div>
+      <!-- İki sütun: solda senin takımın, sağda rakip. 2v2'de her sütunda
+           iki oyuncu alt alta dizilir, yani ekranda 2x2 bir düzen çıkar. -->
+      <div class="bl-desteler">
+        <div class="bl-yan">${takimDesteleri(b.benimTakim, b, true)}</div>
+        <div class="bl-yan sag">${takimDesteleri(b.rakipTakim, b, false)}</div>
       </div>
     </div>`;
 }
