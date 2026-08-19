@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="HYPNOSHUB">
+  <!-- Neden ÇİZİM, neden emoji değil: emoji SVG içinde sistem yazı tipine
+       bağlı ve Google'ın tarayıcısı ile telefonlarda farklı çiziliyor ya da
+       hiç çizilmiyor. Çizilmiş yol her yerde aynı görünür.
+       Neden KARE: Google arama sonucundaki site simgesi kare ve en az 48px
+       olmak zorunda; sitenin logosu 339x300 JPEG olduğu için Google onu
+       kullanmayıp genel dünya simgesini gösteriyordu. -->
+  <rect width="64" height="64" rx="14" fill="#0b0b0d"/>
+  <rect x="1.5" y="1.5" width="61" height="61" rx="12.5" fill="none" stroke="#ff8a00" stroke-width="3"/>
+  <!-- Tokmak: sap + baş, marka turuncusuyla -->
+  <g transform="rotate(-38 32 32)">
+    <rect x="29" y="26" width="6" height="24" rx="3" fill="#ff8a00"/>
+    <rect x="18" y="14" width="28" height="14" rx="4" fill="#ff8a00"/>
+    <rect x="22.5" y="17" width="19" height="3.4" rx="1.7" fill="#0b0b0d" opacity=".45"/>
+  </g>
+</svg>

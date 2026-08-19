@@ -44,11 +44,47 @@ const store = {
   set(k,v){ try { localStorage.setItem(k,v); } catch {} },
 };
 
-/* ---------- Theme ---------- */
+/* ---------- Tema ----------
+   Üç tema var ve VARSAYILAN "gece" (turuncu/siyah). Sırayla dönüyor;
+   düğmenin ipucu ve simgesi hangi temada olduğunu söylüyor, geçişte de
+   adı bir bildirimle yazılıyor — üç durumlu bir düğmede kullanıcı aksi
+   hâlde nerede olduğunu kestiremiyor.
+
+   İlk boyamadan ÖNCE tema <head> içindeki küçük betikle uygulanıyor;
+   burada uygulansaydı sayfa bir kare beyaz yanıp sönerdi. */
+const TEMALAR = ["gece", "light", "dark"];
+const TEMA_AD = {
+  tr: { gece: "Gece (turuncu)", light: "Beyaz", dark: "Mavi gece" },
+  en: { gece: "Night (orange)", light: "Light", dark: "Blue night" },
+};
+const TEMA_SIMGE = { gece: "🌙", light: "☀️", dark: "🌘" };
+/* Tarayıcı arayüzünün (adres çubuğu) rengi de temayla uyumlu olsun. */
+const TEMA_RENK = { gece: "#0b0b0d", light: "#1e5ae0", dark: "#0f141c" };
+
+function temaSec(){
+  const t = store.get("hs-theme");
+  return TEMALAR.includes(t) ? t : TEMALAR[0];
+}
 function applyTheme(tm){
-  document.documentElement.setAttribute("data-theme", tm);
-  store.set("hs-theme", tm);
-  document.querySelectorAll("[data-theme-icon]").forEach(el => el.innerHTML = tm === "dark" ? ICONS.sun : ICONS.moon);
+  const t = TEMALAR.includes(tm) ? tm : TEMALAR[0];
+  document.documentElement.setAttribute("data-theme", t);
+  store.set("hs-theme", t);
+  const tr = typeof LANG !== "undefined" && LANG === "tr";
+  document.querySelectorAll("[data-theme-icon]").forEach((el) => {
+    el.textContent = TEMA_SIMGE[t] || "🌙";
+    const d = el.closest("button");
+    if (d) d.title = (tr ? "Tema: " : "Theme: ") + (TEMA_AD[tr ? "tr" : "en"][t] || t);
+  });
+  const m = document.querySelector('meta[name="theme-color"]');
+  if (m) m.setAttribute("content", TEMA_RENK[t] || "#0b0b0d");
+}
+function toggleTheme(){
+  const simdi = document.documentElement.getAttribute("data-theme") || TEMALAR[0];
+  const i = TEMALAR.indexOf(simdi);
+  const yeni = TEMALAR[(i < 0 ? 0 : i + 1) % TEMALAR.length];
+  applyTheme(yeni);
+  const tr = typeof LANG !== "undefined" && LANG === "tr";
+  if (typeof toast === "function") toast((tr ? "Tema: " : "Theme: ") + TEMA_AD[tr ? "tr" : "en"][yeni]);
 }
 /* ============================================================
    SES  🔊  — dosyasız, kodla üretilen efektler
@@ -158,10 +194,8 @@ function sesKazandi(gecikme = 0){
   });
 }
 
-function toggleTheme(){
-  const cur = document.documentElement.getAttribute("data-theme") || "light";
-  applyTheme(cur === "dark" ? "light" : "dark");
-}
+/* (eski ikili tema düğmesi kaldırıldı — üç tema için yukarıdaki
+   toggleTheme geçerli) */
 
 /* ---------- i18n ---------- */
 const I18N = {
@@ -2056,39 +2090,22 @@ function mountBottomNav(active){
   altCubuguSabitle();
 }
 
-/* Alt çubuğu GÖRSEL görünüm alanının altına yapıştırır.
+/* Alt çubuk: SADECE position:fixed; bottom:0.
 
-   `position:fixed` mobil Safari'de DÜZEN görünüm alanına göre konumlanır,
-   ekranda gerçekten görünen alana göre değil. İkisi aynı şey değil: sayfayı
-   kaydırınca Safari'nin alt araç çubuğu toplanıyor, görünen alan büyüyor ama
-   düzen alanı olduğu yerde kalıyor — çubuk da bu yüzden ekranın altına
-   yapışmayıp yukarıda asılı kalıyor ve altında içerik görünüyor.
+   Bir dönem burada visualViewport ile öteleme yapılıyordu — iOS Safari'nin
+   düzen görünüm alanı ile görünen alanı ayrıldığında çubuk yukarıda asılı
+   kalıyor sanılmıştı. Ama kullanıcı bunun TERSİNİ bildirdi: çubuk ekranın
+   altından AYRILIYOR, altında boşluk kalıyor.
 
-   visualViewport iki alan arasındaki farkı bize veriyor; farkı kadar aşağı
-   ötelersek çubuk her durumda gerçek ekran altında duruyor. Tarayıcı bu API'yi
-   desteklemiyorsa hiçbir şey yapılmıyor ve davranış eski hâline dönüyor —
-   yani masaüstünde ve Android'de zaten doğru olan `bottom:0`. */
-function altCubuguSabitle(){
-  const vv = window.visualViewport;
-  const el = document.querySelector(".bottom-nav");
-  if (!el || !vv) return;
-  let bekleyen = false;
-  const uygula = () => {
-    bekleyen = false;
-    const cubuk = document.querySelector(".bottom-nav");
-    if (!cubuk) return;
-    /* Düzen alanının altı ile görünen alanın altı arasındaki fark.
-       Negatife düşmesin: klavye açıkken vv.height küçülüyor, o durumda
-       çubuğu klavyenin üstüne itmek doğru davranış. */
-    const fark = document.documentElement.clientHeight - (vv.height + vv.offsetTop);
-    cubuk.style.transform = fark > 0.5 ? `translateY(${-fark}px)` : "";
-  };
-  const planla = () => { if (!bekleyen){ bekleyen = true; requestAnimationFrame(uygula); } };
-  vv.addEventListener("resize", planla);
-  vv.addEventListener("scroll", planla);
-  window.addEventListener("orientationchange", () => setTimeout(planla, 250));
-  planla();
-}
+   Sebep büyük olasılıkla ötelemenin kendisi: modern iOS/Android
+    ile çubuğu zaten GÖRÜNEN alanın altına
+   yapıştırıyor, üstüne bir de fark kadar yukarı itince aradaki boşluk
+   açılıyor. Öteleme kaldırıldı; güvenli alan payı CSS'te
+   (padding-bottom: env(safe-area-inset-bottom)) duruyor.
+
+   Başsız tarayıcıda iOS Safari davranışı taklit edilemiyor, yani bu
+   düzeltme gerçek cihazda doğrulanmalı. */
+function altCubuguSabitle(){ /* öteleme yok — bkz. yukarıdaki not */ }
 function bottomIcon(key){
   return ({ "nav.home":"🏠","nav.meta":"🃏","nav.ranks":"🏆","nav.live":"🔴","nav.cards":"📇","nav.fun":"🎉","nav.cenabet":"🤪" })[key] || "•";
 }
@@ -2120,7 +2137,12 @@ function buildFooter(){
           <!-- "Gizlilik" bir dönem href="#" olduğu için kaldırılmıştı; artık
                gerçek bir sayfası var (aydınlatma metni + KVKK hakları) ve
                yasal olarak her sayfadan ulaşılabilir olması gerekiyor. -->
+          <a href="hakkinda.html">${LANG==="tr"?"Hakkımızda":"About"}</a>
           <a href="gizlilik.html" data-i18n="footer.privacy">${t("footer.privacy")}</a>
+          <!-- Reklam ağları (AdSense) sitede gizlilik politikası, hakkında ve
+               kullanım koşulları sayfalarının HER SAYFADAN ulaşılabilir olmasını
+               istiyor; üçü de burada. -->
+          <a href="kullanim.html">${LANG==="tr"?"Kullanım Koşulları":"Terms"}</a>
           <h4 style="margin-top:16px" data-i18n="footer.contact">${t("footer.contact")}</h4>
           <a href="mailto:${CONTACT.mail}" class="social-link">${ICONS.mail}<span>${CONTACT.mail}</span></a>
         </div>
@@ -2179,6 +2201,7 @@ function openDrawer(){
       ${link("oyuncu.html", t("home.player.title"), "👤")}
       ${link("klan.html", t("home.clan.title"), "🔍")}
       ${link("guncellemeler.html", t("nav.updates"), "📢")}
+      ${link("hakkinda.html", LANG==="tr"?"Hakkımızda":"About", "ℹ️")}
       <div class="dr-sec fun">🎉 ${t("chrome.fun")}</div>
       ${link("eglence.html", t("fun.rank"), "🎲")}
       ${link("eglence.html#cark", t("fun.wheel"), "🎡")}
@@ -2205,7 +2228,7 @@ function openDrawer(){
     </aside>`;
   requestAnimationFrame(()=>d.classList.add("open"));
   attachSuggest(document.getElementById("drInput"), () => document.getElementById("drType").value);
-  applyTheme(document.documentElement.getAttribute("data-theme")||"light");
+  applyTheme(document.documentElement.getAttribute("data-theme") || temaSec());
   document.querySelectorAll("#hs-drawer [data-lang-label]").forEach(el=>el.textContent=LANG.toUpperCase());
   document.addEventListener("keydown", drEsc);
 }
@@ -3351,7 +3374,7 @@ function mountChrome(active){
   if (h) h.innerHTML = buildHeader(active);
   if (f) f.innerHTML = buildFooter();
   mountBottomNav(active);   // gövdenin son çocuğu — bkz. fonksiyondaki not
-  applyTheme(store.get("hs-theme") || "light");
+  applyTheme(temaSec());
   applyLang(LANG);
   attachSuggest(document.getElementById("searchInput"), () => document.getElementById("searchType")?.value || "player");
   loadCardNames();

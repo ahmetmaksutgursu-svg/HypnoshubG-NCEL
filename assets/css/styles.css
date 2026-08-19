@@ -71,6 +71,52 @@
   --shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.4);
 }
 
+/* ============================================================
+   GECE — turuncu / siyah  (VARSAYILAN TEMA)
+   ------------------------------------------------------------
+   Siteyi ilk açan bu temayı görüyor; isteyen beyaza ya da maviye
+   geçebiliyor (üst çubuktaki tema düğmesi).
+
+   Neden mavi belirteçlerin adı değişmedi: sitedeki yüzlerce kural
+   vurgu rengi için --blue-600 kullanıyor. Belirtecin DEĞERİNİ burada
+   turuncuya çevirmek, düğmelerden bağlantılara, etkin sekmeden
+   rozetlere kadar hepsini tek hamlede çeviriyor. Adları toptan
+   değiştirmek yüzlerce satıra dokunmak demekti ve her dokunuş yeni
+   bir hata riski. Ad tarihsel, DEĞER güncel.
+
+   Zemin saf siyah değil (#0b0b0d): saf siyah üstünde turuncu titriyor
+   ve kart kenarları kayboluyor. Basamaklar arasında görünür fark var
+   ki kartlar zeminden ayrılsın.
+   ============================================================ */
+[data-theme="gece"] {
+  --bg: #0b0b0d;
+  --bg-soft: #121215;
+  --surface: #17171b;
+  --surface-2: #1f1f24;
+  --border: #2b2b31;
+  --border-strong: #3a3a42;
+  --text: #f4f4f6;
+  --text-soft: #b6b6bf;
+  --text-muted: #85858f;
+
+  /* Turuncu vurgu — adı mavi, değeri turuncu (bkz. yukarıdaki not) */
+  --blue-900: #121214;   /* koyu şeritler / alt bilgi */
+  --blue-700: #d97400;
+  --blue-600: #ff8a00;
+  --blue-500: #ffa333;
+  --blue-100: #2a1a06;   /* turuncunun çok koyu zemini */
+  --link: #ff9d2e;
+
+  /* Altın (kupa) turuncuya çok yakın kalmasın diye biraz sarıya çekildi */
+  --gold-600: #b98a20;
+  --gold-500: #dcae3c;
+  --gold-400: #f0d089;
+  --gold-100: #241d0c;
+
+  --shadow: 0 10px 34px rgba(0, 0, 0, 0.6);
+  --shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.5);
+}
+
 * { box-sizing: border-box; }
 
 /* `hidden` niteliği HER ZAMAN gizlesin.
@@ -156,7 +202,7 @@ h1,h2,h3 { line-height: 1.15; margin: 0 0 .5em; letter-spacing: -.01em; }
 /* HYPNOS = white (outlined so it stays readable on light header), COUT = blue */
 .brand-name .w { color: #ffffff; -webkit-text-stroke: 0.8px #22304a; text-stroke: 0.8px #22304a; text-shadow: 0 1px 1px rgba(0,0,0,.18); }
 .brand-name .b { color: var(--blue-600); }
-[data-theme="dark"] .brand-name .w { -webkit-text-stroke: 0.6px rgba(0,0,0,.4); }
+[data-theme="dark"] .brand-name .w, [data-theme="gece"] .brand-name .w{ -webkit-text-stroke: 0.6px rgba(0,0,0,.4); }
 /* On dark footer the white needs no strong outline */
 .site-footer .brand-name .w { -webkit-text-stroke: 0; text-shadow: none; }
 .brand-sub { font-size: .58rem; font-weight: 800; letter-spacing: .18em; color: var(--text-muted); text-transform: uppercase; margin-top: 3px; }
@@ -293,7 +339,7 @@ h1,h2,h3 { line-height: 1.15; margin: 0 0 .5em; letter-spacing: -.01em; }
   position: absolute; right: -30px; top: 50%; transform: translateY(-50%) rotate(-8deg);
   opacity: .16; z-index: 1; pointer-events: none;
 }
-[data-theme="dark"] .hero-watermark { opacity: .10; }
+[data-theme="dark"] .hero-watermark, [data-theme="gece"] .hero-watermark{ opacity: .10; }
 .hero-watermark img, .hero-watermark svg { width: 380px; height: 380px; object-fit: contain; }
 /* Tokmakçılar tablosu tek sütuna düşünce (≤1100px) sağdaki alan bomboş
    kalıyordu. Filigranı gizlemek yerine oraya, arama kartlarının hizasına
@@ -779,7 +825,7 @@ table.data .rank.top3 { color: #c98a3f; }
   background: var(--gold-100); border: 1px solid #f0dca0; color: #7a5c05;
   padding: 12px 16px; border-radius: 12px; font-size: .86rem; display:flex; gap:10px; align-items:flex-start;
 }
-[data-theme="dark"] .notice { border-color:#5a4a12; color: var(--gold-400); }
+[data-theme="dark"] .notice, [data-theme="gece"] .notice{ border-color:#5a4a12; color: var(--gold-400); }
 
 /* ---------- Resmi hesap tiki ----------
    Rozet mavi, içindeki onay beyaz. Adın hemen yanında durur. */
@@ -967,7 +1013,7 @@ h1 .vtick { width:.82em; height:.82em; }
    Örnek veri basmayı bıraktığımız için bu kutu artık boş kalan
    tabloların/ızgaraların yerini tutuyor, o yüzden ortalanıyor. */
 .notice.warn { background:#fdeaea; border-color:#f0b4b4; color:#8c2b2b; }
-[data-theme="dark"] .notice.warn { background:rgba(140,43,43,.16); border-color:#7a3535; color:#f3b9b9; }
+[data-theme="dark"] .notice.warn, [data-theme="gece"] .notice.warn{ background:rgba(140,43,43,.16); border-color:#7a3535; color:#f3b9b9; }
 .notice.warn .btn { display:inline-flex; margin-top:10px; padding:7px 14px; font-size:.82rem; }
 td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
 
@@ -1038,12 +1084,12 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   position:absolute; right:-24px; top:50%; transform:translateY(-50%) rotate(-7deg);
   z-index:0; pointer-events:none; user-select:none; opacity:.17;
 }
-[data-theme="dark"] .page-watermark { opacity:.11; }
+[data-theme="dark"] .page-watermark, [data-theme="gece"] .page-watermark{ opacity:.11; }
 .page-watermark img { width:230px; height:230px; object-fit:contain; display:block; }
 /* Dar ekranda başlığın üstüne biniyor: küçült, soluklaştır, en darda kaldır. */
 @media (max-width: 900px) {
   .page-watermark { right:-40px; opacity:.10; }
-  [data-theme="dark"] .page-watermark { opacity:.07; }
+  [data-theme="dark"] .page-watermark, [data-theme="gece"] .page-watermark{ opacity:.07; }
   .page-watermark img { width:180px; height:180px; }
 }
 /* Dar ekranda gizlenmiyor, KÜÇÜLÜP KÖŞEYE çekiliyor. Önce `display:none`
@@ -1052,7 +1098,7 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
    ikisini birden çözüyor: yazının okunduğu sol tarafa hiç girmiyor. */
 @media (max-width: 620px) {
   .page-watermark { right:-22px; top:50%; transform:translateY(-50%) rotate(-7deg); opacity:.17; }
-  [data-theme="dark"] .page-watermark { opacity:.11; }
+  [data-theme="dark"] .page-watermark, [data-theme="gece"] .page-watermark{ opacity:.11; }
   .page-watermark img { width:120px; height:120px; }
 }
 .page-strip h1 { font-size: clamp(1.5rem,3.2vw,2.2rem); font-weight:900; margin:0; }
@@ -1079,9 +1125,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
 }
 .cn-kutu.buyuk { background: var(--blue-100); border-color: transparent; }
 .cn-kutu.buyuk .cn-sayi { color: var(--blue-700); font-size: 1.8rem; }
-[data-theme="dark"] .cn-kutu.buyuk .cn-sayi { color: var(--blue-500); }
+[data-theme="dark"] .cn-kutu.buyuk .cn-sayi, [data-theme="gece"] .cn-kutu.buyuk .cn-sayi{ color: var(--blue-500); }
 .cn-kutu.aktif .cn-sayi { color: var(--green-600); }
-[data-theme="dark"] .cn-kutu.aktif .cn-sayi { color: var(--green-400); }
+[data-theme="dark"] .cn-kutu.aktif .cn-sayi, [data-theme="gece"] .cn-kutu.aktif .cn-sayi{ color: var(--green-400); }
 
 .cn-liste { margin-top: 16px; }
 .cn-baslik {
@@ -1123,7 +1169,7 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
 /* Silme yıkıcı bir işlem; rengiyle de ayrılıyor ama varsayılan olarak
    bağırmıyor — yanlışlıkla basılmasını zorlaştıran asıl şey onay ekranı. */
 .kvkk-haklar .kh-sil { color: #c0392b; border-color: rgba(192,57,43,.35); }
-[data-theme="dark"] .kvkk-haklar .kh-sil { color: #f0897a; border-color: rgba(240,137,122,.3); }
+[data-theme="dark"] .kvkk-haklar .kh-sil, [data-theme="gece"] .kvkk-haklar .kh-sil{ color: #f0897a; border-color: rgba(240,137,122,.3); }
 .kh-sil-onay { background: #c0392b !important; border-color: #c0392b !important; }
 .kh-sil-onay:hover { background: #a83226 !important; }
 
@@ -1149,8 +1195,8 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
 .yasal td.gizli { color: var(--green-600); font-weight: 700; }
 /* Koyu temada bu iki ton okunmuyor; belirteçler tema başına yeniden
    tanımlanmadığı için burada açıkça daha açık basamağa geçiliyor. */
-[data-theme="dark"] .yasal td.acik  { color: var(--gold-400); }
-[data-theme="dark"] .yasal td.gizli { color: var(--green-400); }
+[data-theme="dark"] .yasal td.acik, [data-theme="gece"] .yasal td.acik{ color: var(--gold-400); }
+[data-theme="dark"] .yasal td.gizli, [data-theme="gece"] .yasal td.gizli{ color: var(--green-400); }
 
 /* ---------- Utilities ---------- */
 .flex { display:flex; } .between{ justify-content:space-between; } .center{ align-items:center; }
@@ -1187,7 +1233,7 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
      opak, filigran arkalarında kayboluyor. Üstte ise yalnızca başlık metni
      var — metnin zemini saydam olduğu için filigran gerçekten görünüyor. */
   .hero-watermark { right:-26px; top:14px; bottom:auto; transform:rotate(-8deg) translateY(0); opacity:.17; }
-  [data-theme="dark"] .hero-watermark { opacity:.11; }
+  [data-theme="dark"] .hero-watermark, [data-theme="gece"] .hero-watermark{ opacity:.11; }
   .hero-watermark img, .hero-watermark svg { width:160px; height:160px; }
   .header-inner { flex-wrap: wrap; row-gap: 8px; }
   /* Araçlar kendi satırında ve İÇİNDE de sarıyor: arama kutusu tam
@@ -1403,7 +1449,7 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
    yalnızca renk ve önündeki küçük tokmak farklı. */
 .tile .t-tx .ts.pts { color: var(--gold-600, #a67c00); font-weight: 800; }
 .tile .t-tx .ts.pts::before { content: "🔨"; margin-right: 4px; font-size: .72rem; }
-:root[data-theme="dark"] .tile .t-tx .ts.pts { color: var(--gold-400, #f2b807); }
+:root[data-theme="dark"] .tile .t-tx .ts.pts, [data-theme="gece"] .tile .t-tx .ts.pts{ color: var(--gold-400, #f2b807); }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .tile .t-tx .ts.pts { color: var(--gold-400, #f2b807); }
 }
@@ -1464,7 +1510,7 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   background:var(--blue-100); border:1px solid var(--border-strong); border-radius:12px;
   padding:12px 14px; font-size:.9rem; margin-top:16px; color:var(--text);
 }
-[data-theme="dark"] .modal-tip { border-color:var(--border); }
+[data-theme="dark"] .modal-tip, [data-theme="gece"] .modal-tip{ border-color:var(--border); }
 .modal-tip b { color:var(--blue-600); }
 
 /* ---------- Live matches ---------- */
@@ -1689,14 +1735,14 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   box-shadow: 0 0 0 2px #fff inset, 0 6px 16px rgba(150,100,10,.28);
   padding-top: 16px;
 }
-:root[data-theme="dark"] .hero-tile.hero-gold {
+:root[data-theme="dark"] .hero-tile.hero-gold, [data-theme="gece"] .hero-tile.hero-gold{
   background: radial-gradient(120% 80% at 50% 0%, #6b5426 0%, #4a3a1a 55%, #33280f 100%);
   box-shadow: 0 0 0 2px #7c6320 inset, 0 6px 16px rgba(0,0,0,.45);
 }
 .hero-tile.hero-gold .hero-name { color:#4a3308; text-shadow:0 1px 0 rgba(255,255,255,.55); }
 .hero-tile.hero-gold .hero-cost { color:#6d4f10; }
-:root[data-theme="dark"] .hero-tile.hero-gold .hero-name { color:#ffe9b0; text-shadow:0 1px 2px rgba(0,0,0,.6); }
-:root[data-theme="dark"] .hero-tile.hero-gold .hero-cost { color:#e2c47a; }
+:root[data-theme="dark"] .hero-tile.hero-gold .hero-name, [data-theme="gece"] .hero-tile.hero-gold .hero-name{ color:#ffe9b0; text-shadow:0 1px 2px rgba(0,0,0,.6); }
+:root[data-theme="dark"] .hero-tile.hero-gold .hero-cost, [data-theme="gece"] .hero-tile.hero-gold .hero-cost{ color:#e2c47a; }
 
 /* The gem the game stamps at the top of an unlocked hero. */
 .hero-crown {
@@ -1713,7 +1759,7 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   background:linear-gradient(180deg, rgba(255,255,255,.45), rgba(255,255,255,0));
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.6);
 }
-:root[data-theme="dark"] .hero-tile.hero-gold .hero-art {
+:root[data-theme="dark"] .hero-tile.hero-gold .hero-art, [data-theme="gece"] .hero-tile.hero-gold .hero-art{
   background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0));
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.18);
 }
@@ -1750,7 +1796,7 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
 .pick-n { font-weight: 900; font-size: .98rem; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
 .pick-d { font-size: .82rem; color: var(--text-soft); line-height: 1.4; }
 .pick-p { font-size: .72rem; color: var(--gold-600); font-weight: 800; margin-top: 2px; }
-:root[data-theme="dark"] .pick-p { color: var(--gold-400); }
+:root[data-theme="dark"] .pick-p, [data-theme="gece"] .pick-p{ color: var(--gold-400); }
 
 /* "puanlı" rozeti — küçük, soluk, satırın akışını bozmayan. */
 .pts-badge {
@@ -1758,7 +1804,7 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   padding: 2px 6px; border-radius: 999px; white-space: nowrap;
   background: rgba(242,184,7,.18); color: var(--gold-600);
 }
-:root[data-theme="dark"] .pts-badge { background: rgba(242,184,7,.16); color: var(--gold-400); }
+:root[data-theme="dark"] .pts-badge, [data-theme="gece"] .pts-badge{ background: rgba(242,184,7,.16); color: var(--gold-400); }
 .dr-link .pts-badge { margin-left: auto; }
 .main-nav .nav-sub a .pts-badge { margin-left: auto; }
 
@@ -2029,7 +2075,7 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
 .board-n { font-weight: 800; font-size: .88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .board-g { font-size: .7rem; color: var(--text-muted); font-weight: 700; white-space: nowrap; }
 .board-p { font-weight: 900; font-size: .95rem; color: var(--gold-600); min-width: 3ch; text-align: right; }
-:root[data-theme="dark"] .board-p { color: var(--gold-400); }
+:root[data-theme="dark"] .board-p, [data-theme="gece"] .board-p{ color: var(--gold-400); }
 
 .board-empty { padding: 20px 18px; font-size: .84rem; color: var(--text-soft); line-height: 1.55; margin: 0; }
 .board-note { padding: 0 18px 16px; font-size: .76rem; color: var(--text-muted); margin: 0; }

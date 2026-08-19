@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="tr" data-theme="light">
+<html lang="tr" data-theme="gece">
 <head>
 <meta charset="UTF-8">
 <!-- viewport-fit=cover: bu olmadan env(safe-area-inset-*) HER ZAMAN 0 döner,
@@ -19,9 +19,14 @@
 <meta name="twitter:title" content="Meta Desteler — HYPNOSHUB">
 <meta name="twitter:description" content="Güncel sezonun en çok oynanan Clash Royale desteleri. Kullanım ve galibiyet oranları gerçek maç kayıtlarından hesaplanıyor, tahmin yok.">
 <meta name="twitter:image" content="https://hypnoshub.pro/assets/img/hammer-logo.jpg">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="icon" href="assets/img/hammer-logo.jpg">
 <link rel="apple-touch-icon" href="assets/img/hammer-logo.jpg">
 <meta name="theme-color" content="#1e5ae0">
+<script>/* Tema İLK BOYAMADAN ÖNCE uygulanır: aşağıdaki stil dosyası
+  yüklenmeden çalıştığı için sayfa hiç yanıp sönmüyor. Varsayılan "gece". */
+try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribute("data-theme",
+["gece","light","dark"].indexOf(_t)>=0?_t:"gece")}catch(e){}</script>
 <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>

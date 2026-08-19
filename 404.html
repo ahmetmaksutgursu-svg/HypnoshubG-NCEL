@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="tr" data-theme="light">
+<html lang="tr" data-theme="gece">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -8,7 +8,12 @@
      adresin karşılığı. noindex olmadan Google yüzlerce "404" sayfasını
      ayrı sayfa sanabiliyor. -->
 <meta name="robots" content="noindex, follow">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="icon" href="assets/img/hammer-logo.jpg">
+<script>/* Tema İLK BOYAMADAN ÖNCE uygulanır: aşağıdaki stil dosyası
+  yüklenmeden çalıştığı için sayfa hiç yanıp sönmüyor. Varsayılan "gece". */
+try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribute("data-theme",
+["gece","light","dark"].indexOf(_t)>=0?_t:"gece")}catch(e){}</script>
 <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
