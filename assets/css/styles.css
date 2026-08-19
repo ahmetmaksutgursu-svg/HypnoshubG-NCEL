@@ -2253,3 +2253,32 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
 .match-team { display:flex; flex-direction:column; gap:12px; min-width:0; }
 .match-team.right { align-items:flex-end; }
 .match-team .match-side { width:100%; }
+
+/* ---------- Deste kartları 4+4 ----------
+   Son Maçlar'da sekiz kart yan yana diziliyordu; dar ekranda her biri
+   22 piksele düşüyor ve okunmuyordu (kullanıcı bildirimi: "göz yoruyor").
+   Iki satır hâlinde dizince kart iki katına çıkıyor ve oyunun kendi
+   deste görünümüne yaklaşıyor.
+
+   Genişlik sütuna göre: kartlar kabın payını paylaşıyor, sabit piksel
+   yok — böylece hem masaüstünde hem telefonda dolduruyor. */
+.deck-icons.iki-sira {
+  display:grid; grid-template-columns:repeat(4, 1fr); gap:4px;
+  width:100%; max-width:236px;
+}
+.deck-icons.iki-sira .di {
+  width:100%; height:auto; aspect-ratio:26/31; border-radius:7px;
+}
+.match-side .decks { align-items:flex-start; }
+/* Sağ taraf sağa yaslı kalsın. */
+.match-side.right .decks .deck-icons.iki-sira { margin-left:auto; }
+@media (max-width:1020px){
+  /* Tek sütuna düşünce iki taraf da sola yaslanıyor. */
+  .match-side.right .decks .deck-icons.iki-sira { margin-left:0; }
+}
+
+/* Profil savaş günlüğünde de 4+4 (Son Maçlar ile aynı düzen). Kopyala
+   düğmesi kartların yanında, üste hizalı duruyor. */
+.bl-row .deck-cell { align-items:flex-start; }
+.bl-row .deck-icons.iki-sira { max-width:220px; }
+.bl-row .deck-cell + .deck-copy { align-self:flex-start; margin-top:2px; }

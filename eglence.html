@@ -495,7 +495,11 @@ function showDeck(d){
    so the result is a deck you could actually build. The eight cards are dealt
    one at a time rather than appearing at once, which is the whole point of a
    button you press for the reveal. */
-const CEN_EVOS = 2, CEN_CHAMPS = 1, CEN_DEAL_MS = 320;
+/* Oyunun gerçek deste yapısı: en fazla 2 EVRİM + 1 KAHRAMAN.
+   Eskiden 2 evrim + 1 ŞAMPİYON seçiliyordu ve kahraman yuvası hiç
+   yoktu; üstelik evrim adayları arasına kahramanlar da karışıyordu
+   (aşağıdaki nota bakınız). */
+const CEN_EVOS = 2, CEN_KAHRAMAN = 1, CEN_DEAL_MS = 320;
 let cenTimers = [];
 
 function cenLive(){
@@ -507,17 +511,35 @@ function cenLive(){
 function cenabet(){
   cenTimers.forEach(clearTimeout); cenTimers = [];
   const all = cenLive();
-  const isChamp = (k) => CARD_DB[k].rarity === "champion" || CARD_DB[k].hero;
-  const canEvo  = (k) => !isChamp(k) && CARD_DB[k].canEvo;
+  /* KAHRAMAN ≠ EVRİM — kullanıcı bildirimi: "dev evrimi, atıcı evrimi
+     yazıyor, bunların evrimi yok".
 
-  const evos   = shuffle(all.filter(canEvo)).slice(0, CEN_EVOS);
-  const champs = shuffle(all.filter(isChamp)).slice(0, CEN_CHAMPS);
-  const used   = new Set([...evos, ...champs]);
-  const rest   = shuffle(all.filter(k => !used.has(k) && !isChamp(k)))
-                   .slice(0, 8 - evos.length - champs.length);
-  // Special slots first, exactly as the game orders them.
-  const pick = [...evos, ...champs, ...rest];
+     Sebep: canEvolve() `maxEvolutionLevel` alanına da bakıyor, ama o alan
+     kahraman mekaniğini de işaretliyor. Kahraman kartları o alanı taşır ve
+     evrim GÖRSELLERİ yoktur; bu yüzden Dev, Atıcı gibi kartlar evrim
+     adayı sanılıp üstlerine EVRİM rozeti basılıyordu.
+
+     Doğru ayrım HERO_ONLY listesi: `maxEvolutionLevel` taşıyıp evrim
+     sanatı OLMAYAN kartlar yalnızca kahramandır. HERO_DUAL (Şövalye,
+     Valkür, Silahşör, Büyücü) hem evrim hem kahraman olabildiği için
+     iki listede de kalır. */
+  const sampiyon = (k) => CARD_DB[k].rarity === "champion";
+  const yalnizKahraman = (k) => HERO_ONLY.has(CARD_DB[k].name) || HERO_NOFLAG.has(CARD_DB[k].name);
+  const kahramanOlur = (k) => !sampiyon(k) &&
+    (yalnizKahraman(k) || HERO_DUAL.has(CARD_DB[k].name));
+  const gercekEvrim = (k) => !sampiyon(k) && !yalnizKahraman(k) && CARD_DB[k].canEvo;
+
+  const evos    = shuffle(all.filter(gercekEvrim)).slice(0, CEN_EVOS);
+  const kalanlar = new Set(evos);
+  const kahramanlar = shuffle(all.filter((k) => kahramanOlur(k) && !kalanlar.has(k)))
+                        .slice(0, CEN_KAHRAMAN);
+  const used   = new Set([...evos, ...kahramanlar]);
+  const rest   = shuffle(all.filter((k) => !used.has(k)))
+                   .slice(0, 8 - evos.length - kahramanlar.length);
+  /* Özel yuvalar önce — oyunun kendi sırası. */
+  const pick = [...evos, ...kahramanlar, ...rest];
   const evoSet = new Set(evos);
+  const kahramanSet = new Set(kahramanlar);
 
   const res = document.getElementById("cenabetResult");
   const grid = document.getElementById("cenCards");
@@ -531,7 +553,9 @@ function cenabet(){
     cenTimers.push(setTimeout(() => {
       const cell = document.createElement("div");
       cell.className = "cen-deal";
-      cell.innerHTML = renderCard(k, { evo: evoSet.has(k) });
+      /* heroSlot: kartın kahraman portresi çizilsin ve altın KAHRAMAN
+         rozeti bassın — evrim moru ile karışmasın. */
+      cell.innerHTML = renderCard(k, { evo: evoSet.has(k), heroSlot: kahramanSet.has(k) });
       grid.appendChild(cell);
       if (i === pick.length - 1) cenFinish(pick);
     }, i * CEN_DEAL_MS));

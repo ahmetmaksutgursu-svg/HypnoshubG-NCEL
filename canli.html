@@ -89,7 +89,9 @@ function side(pl, right){
     <div class="pn">${right?"":rank}${name}${right?rank:""}</div>
     <div class="pc">${clan}</div>
     ${defter}
-    <div class="decks">${deckIcons(pl.deck, pl.evo||[], "", pl.hero||[])}${deckCopyBtn(pl.deck)}</div>
+    <!-- Kartlar 4+4: sekizi yan yana dizmek gözü yoruyordu (kullanıcı
+         bildirimi). Iki satır hem büyük hem oyunun kendi düzenine yakın. -->
+    <div class="decks">${deckIcons(pl.deck, pl.evo||[], "iki-sira", pl.hero||[])}${deckCopyBtn(pl.deck)}</div>
   </div>`;
 }
 function matchHtml(m){
