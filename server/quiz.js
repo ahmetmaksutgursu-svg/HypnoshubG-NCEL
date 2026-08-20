@@ -280,7 +280,25 @@ async function cards(deps) {
     rarity: c.rarity || "",
     type: kinds.get(key(c.name)) || "",
     traits: traits.get(key(c.name)) || null,
-    evo: !!(c.maxEvolutionLevel || c.iconUrls?.evolutionMedium),
+    /* EVRİM ÖLÇÜTÜ: YALNIZCA yayımlanmış evrim çizimi.
+
+       Burada `maxEvolutionLevel` de kabul ediliyordu ve YANLIŞTI: o alan
+       kahraman mekaniğini de işaretliyor. Kullanıcı bildirdi — "bu
+       kartların hangisinin evrimi var" sorusunda hiçbirinin evrimi yoktu,
+       Mini P.E.K.K.A seçildi ve DOĞRU sayıldı. Mini P.E.K.K.A bir kahraman;
+       evrimi yok, ama o alanı taşıdığı için soru onu evrimli sanıyordu.
+
+       Daha kötüsü çeldiriciler `!evo` içinden seçildiği için, dört şıkkın
+       tamamı gerçekte evrimsiz olabiliyordu: sorunun doğru cevabı yoktu.
+
+       Doğrulanabilir tek işaret evrim çizimi (41 kart). Aynı ayrımı
+       sitenin geri kalanı da kullanıyor (bkz. server/server.js →
+       heroOnlyCards ve assets/js/app.js → gercekEvrim). */
+    evo: !!c.iconUrls?.evolutionMedium,
+    /* Kahraman olup evrimi olmayan kartlar çeldirici olarak kalabilir —
+       gerçekten evrimleri yok. Ayrımı ayrıca tutuyoruz ki ileride
+       kahramanla ilgili bir soru yazılırsa tahmine gerek kalmasın. */
+    kahraman: !!c.iconUrls?.heroMedium,
     arena: arenas.get(key(c.name)) || 0,
   })).filter((c) => c.tr);
   cardAt = Date.now();
