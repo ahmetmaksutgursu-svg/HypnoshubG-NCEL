@@ -71,22 +71,79 @@ const rnd = (n) => Math.floor(Math.random() * n);
 const pick = (a) => a[rnd(a.length)];
 function shuffle(a) { const x = [...a]; for (let i = x.length - 1; i > 0; i--) { const j = rnd(i + 1); [x[i], x[j]] = [x[j], x[i]]; } return x; }
 
-/* Günün kartı herkese aynı olmalı ve tahmin edilebilir olmamalı.
-   Tarihi gizli bir tuzla karıştırıp özetliyoruz: aynı gün herkeste
-   aynı sonuç çıkar, ama yarının kartı bugünden hesaplanamaz. */
+/* Günün kartı HER HESAPTA FARKLI.
+
+   Eskiden kart yalnızca tarihten türetiliyordu, yani o gün herkese aynı
+   kart geliyordu. Site sahibi bildirdi: insanlar ikinci bir hesap açıp
+   oynuyor, cevabı öğreniyor ve asıl hesabında ilk denemede biliyor.
+   Cevabı paylaşmak da aynı kapıya çıkıyordu — bir kişinin bulduğu kart
+   herkesin cevabıydı.
+
+   Artık özet TARİH + HESAP KİMLİĞİ üzerinden alınıyor. Üç özellik de
+   korunuyor:
+     · Gün boyu SABİT — aynı hesap sayfayı yenileyince kart değişmiyor,
+       yani yeniden deneyerek kart çevirmek mümkün değil.
+     · Hesaba özel — ikinci hesapta başka kart çıkıyor, öğrenilen cevap
+       işe yaramıyor.
+     · Tahmin edilemez — tuz gizli, yarının kartı bugünden hesaplanamaz.
+
+   Not: bu değişiklik çok hesap açmayı engellemez, cevabın PAYLAŞILMASINI
+   engeller. Çok hesap için ayrı koruma var (kayıt hız sınırı). */
 const DAILY_SALT = process.env.DAILY_SALT || "hypnoshub-gunun-karti";
-function dailyIndex(n, day = dayKey()) {
-  const h = crypto.createHash("sha256").update(DAILY_SALT + "|" + day).digest();
+function dailyIndex(n, day = dayKey(), userId = "") {
+  const h = crypto.createHash("sha256").update(DAILY_SALT + "|" + day + "|" + userId).digest();
   return h.readUInt32BE(0) % n;
 }
 
 const RARITY_TR = { common: "Sıradan", rare: "Ender", epic: "Destansı", legendary: "Efsanevi", champion: "Şampiyon" };
 const KIND_TR = { Troop: "Asker", Building: "Bina", Spell: "Büyü" };
 
-/* ---------- oturumlar ---------- */
+/* ---------- oturumlar ----------
+   DEVAM EDEN OYUN SUNUCU YENİDEN BAŞLAYINCA KAYBOLMAMALI.
+
+   Oturumlar yalnızca bellekteydi. Aynı hata yarışmada yaşandı: yayın
+   günü birkaç kez dağıtım yapıldı, her dağıtım süreci yeniden başlattı
+   ve o anda oynayanların oturumu silindi. Buradaki bedeli daha ağır —
+   günlük hak oyun BAŞLARKEN düşülüyor (note), yani oturum kaybolunca
+   kişi hakkını da kaybediyor ve Günün Kartı'nda hak günde bir tane.
+
+   Oturumlar küçük ve kısa ömürlü (SESSION_TTL), diske yazmanın maliyeti
+   yok. Yazım gecikmeli: her tahminde diske gitmek gereksiz. */
+const SESSIONS_FILE = veriYolu("game-sessions.json");
 const sessions = new Map();
 const SESSION_TTL = 30 * 60e3;
-function sweep() { const n = Date.now(); for (const [k, v] of sessions) if (n - v.at > SESSION_TTL) sessions.delete(k); }
+
+let oturumZaman = null;
+function oturumKaydet() {
+  clearTimeout(oturumZaman);
+  oturumZaman = setTimeout(() => {
+    try {
+      const tmp = SESSIONS_FILE + ".tmp";
+      fs.writeFileSync(tmp, JSON.stringify([...sessions]));
+      fs.renameSync(tmp, SESSIONS_FILE);
+    } catch (e) { console.warn("⚠️  Oyun oturumları kaydedilemedi:", String(e)); }
+  }, 400);
+}
+function oturumYukle() {
+  try {
+    const ham = JSON.parse(fs.readFileSync(SESSIONS_FILE, "utf8"));
+    const simdi = Date.now();
+    let n = 0;
+    for (const [id, g] of ham) {
+      if (!g || simdi - (g.at || 0) > SESSION_TTL) continue;
+      sessions.set(id, g); n++;
+    }
+    if (n) console.log(`🎮  ${n} yarım kalan oyun oturumu geri yüklendi.`);
+  } catch { /* ilk çalıştırma */ }
+}
+oturumYukle();
+
+function sweep() {
+  const n = Date.now();
+  let dustu = 0;
+  for (const [k, v] of sessions) if (n - v.at > SESSION_TTL) { sessions.delete(k); oturumKaydet(); dustu++; }
+  if (dustu) oturumKaydet();
+}
 const newId = () => crypto.randomBytes(16).toString("hex");
 
 function mount(app, deps) {
@@ -128,11 +185,11 @@ function mount(app, deps) {
 
     const cards = (await allCards()).filter((c) => c.tr && c.elixir);
     if (cards.length < 20) return res.status(503).json({ error: "data" });
-    const answer = cards[dailyIndex(cards.length)];
+    const answer = cards[dailyIndex(cards.length, dayKey(), s.user.id)];
 
     sweep();
     const id = newId();
-    sessions.set(id, { kind: "gunun", userId: s.user.id, answer, tries: 0, at: Date.now() });
+    sessions.set(id, { kind: "gunun", userId: s.user.id, answer, tries: 0, at: Date.now() }); oturumKaydet();
     note(s.user.id, "gunun");
     res.json({
       sessionId: id, tries: 0, maxTries: 6,
@@ -161,18 +218,19 @@ function mount(app, deps) {
 
     const guess = String(req.body?.guess || "").trim();
     g.tries++; g.at = Date.now();
+    oturumKaydet();                 // ilerleme diske yazılsın
     const right = guess.localeCompare(g.answer.tr, "tr", { sensitivity: "base" }) === 0;
 
     if (right) {
       // 1. denemede 12, sonra 10, 8, 6, 4, 2
       const points = Math.max(2, RULES.gunun.maxPoints - (g.tries - 1) * 2);
       addPoints(s.user.id, points, "gunun");
-      sessions.delete(req.body.sessionId);
+      sessions.delete(req.body.sessionId); oturumKaydet();
       return res.json({ correct: true, finished: true, tries: g.tries, points, answer: g.answer.tr,
         message: `${g.tries}. denemede bildin — <b>${points} puan</b>!` });
     }
     if (g.tries >= 6) {
-      sessions.delete(req.body.sessionId);
+      sessions.delete(req.body.sessionId); oturumKaydet();
       return res.json({ correct: false, finished: true, tries: g.tries, points: 0, answer: g.answer.tr,
         message: `Hakkın bitti. Kart <b>${g.answer.tr}</b> idi.` });
     }
@@ -202,7 +260,7 @@ function mount(app, deps) {
     sweep();
     const id = newId();
     const pair = shuffle([a, b]);
-    sessions.set(id, { kind: "duello", userId: s.user.id, winner: a.winrate > b.winrate ? a.key : b.key, at: Date.now() });
+    sessions.set(id, { kind: "duello", userId: s.user.id, winner: a.winrate > b.winrate ? a.key : b.key, at: Date.now() }); oturumKaydet();
     note(s.user.id, "duello");
     res.json({
       sessionId: id,
@@ -216,7 +274,7 @@ function mount(app, deps) {
     const g = sessions.get(String(req.body?.sessionId || ""));
     if (!g || g.kind !== "duello" || g.userId !== s.user.id)
       return res.status(400).json({ error: "session" });
-    sessions.delete(req.body.sessionId);
+    sessions.delete(req.body.sessionId); oturumKaydet();
 
     const correct = String(req.body?.key || "") === g.winner;
     const points = correct ? RULES.duello.maxPoints : 0;
@@ -275,7 +333,7 @@ function mount(app, deps) {
 
     sweep();
     const id = newId();
-    sessions.set(id, { kind: "eksik", userId: s.user.id, answer: gizli.id, at: Date.now() });
+    sessions.set(id, { kind: "eksik", userId: s.user.id, answer: gizli.id, at: Date.now() }); oturumKaydet();
     note(s.user.id, "eksik");
 
     const sade = (c) => ({ id: c.id, name: c.name, elixir: c.elixir, icon: c.icon,
@@ -294,7 +352,7 @@ function mount(app, deps) {
     const g = sessions.get(String(req.body?.sessionId || ""));
     if (!g || g.kind !== "eksik" || g.userId !== s.user.id)
       return res.status(400).json({ error: "session" });
-    sessions.delete(req.body.sessionId);
+    sessions.delete(req.body.sessionId); oturumKaydet();
 
     const correct = Number(req.body?.id) === g.answer;
     const points = correct ? RULES.eksik.maxPoints : 0;
@@ -358,7 +416,7 @@ function mount(app, deps) {
 
     sweep();
     const id = newId();
-    sessions.set(id, {
+    oturumKaydet(); sessions.set(id, {
       kind: "kapisma", userId: s.user.id, at: Date.now(), dogru: 0, cevaplanan: new Set(),
       turlar: turlar.map((t) => ({ answer: t.answer, aId: t.a.id, bId: t.b.id, va: t.va, vb: t.vb, birim: t.q.birim })),
     });
