@@ -969,6 +969,11 @@ app.get("/api/rankings/global", async (req, res) => {
 */
 app.get("/api/rankings/pathoflegend", async (req, res) => {
   try {
+    /* Yanıt zaten sunucuda önbellekli; bu başlık tarayıcının da aynı
+       saniyeler içinde tekrar sormasını engelliyor. Video trafiği için
+       ölçüldü: sunucu ~275 istek/sn'de doyuyor, en ucuz kazanç tekrar
+       eden isteği hiç yaptırmamak. */
+    res.set("Cache-Control", "public, max-age=60");
     const limit = Math.min(parseInt(req.query.limit) || 100, 1000);
     const loc = req.query.location || "global";
     const withDecks = req.query.decks !== "0";
@@ -1744,6 +1749,11 @@ async function cardArenas() {
    attached — the official payload has neither, and the card game needs both. */
 app.get("/api/cards", async (req, res) => {
   try {
+    /* Yanıt zaten sunucuda önbellekli; bu başlık tarayıcının da aynı
+       saniyeler içinde tekrar sormasını engelliyor. Video trafiği için
+       ölçüldü: sunucu ~275 istek/sn'de doyuyor, en ucuz kazanç tekrar
+       eden isteği hiç yaptırmamak. */
+    res.set("Cache-Control", "public, max-age=600");
     const data = await cached("cards+kind+traits+tr", 3600e3, async () => {
       const [body, kinds, traits, tr, heroSet] = await Promise.all([
         kartListesi(),
@@ -2120,6 +2130,11 @@ function splitSlots(flagged, heroSet, deste = flagged, sirali = false) {
 
 app.get("/api/meta", async (req, res) => {
   try {
+    /* Yanıt zaten sunucuda önbellekli; bu başlık tarayıcının da aynı
+       saniyeler içinde tekrar sormasını engelliyor. Video trafiği için
+       ölçüldü: sunucu ~275 istek/sn'de doyuyor, en ucuz kazanç tekrar
+       eden isteği hiç yaptırmamak. */
+    res.set("Cache-Control", "public, max-age=120");
     const { all, ...rest } = await metaCached();   // `all` is served separately
     res.json(rest);
   } catch (e) { res.status(502).json({ error: "upstream_error", detail: String(e) }); }
@@ -2335,6 +2350,11 @@ const LIVE_MAX = 24;    // battles shown
 
 app.get("/api/live", async (req, res) => {
   try {
+    /* Yanıt zaten sunucuda önbellekli; bu başlık tarayıcının da aynı
+       saniyeler içinde tekrar sormasını engelliyor. Video trafiği için
+       ölçüldü: sunucu ~275 istek/sn'de doyuyor, en ucuz kazanç tekrar
+       eden isteği hiç yaptırmamak. */
+    res.set("Cache-Control", "public, max-age=20");
     /* Bayat-ver-arkada-tazele: derleme 100 oyuncunun günlüğünü okuyor ve
        ölçülen süresi ~4,2 sn. 60 sn'lik kopya taze sayılır; 60–300 sn arası
        eski kopya BEKLETMEDEN verilir, yenilemesi arka planda döner. Yani
@@ -2670,11 +2690,43 @@ app.use((req, res, next) => {
    <img> içinde çoğu zaman yine de çiziyor ama buna güvenilmez; türü açıkça
    söylüyoruz. Aynısı .webp için de emniyet olsun diye duruyor. */
 const EK_MIME = { ".avif": "image/avif", ".webp": "image/webp" };
+/* ============================================================
+   ÖNBELLEK BAŞLIKLARI
+   ------------------------------------------------------------
+   Ölçüldü (yayında, video öncesi): her dosya `Cache-Control: public,
+   max-age=0` ile çıkıyordu. Yani bir ziyaretçi sayfayı her açtığında
+   CSS, JS ve bütün görseller için sunucuya YENİDEN geliyordu. ETag
+   sayesinde gövde tekrar inmiyor ama her dosya için tam bir gidiş-dönüş
+   yapılıyor — 20 dosyalık bir sayfada 20 istek.
+
+   Yük testi ölçümü: sunucu ~275 istek/sn'de doyuyor (400 eşzamanlıya
+   kadar çökmüyor, kuyruğa giriyor). Trafiği azaltmanın en ucuz yolu
+   tekrar eden istekleri hiç yaptırmamak.
+
+   Süreler bilerek KISA tutuldu; yayın sırasında bir düzeltme çıkarsa
+   kullanıcıya hızla ulaşsın diye:
+     · görsel/font — 1 gün (içerik değişince dosya adı değişiyor)
+     · CSS/JS      — 5 dakika (acil düzeltme 5 dakikada yayılır)
+     · HTML        — 1 dakika (giriş noktası, taze kalmalı)
+   `stale-while-revalidate` ile tarayıcı süresi dolmuş kopyayı ANINDA
+   gösterip tazelemeyi arka planda yapıyor: kullanıcı beklemiyor.
+
+   Not: bu başlıklar Cloudflare açıldığında (turuncu bulut) kenar
+   önbelleğinin de dayanağı olur; başlıklar olmadan CF hiçbir şeyi
+   önbelleğe almaz. */
+const ONBELLEK = [
+  [/\.(webp|avif|png|jpe?g|gif|svg|ico|woff2?|ttf)$/i, "public, max-age=86400, stale-while-revalidate=604800"],
+  [/\.(css|js|mjs)$/i,                                 "public, max-age=300, stale-while-revalidate=3600"],
+  [/\.html?$/i,                                        "public, max-age=60, stale-while-revalidate=600"],
+];
 app.use(express.static(path.join(__dirname, ".."), {
   dotfiles: "deny",
   setHeaders(res, dosya) {
     const tur = EK_MIME[path.extname(dosya).toLowerCase()];
     if (tur) res.type(tur);
+    for (const [kalip, deger] of ONBELLEK) {
+      if (kalip.test(dosya)) { res.set("Cache-Control", deger); return; }
+    }
   },
 }));
 

@@ -78,6 +78,13 @@ try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribut
        <span class="board-badge" id="boardLeft">—</span>
      </div>
      <div id="boardBody"></div>
+
+     <!-- GEÇEN HAFTANIN TOKMAKÇILARI
+          Dönem bitince ana tablo sıfırlanır ama VERİ SİLİNMEZ; sunucu
+          eski dönemi saklar (server/board.js → oncekiDonem). Burada o
+          dönemi ilk üçte bitirenler duruyor. Tamamlanmış dönem yoksa
+          kutu hiç çizilmiyor — boş bir başlık göstermenin anlamı yok. -->
+     <div id="gecenHafta" hidden></div>
    </aside>
   </div>
 </section>
@@ -283,6 +290,8 @@ async function loadBoard(){
          ? `Yasakla — sıradaki ceza: ${esc(x.next||"")}`
          : `Ban — next step: ${esc(x.next||"")}`}"
          onclick="boardBan(${jsArg(x.userId)},${jsArg(x.username)})">🚫</button>`
+      + `<button class="board-del" title="Hesabı KALICI olarak sil"
+         onclick="boardSil(${jsArg(x.userId)},${jsArg(x.username)})">🗑️</button>`
     : "";
   const row = (x, me) => `
     <div class="board-row ${me?"me":""}">
@@ -301,6 +310,69 @@ async function loadBoard(){
     `<div class="board-foot">${TRb?"Toplam":"Total"} ${nfTR(d.total)} ${TRb?"tokmakçı":"players"}</div>`;
 }
 
+/* Yönetici: hesabı KALICI olarak silme.
+
+   Yasaklama geçici — süresi bitince uygunsuz ad tabloya geri geliyor.
+   Silme geri alınamaz, o yüzden iki kilit var: kullanıcı adının birebir
+   yazılması (burada) ve aynı kontrolün sunucuda TEKRAR yapılması
+   (/api/admin/sil). İstemci kontrolü yalnızca yanlışlıkla basmayı
+   önler; asıl karar sunucuda veriliyor. */
+async function boardSil(userId, username){
+  const TRb = LANG === "tr";
+  const yazilan = prompt(TRb
+    ? `"${username}" hesabı ve bütün kayıtları KALICI olarak silinecek.
+
+Geri alınamaz. Onaylamak için kullanıcı adını yazın:`
+    : `Permanently delete "${username}"?
+
+Type the username to confirm:`, "");
+  if (yazilan == null) return;
+  if (String(yazilan).trim().toLowerCase() !== String(username).toLowerCase()) {
+    toast(TRb ? "Kullanıcı adı eşleşmedi — hesap silinmedi." : "Name did not match — nothing deleted.");
+    return;
+  }
+  const r = await fetch(API_BASE + "/admin/sil", {
+    method: "POST", credentials: "same-origin",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId, username: yazilan }),
+  }).then((x) => x.json().then((j) => ({ ok: x.ok, j }))).catch(() => null);
+  if (!r) { toast(TRb ? "Sunucuya ulaşılamadı." : "Server unreachable."); return; }
+  toast(r.j.message || (r.ok ? "Silindi." : "Silinemedi."));
+  if (r.ok) { loadBoard(); loadGecenHafta(); }
+}
+/* ---------- GEÇEN HAFTANIN TOKMAKÇILARI ----------
+   Dönem 18.00'da döndüğünde ana tablo sıfırdan başlar; biten dönem
+   sunucuda saklandığı için buraya taşınır. Kimsenin verisi silinmiyor,
+   yalnızca hangi tabloda gösterildiği değişiyor. */
+async function loadGecenHafta(){
+  const TRb = LANG === "tr";
+  const kutu = document.getElementById("gecenHafta");
+  if (!kutu) return;
+  const d = await fetch(API_BASE + "/board/gecen", { credentials: "same-origin" })
+    .then(r => r.ok ? r.json() : null).catch(() => null);
+  /* Tamamlanmış dönem yoksa kutu görünmüyor. İlk hafta boyunca durum
+     bu; 27 Ağustos 18.00'dan sonra kendiliğinden dolacak. */
+  if (!d || !d.var || !d.items.length) { kutu.hidden = true; return; }
+  const madalya = ["🥇", "🥈", "🥉"];
+  const tarih = (iso) => { const t = new Date(iso);
+    return t.toLocaleDateString(TRb ? "tr-TR" : "en-GB", { day: "numeric", month: "long" }); };
+  kutu.hidden = false;
+  kutu.innerHTML =
+    '<div class="gecen-bas">' +
+      '<span class="gecen-baslik">' + (TRb ? "GEÇEN HAFTANIN TOKMAKÇILARI" : "LAST WEEK’S CHAMPIONS") + '</span>' +
+      '<span class="gecen-tarih">' + tarih(d.start) + ' – ' + tarih(d.end) + '</span>' +
+    '</div>' +
+    '<div class="gecen-liste">' + d.items.map((x) =>
+      '<div class="gecen-satir s' + x.rank + '">' +
+        '<span class="gecen-madalya">' + madalya[x.rank - 1] + '</span>' +
+        '<span class="gecen-ad">' + esc(x.username) + '</span>' +
+        '<span class="gecen-oyun">' + x.games + ' ' + (TRb ? "oyun" : "games") + '</span>' +
+        '<span class="gecen-puan">' + nfTR(x.points) + '</span>' +
+      '</div>').join("") + '</div>' +
+    '<div class="gecen-alt">' + (TRb
+      ? d.toplam + " tokmakçı yarıştı"
+      : d.toplam + " players competed") + '</div>';
+}
 /* Tablodan yasaklama. Ceza süresini sunucu belirliyor (5 dk → … → kalıcı),
    burada sadece onay alınıp istek atılıyor. */
 async function boardBan(userId, username){
@@ -316,7 +388,7 @@ async function boardBan(userId, username){
   }).then(x => x.json()).catch(() => null);
   if (!r || r.error) return toast((r && r.message) || (TRb ? "Yasaklanamadı." : "Failed."));
   toast(r.message);
-  loadBoard();                       // tablo tazelensin, yasaklı satır düşsün
+  loadBoard(); loadGecenHafta();                       // tablo tazelensin, yasaklı satır düşsün
 }
 
 /* Season bar */
@@ -404,11 +476,11 @@ function reloadHome(){ loadHome(); }
 
 (async function(){
   await loadHome();
-  loadBoard();
+  loadBoard(); loadGecenHafta();
 })();
 
 window.onLangChange = () => { paintApiStatus(); const s=seasonInfo(); document.getElementById("sDays").textContent = s.daysLeft + (LANG==="tr"?" gün kaldı":" days left"); document.getElementById("sEnd").textContent=s.endStr; };
-window.repaint = () => { loadBoard(); if (window.__vid) renderVideos(window.__vid); if (window.__meta) renderHomeMeta(window.__meta); if (window.__pl) renderLbPlayers(window.__pl); if (window.__cl) renderLbClans(window.__cl); const s = seasonInfo(); document.getElementById('sDays').textContent = s.daysLeft + (LANG==='tr'?' gün kaldı':' days left'); document.getElementById('sEnd').textContent = s.endStr; };
+window.repaint = () => { loadBoard(); loadGecenHafta(); if (window.__vid) renderVideos(window.__vid); if (window.__meta) renderHomeMeta(window.__meta); if (window.__pl) renderLbPlayers(window.__pl); if (window.__cl) renderLbClans(window.__cl); const s = seasonInfo(); document.getElementById('sDays').textContent = s.daysLeft + (LANG==='tr'?' gün kaldı':' days left'); document.getElementById('sEnd').textContent = s.endStr; };
 </script>
 </body>
 </html>

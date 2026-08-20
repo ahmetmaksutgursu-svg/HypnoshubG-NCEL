@@ -2462,3 +2462,53 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
      düşürüyordu (ölçüldü), oysa okunur alt sınır 32. */
   .bl-deste { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ---------- Geçen haftanın Tokmakçıları ----------
+   Ana tablonun ALTINDA, ondan görsel olarak ayrı bir kutu: biten dönemin
+   ilk üçü. Ana tablo canlı ve değişken, bu ise donmuş bir sonuç — aynı
+   ağırlıkta görünmemeleri gerekiyor, o yüzden daha sakin bir zemin ve
+   küçük tipografi kullanılıyor. */
+.gecen-bas {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 8px; flex-wrap: wrap;
+  padding: 12px 14px 8px; margin-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.gecen-baslik {
+  font-size: .68rem; font-weight: 900; letter-spacing: .06em;
+  color: var(--text-soft);
+}
+.gecen-tarih { font-size: .68rem; color: var(--text-soft); opacity: .8; white-space: nowrap; }
+.gecen-liste { display: flex; flex-direction: column; gap: 2px; padding: 0 8px 6px; }
+.gecen-satir {
+  display: grid; grid-template-columns: 26px minmax(0, 1fr) auto auto;
+  align-items: center; gap: 8px;
+  padding: 7px 6px; border-radius: 9px;
+}
+.gecen-satir.s1 { background: rgba(201, 154, 58, .10); }
+.gecen-madalya { font-size: 1rem; line-height: 1; text-align: center; }
+.gecen-ad {
+  font-weight: 800; font-size: .84rem; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.gecen-oyun { font-size: .7rem; color: var(--text-soft); white-space: nowrap; }
+/* Sayılar alt alta hizalansın diye tablo rakamları. */
+.gecen-puan {
+  font-weight: 900; font-size: .86rem; color: var(--gold-500);
+  font-variant-numeric: tabular-nums; min-width: 42px; text-align: right;
+}
+.gecen-alt {
+  padding: 2px 14px 12px; font-size: .68rem; color: var(--text-soft); opacity: .8;
+}
+@media (max-width: 420px) {
+  .gecen-oyun { display: none; }   /* dar ekranda ad ve puan öncelikli */
+}
+
+/* Yönetici: tablodaki satırdan hesap silme. Yasaklama düğmesinden
+   ayrı ve kırmızı — geri alınamaz bir işlem, yanlışlıkla basılmasın. */
+.board-del {
+  background: rgba(220, 53, 69, .14); border: 1px solid rgba(220, 53, 69, .35);
+  color: #ff6b7a; border-radius: 8px; cursor: pointer;
+  font-size: .72rem; line-height: 1; padding: 4px 6px;
+}
+.board-del:hover { background: rgba(220, 53, 69, .24); }

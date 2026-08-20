@@ -205,6 +205,35 @@ function addPoints(userId, points, game) {
   return row;
 }
 
+/* ---------- geçen dönem ----------
+   Kullanıcı isteği: ana sayfada "geçen haftanın Tokmakçıları" —
+   dönemi ilk üçte bitirenler, kullanıcı adı ve puanıyla.
+
+   Sıfırlama zaten kendiliğinden oluyor: dönem değişince anahtar
+   değişiyor ve yeni tablo boş başlıyor. ESKİ DÖNEM SİLİNMİYOR,
+   `db.weeks` içinde duruyor — bu uç da onu okuyor. Yani 27 Ağustos
+   18.00'da ana tablo sıfırlanırken veri kaybolmuyor, sadece yan
+   tabloya geçiyor.
+
+   TAMAMLANMIŞ dönem aranıyor: içinde bulunduğumuz dönemden geriye
+   doğru gidip veri bulunan ilk dönem veriliyor. Böylece arada boş
+   geçen bir hafta olsa bile son gerçek şampiyonlar görünür. */
+function oncekiDonem(enFazlaGeri = 8) {
+  const bu = weekStart();
+  if (!bu) return null;                       // tablo henüz açılmadı
+  for (let i = 1; i <= enFazlaGeri; i++) {
+    const d = new Date(bu);
+    d.setDate(d.getDate() - DONEM_GUN * i);
+    if (d < BASLANGIC) return null;           // açılıştan öncesi yok
+    const anahtar = tarihAnahtari(d);
+    const satirlar = db.weeks[anahtar];
+    if (satirlar && Object.keys(satirlar).length) {
+      const bit = new Date(d); bit.setDate(bit.getDate() + DONEM_GUN);
+      return { anahtar, start: d.toISOString(), end: bit.toISOString(), satirlar };
+    }
+  }
+  return null;
+}
 function mount(app, { readSession, listUsers, isAdmin, banUser, userInfo }) {
   app.use("/api/board", require("express").json({ limit: "4kb" }));
 
@@ -257,6 +286,32 @@ function mount(app, { readSession, listUsers, isAdmin, banUser, userInfo }) {
       scoring: acikMi() && (Object.keys(GAME_POINTS).length + WIRED_GAMES.length > 0),
       acik: acikMi(), acilis: BASLANGIC.toISOString(),
     });
+  });
+
+
+  /* Geçen dönemin ilk üçü — ana sayfadaki "Geçen Haftanın
+     Tokmakçıları" bölümü bunu okuyor. Yasaklı hesaplar haftalık
+     tabloda olduğu gibi burada da düşürülüyor: ödülü hak etmeyen biri
+     arşivde de durmamalı. */
+  app.get("/api/board/gecen", (req, res) => {
+    res.set("Cache-Control", "public, max-age=120");
+    const d = oncekiDonem();
+    if (!d) return res.json({ var: false, items: [] });
+    const users = new Map(listUsers().map((u) => [u.id, u]));
+    const items = Object.entries(d.satirlar)
+      .map(([id, r]) => {
+        const u = users.get(id);
+        if (!u) return null;
+        const bilgi = userInfo(id);
+        if (bilgi && bilgi.ban) return null;
+        return { username: u.username, points: r.points, games: r.games, at: r.at };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.points - a.points || a.at - b.at)
+      .slice(0, 3)
+      .map((x, i) => ({ rank: i + 1, ...x }));
+    res.json({ var: items.length > 0, hafta: d.anahtar, start: d.start, end: d.end,
+               items, toplam: Object.keys(d.satirlar).length });
   });
 
   /* Tablodan yasaklama — yalnızca yönetici.

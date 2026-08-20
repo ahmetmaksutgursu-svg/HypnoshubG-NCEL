@@ -465,6 +465,26 @@ function mount(app) {
     });
   });
 
+/* Bir hesabı ve ona bağlı BÜTÜN kayıtları siler.
+
+   Tek yerde duruyor çünkü iki yerden çağrılıyor: kişinin kendi
+   silmesi (KVKK m.7) ve yöneticinin silmesi (uygunsuz kullanıcı adı).
+   İki ayrı kopya olsaydı biri güncellenip diğeri geride kalırdı ve
+   silinmemiş kayıt sessizce ortada dolaşırdı.
+
+   Sıra önemli: önce diğer modüller, sonra hesabın kendisi. Ters
+   olsaydı kimlik kaybolur, hangi kayıtların silineceği bilinemezdi. */
+function hesabiSil(id, kim) {
+  const u = db.users.find((x) => x.id === id);
+  if (!u) return { ok: false, hata: "notfound" };
+  const ad = u.username;
+  const silinen = veriToplayicilar.map((m) => `${m.ad}: ${m.sil(id)}`);
+  for (const [t, sess] of Object.entries(db.sessions)) if (sess.userId === id) delete db.sessions[t];
+  db.users = db.users.filter((x) => x.id !== id);
+  save();
+  console.log(`🗑️  Hesap silindi (${kim}): ${ad} — ${silinen.join(", ")}`);
+  return { ok: true, ad, silinen };
+}
   /* ---------- KVKK m.7: silme hakkı ----------
      Şu ana kadar hesap silmenin hiçbir yolu yoktu. Kanun bunu bir hak
      olarak tanımlıyor ve bir e-posta yazıp beklemeye bırakmak yerine
@@ -481,16 +501,9 @@ function mount(app) {
       return res.status(400).json({ error: "admin",
         message: "Yönetici hesabı buradan silinemez. Önce yöneticiliği başka bir hesaba devredin." });
 
-    const id = u.id, ad = u.username;
-    /* Önce diğer modüller, sonra hesabın kendisi: sıra ters olursa
-       kimliği kaybeder, artık hangi kayıtları sileceğimizi bilemeyiz. */
-    const silinen = veriToplayicilar.map((m) => `${m.ad}: ${m.sil(id)}`);
-    for (const [t, sess] of Object.entries(db.sessions)) if (sess.userId === id) delete db.sessions[t];
-    db.users = db.users.filter((x) => x.id !== id);
-    save();
+    const sonuc = hesabiSil(u.id, "kendisi");
     clearCookie(res, req);
-    console.log(`🗑️  Hesap silindi: ${ad} — ${silinen.join(", ")}`);
-    res.json({ ok: true, message: "Hesabınız ve bağlı bütün kayıtlarınız silindi.", silinen });
+    res.json({ ok: true, message: "Hesabınız ve bağlı bütün kayıtlarınız silindi.", silinen: sonuc.silinen });
   });
 
   /* ---------- favori oyuncular ----------
@@ -577,6 +590,33 @@ function mount(app) {
     res.json({ items, total: list.length, query: q, yasakli: db.users.filter((u) => banState(u)).length });
   });
 
+  /* ---------- yönetici: hesap silme ----------
+     Kullanıcı isteği: "kullanıcı adını küfür yapan kişilerin hesabını
+     silmem için bana yetki ver".
+
+     Yasaklamak zaten vardı ama yasak geçici; uygunsuz bir ad tabloya
+     yasak bitince geri gelir. Silme kalıcı ve geri alınamaz, o yüzden
+     iki kilit var: yönetici oturumu VE kullanıcı adının birebir
+     yazılması. Yanlış satıra tıklamak tek başına hesap silemiyor.
+
+     Yönetici ve site sahibi silinemez — kimse kendini ya da diğer
+     yöneticiyi kilitleyemesin. */
+  app.post("/api/admin/sil", (req, res) => {
+    if (!yonetici(req, res)) return;
+    const id = String(req.body?.userId || "");
+    const onay = String(req.body?.username || "").trim();
+    const hedef = db.users.find((x) => x.id === id);
+    if (!hedef) return res.status(404).json({ error: "notfound", message: "Kullanıcı bulunamadı." });
+    if (isAdmin(hedef) || hedef.owner)
+      return res.status(400).json({ error: "admin", message: "Yönetici hesabı silinemez." });
+    if (onay.toLowerCase() !== String(hedef.username).toLowerCase())
+      return res.status(400).json({ error: "onay",
+        message: "Silmek için kullanıcı adını birebir yazın." });
+    const r = hesabiSil(id, "yönetici");
+    if (!r.ok) return res.status(404).json({ error: "notfound", message: "Kullanıcı bulunamadı." });
+    res.json({ ok: true, ad: r.ad, silinen: r.silinen,
+      message: `"${r.ad}" hesabı ve bağlı bütün kayıtları kalıcı olarak silindi.` });
+  });
   app.post("/api/admin/ban", (req, res) => {
     if (!yonetici(req, res)) return;
     const ad = String(req.body?.username || "").trim().toLowerCase();
