@@ -285,6 +285,10 @@ function mount(app, { readSession, listUsers, isAdmin, banUser, userInfo }) {
          tanımlı mı VE tablo açılış tarihine gelmiş mi. */
       scoring: acikMi() && (Object.keys(GAME_POINTS).length + WIRED_GAMES.length > 0),
       acik: acikMi(), acilis: BASLANGIC.toISOString(),
+      /* Dönem kaç gün — tablo henüz açılmadığında ön yüz ilk dönemin
+         BİTİŞİNİ bundan hesaplıyor. Yoksa "dönem bitiminde" gibi bir
+         yer tutucu yazmak zorunda kalıyordu. */
+      donemGun: DONEM_GUN,
     });
   });
 

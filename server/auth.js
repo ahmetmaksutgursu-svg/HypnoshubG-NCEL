@@ -577,10 +577,23 @@ function hesabiSil(id, kim) {
     res.json(require("./anlik").durum());
   });
 
+  /* Sınama sırasında açılmış hesapların ön ekleri. Yayın öncesi
+     temizlik için: yönetici bunları tek listede görüp silebilsin.
+     Liste DAR tutuluyor — gerçek bir kullanıcının bu adlarla kayıt olma
+     ihtimali yok denecek kadar düşük, üstelik silmeden önce hepsi
+     ekranda gösteriliyor. */
+  const DENEME_ONEK = ["guvtest", "bottest", "cztest", "hstest", "yuktest", "qtest"];
   app.get("/api/admin/users", (req, res) => {
     if (!yonetici(req, res)) return;
     const q = String(req.query.q || "").trim().toLowerCase();
     let list = db.users;
+    if (String(req.query.deneme || "") === "1") {
+      list = list.filter((u) => DENEME_ONEK.some((o) => u.usernameLower.startsWith(o)));
+      /* Yönetici ve site sahibi asla bu listeye girmesin. */
+      list = list.filter((u) => !(u.owner || isAdmin(u)));
+      const items = list.slice().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).map(satir);
+      return res.json({ items, total: items.length, query: "deneme", yasakli: 0, deneme: true });
+    }
     if (q) list = list.filter((u) => u.usernameLower.includes(q));
     const items = list
       .slice()

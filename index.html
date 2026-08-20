@@ -290,6 +290,8 @@ async function loadBoard(){
          ? `Yasakla — sıradaki ceza: ${esc(x.next||"")}`
          : `Ban — next step: ${esc(x.next||"")}`}"
          onclick="boardBan(${jsArg(x.userId)},${jsArg(x.username)})">🚫</button>`
+      + `<button class="board-msg" title="Bu kişiye doğrudan mesaj yaz"
+         onclick="boardMesaj(${jsArg(x.userId)},${jsArg(x.username)})">💬</button>`
       + `<button class="board-del" title="Hesabı KALICI olarak sil"
          onclick="boardSil(${jsArg(x.userId)},${jsArg(x.username)})">🗑️</button>`
     : "";
@@ -308,6 +310,33 @@ async function loadBoard(){
     `<div class="board-list">${top.map(x => row(x, d.me && x.rank === d.me.rank)).join("")}</div>` +
     (meOut ? `<div class="board-list sep">${row(d.me, true)}</div>` : "") +
     `<div class="board-foot">${TRb?"Toplam":"Total"} ${nfTR(d.total)} ${TRb?"tokmakçı":"players"}</div>`;
+}
+
+/* Yönetici: tablodaki kişiye DOĞRUDAN mesaj.
+
+   Neden tablonun içinde: ödülü birinciye verirken doğru kişiye
+   ulaşmak gerekiyor. Site dışından iletişim kurulursa birinciyi
+   taklit eden biri araya girebilir — burada mesaj, tablodaki satırın
+   KİMLİĞİNE gidiyor, kullanıcı adına değil. Yani taklit işe yaramaz:
+   yazışma hesabın kendisiyle açılıyor.
+
+   Kullanıcılar zaten yalnızca yöneticiyle yazışabiliyor
+   (server/messages.js), o yüzden ayrı bir kutu gerekmiyor. */
+async function boardMesaj(userId, username){
+  const TRb = LANG === "tr";
+  const metin = prompt(TRb
+    ? `"${username}" kişisine mesaj:`
+    : `Message to "${username}":`, "");
+  if (metin == null) return;
+  if (!String(metin).trim()) { toast(TRb ? "Mesaj boş." : "Empty message."); return; }
+  const r = await fetch(API_BASE + "/messages/reply", {
+    method: "POST", credentials: "same-origin",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId, text: metin }),
+  }).then((x) => x.json().then((j) => ({ ok: x.ok, j }))).catch(() => null);
+  if (!r) { toast(TRb ? "Sunucuya ulaşılamadı." : "Server unreachable."); return; }
+  toast(r.ok ? (TRb ? `"${username}" kişisine gönderildi.` : "Sent.")
+             : (r.j.message || (TRb ? "Gönderilemedi." : "Failed.")));
 }
 
 /* Yönetici: hesabı KALICI olarak silme.
@@ -354,20 +383,35 @@ async function loadGecenHafta(){
      olacağını yazıyoruz: ziyaretçi haftalık bir yarış olduğunu ve ilk
      üçün burada duracağını görsün. Boş bir başlık değil, bir vaat. */
   if (!d || !d.var || !d.items.length) {
+    /* Henüz tamamlanmış dönem yok (ilk hafta). Kutuyu gizlemek yerine ne
+       olacağını yazıyoruz: ziyaretçi haftalık bir yarış olduğunu ve ilk
+       üçün burada duracağını görsün.
+
+       Tablo açılmadığında week.end null geliyor. Eskiden o durumda
+       "dönem bitiminde" yer tutucusu yazılıp sonuna "'da" ekleniyordu —
+       ekranda "dönem bitiminde'da" çıkıyordu. Artık ilk dönemin bitişi
+       açılış saatinden ve dönem uzunluğundan hesaplanıyor. */
     const b = await fetch(API_BASE + "/board/weekly", { credentials: "same-origin" })
       .then(r => r.ok ? r.json() : null).catch(() => null);
-    const bitis = b && b.week && b.week.end ? new Date(b.week.end) : null;
+    let bitis = b && b.week && b.week.end ? new Date(b.week.end) : null;
+    if (!bitis && b && b.acilis) {
+      bitis = new Date(b.acilis);
+      bitis.setDate(bitis.getDate() + (b.donemGun || 7));
+    }
     const nezaman = bitis
       ? bitis.toLocaleDateString(TRb ? "tr-TR" : "en-GB", { day: "numeric", month: "long" }) +
         " " + String(bitis.getHours()).padStart(2, "0") + ".00"
-      : (TRb ? "dönem bitiminde" : "at the end of the period");
+      : null;
+    const metin = TRb
+      ? (nezaman
+          ? "İlk dönem sürüyor. Tablo <b>" + nezaman + "</b>'da sıfırlanacak; dönemi ilk üçte bitirenler puanlarıyla burada kalacak."
+          : "İlk dönem sürüyor. Dönem bitince ilk üçte bitirenler puanlarıyla burada kalacak.")
+      : "First period in progress. The top three will be listed here when it ends.";
     kutu.hidden = false;
     kutu.innerHTML =
       '<div class="gecen-bas"><span class="gecen-baslik">' +
-        (TRb ? "GEÇEN HAFTANIN TOKMAKÇILARI" : "LAST WEEK’S CHAMPIONS") + '</span></div>' +
-      '<div class="gecen-bos">' + (TRb
-        ? "İlk dönem sürüyor. <b>" + nezaman + "</b>’da tablo sıfırlanacak ve dönemi ilk üçte bitirenler puanlarıyla burada kalacak."
-        : "First period in progress. The top three will be listed here when it ends.") + '</div>';
+        (TRb ? "GEÇEN HAFTANIN TOKMAKÇILARI" : "LAST WEEK\u2019S CHAMPIONS") + '</span></div>' +
+      '<div class="gecen-bos">' + metin + '</div>';
     return;
   }
   const madalya = ["🥇", "🥈", "🥉"];

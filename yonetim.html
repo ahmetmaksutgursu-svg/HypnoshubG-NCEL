@@ -100,8 +100,55 @@ function ciz() {
           'oninput="araDegisti(this.value)" style="flex:1;min-width:0">' +
         '<button class="btn btn-ghost" onclick="yukle(document.getElementById(\'yonAra\').value)">Ara</button>' +
       '</div>' +
+      '<div class="flex gap-8" style="margin-bottom:14px;flex-wrap:wrap">' +
+        '<button class="btn btn-ghost btn-mini" onclick="denemeleriBul()">🧪 Deneme hesaplarını listele</button>' +
+        '<span id="yonDeneme" class="muted" style="font-size:.76rem"></span>' +
+      '</div>' +
       '<div id="yonListe"></div>' +
     '</div>';
+}
+
+/* Sınama sırasında açılmış hesaplar (guvtest…, bottest… gibi). Yayın
+   öncesi temizlik için tek listede toplanıyor.
+
+   Toplu silme AYRI BİR UÇ KULLANMIYOR: her hesap için aynı
+   /api/admin/sil çağrılıyor. Yani ikinci bir silme kodu yok ve
+   sunucudaki bütün korumalar (yönetici silinemez, adın birebir
+   eşleşmesi) aynen geçerli. */
+let DENEME = [];
+async function denemeleriBul() {
+  const bilgi = document.getElementById("yonDeneme");
+  bilgi.textContent = "aranıyor…";
+  const r = await cagir("/admin/users?deneme=1");
+  if (!r.ok) { bilgi.textContent = "listelenemedi"; return; }
+  DENEME = r.j.items || [];
+  const kutu = document.getElementById("yonListe");
+  if (!DENEME.length) {
+    bilgi.textContent = "deneme hesabı yok";
+    kutu.innerHTML = '<p class="muted" style="margin:0">Deneme hesabı bulunamadı — liste temiz.</p>';
+    return;
+  }
+  bilgi.innerHTML = '<button class="board-del" onclick="denemeleriSil()">' +
+    DENEME.length + ' hesabın hepsini sil</button>';
+  kutu.innerHTML = '<div class="yon-liste">' + DENEME.map(satir).join("") + '</div>';
+}
+
+async function denemeleriSil() {
+  if (!DENEME.length) return;
+  const adlar = DENEME.map(function (u) { return u.username; }).join(", ");
+  if (!confirm(DENEME.length + " deneme hesabı KALICI olarak silinecek:\n\n" +
+      adlar.slice(0, 400) + (adlar.length > 400 ? "…" : "") + "\n\nOnaylıyor musunuz?")) return;
+  const bilgi = document.getElementById("yonDeneme");
+  let ok = 0, hata = 0;
+  for (const u of DENEME) {
+    bilgi.textContent = "siliniyor… " + (ok + hata + 1) + "/" + DENEME.length;
+    const r = await cagir("/admin/sil", { userId: u.id, username: u.username });
+    if (r.ok) ok++; else hata++;
+  }
+  bilgi.textContent = ok + " silindi" + (hata ? ", " + hata + " silinemedi" : "");
+  toast(ok + " deneme hesabı silindi.");
+  DENEME = [];
+  yukle("");
 }
 
 let araZaman = null;
@@ -136,6 +183,8 @@ function satir(u) {
     : (u.ban
         ? '<button class="btn btn-ghost btn-mini" onclick="yasagiKaldir(' + jsArg(u.id) + ',' + jsArg(u.username) + ')">Yasağı kaldır</button>'
         : '<button class="btn btn-ghost btn-mini" onclick="yasakla(' + jsArg(u.id) + ',' + jsArg(u.username) + ')">Yasakla</button>')
+      + '<button class="board-msg" title="Bu kişiye doğrudan mesaj yaz" onclick="mesaj('
+        + jsArg(u.id) + ',' + jsArg(u.username) + ')">💬 Mesaj</button>'
       + '<button class="board-del" title="Hesabı KALICI olarak sil" onclick="sil('
         + jsArg(u.id) + ',' + jsArg(u.username) + ')">🗑️ Sil</button>';
   return '<div class="yon-satir">' +
@@ -144,6 +193,17 @@ function satir(u) {
     '<span class="yon-tarih">' + tarih + (u.banCount ? " · " + u.banCount + " ceza" : "") + '</span>' +
     '<span class="yon-islem">' + islem + '</span>' +
   '</div>';
+}
+
+/* Doğrudan mesaj. Ödülü verirken doğru kişiye ulaşmanın yolu bu:
+   mesaj kullanıcı ADINA değil, satırın KİMLİĞİNE gidiyor, yani
+   birinciyi taklit eden biri araya giremiyor. */
+async function mesaj(id, ad) {
+  const metin = prompt('"' + ad + '" kişisine mesaj:', "");
+  if (metin == null) return;
+  if (!String(metin).trim()) { toast("Mesaj boş."); return; }
+  const r = await cagir("/messages/reply", { userId: id, text: metin });
+  toast(r.ok ? '"' + ad + '" kişisine gönderildi.' : (r.j.message || "Gönderilemedi."));
 }
 
 async function yasakla(id, ad) {

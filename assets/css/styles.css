@@ -2556,3 +2556,11 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   .yon-tarih { grid-column: 2; }
   .yon-islem { grid-column: 1 / -1; justify-content: flex-end; }
 }
+/* Yönetici: doğrudan mesaj düğmesi. Silmenin yanında ama mavi —
+   biri geri alınamaz, diğeri sadece bir mesaj; renkleri ayrışsın. */
+.board-msg {
+  background: rgba(30, 90, 224, .16); border: 1px solid rgba(30, 90, 224, .38);
+  color: #7ea8ff; border-radius: 8px; cursor: pointer;
+  font-size: .72rem; line-height: 1; padding: 4px 6px;
+}
+.board-msg:hover { background: rgba(30, 90, 224, .28); }
