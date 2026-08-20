@@ -2405,7 +2405,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
    dar ekranda kartların altına iniyor — Son Maçlar kartlarındaki düzenin
    aynısı. Masaüstünde yer bol olduğu için orada eski görünüm korunuyor. */
 @media (max-width:620px){
-  .bl-row .bl-deste .deck-cell { display:flex; width:100%; }
+  /* .deck-cell genişliğini artık ızgara sütunundan alıyor (bkz.
+     .bl-deste); burada yalnızca deste kutusunun sütunu doldurması ve
+     sağ tarafın sağa yaslı kalması ayarlanıyor. */
   .bl-row .bl-deste .deck-icons.iki-sira { max-width:none; }
   .bl-yan.sag .bl-deste .deck-cell { justify-content:flex-end; }
 }
@@ -2435,3 +2437,28 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
    olarak yeniden kaydedildiler. Artık kutunun 26/31 oranına yakın
    olduklarından diğer kartlarla aynı boyutta ve ortalı çiziliyorlar;
    hiçbir şey kırpılmıyor ya da esnetilmiyor. */
+
+/* ---------- Profil savaş günlüğünde deste genişliği ----------
+   Kart görselleri artık kutularına MUTLAK konumla oturuyor (bkz. yukarıdaki
+   taşma notu). Bunun bir yan etkisi var: mutlak konumlu görsel kendi
+   genişliğini kaba bildirmiyor. `.deck-cell` inline-flex olduğu için
+   genişliğini içeriğinden alıyordu ve içerik artık sıfır genişlikte —
+   deste 2 piksele çöküyordu. (Daha önce yalnızca telefonda görülmüştü,
+   çünkü orada görseller tembel yüklendiğinden genişlik zaten sıfırdı;
+   şimdi masaüstünde de aynı sebeple çöküyor.)
+
+   Kalıcı çözüm: genişliği görsele hiç sormamak. Satır iki sütunlu bir
+   ızgara — solda deste, sağda kopyala düğmesi; etiket iki sütunu birden
+   kaplıyor. Deste sütunun payını aldığı için hiçbir ekranda çökmüyor. */
+.bl-deste {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0 6px; align-items: start; width: 100%;
+}
+.bl-deste > .bl-lbl { grid-column: 1 / -1; }
+.bl-deste > .deck-cell { min-width: 0; }
+@media (max-width: 620px) {
+  /* Dar ekranda kopyala düğmesi destenin YANINDA değil ALTINDA duruyor:
+     yan yana durduğunda desteye kalan genişlik kartları 25 piksele
+     düşürüyordu (ölçüldü), oysa okunur alt sınır 32. */
+  .bl-deste { grid-template-columns: minmax(0, 1fr); }
+}
