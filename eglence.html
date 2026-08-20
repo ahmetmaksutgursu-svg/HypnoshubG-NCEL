@@ -1717,7 +1717,23 @@ function guessAnswer(idx){
   const q = GG.current;
   GG.asked.add(q.id);
   // "Bilmiyorum" only retires the question; it must not eliminate anything.
-  if (idx !== null) GG.cand = GG.cand.filter(c => q.opts[idx].test(c));
+  if (idx !== null) {
+    /* HİÇBİR SEÇENEĞE UYMAYAN KART ELENMEZ.
+
+       Buradaki süzgeç eskiden yalnızca seçilen şıkka uyanları tutuyordu ve
+       veri boşluğu olan kartı sessizce eliyordu. Kaynak veride 78 asker
+       kartının 16'sında özellik bilgisi hiç yok (Cellat, Oduncu, Haydut,
+       Büyülü Okçu, Elit Barbarlar…). Oyuncu Cellat tutup "havayı vurur"
+       dediğinde Cellat ne o şıkka ne diğerine uyuyordu; eleniyor, geriye
+       Cadı kalıyor ve oyun yanlış tahminle bitiyordu.
+
+       bestQuestion() zaten bu kartların hayatta kaldığını varsayarak hesap
+       yapıyor (eşleşmeyenler her dala ekleniyor); süzgeç o varsayımı
+       bozuyordu. Artık uymayan kart soruyu sağ atlatıyor. */
+    const secilen = q.opts[idx];
+    const hicbirine = (c) => !q.opts.some((o) => o.test(c));
+    GG.cand = GG.cand.filter((c) => secilen.test(c) || hicbirine(c));
+  }
   guessStep();
 }
 
@@ -1748,19 +1764,45 @@ function guessRight(){
 
 /* A wrong guess is not the end: drop that card and keep narrowing what is
    left, or start over. */
+/* Yanlış tahmin oyunu BİTİRMEZ.
+
+   Eskiden "Devam Et" yalnızca elemeden kart artarsa çıkıyordu. Aday
+   listesi tek karta inmişse o kart da yanlış çıkınca geriye hiçbir şey
+   kalmıyor ve oyuncuya sadece "Yeniden Başlat" gösteriliyordu — oysa
+   oyuncunun kartı ortada duruyor, biz yolda yanlış eledik.
+
+   Aday kalmadıysa arama GENİŞLETİLİYOR: havuz baştan alınıyor, yanlış
+   çıktığı SÖYLENEN kartlar dışarıda tutuluyor ve sorular sıfırlanıyor.
+   Böylece oyun yanlış bir elemeden sonra kendini toparlayabiliyor.
+   Verdiğimiz bilgi de dürüst: bir cevabın ters anlaşılmış olabileceğini
+   söylüyoruz, çünkü gerçekten öyle. */
 function guessWrong(){
   GG.rejected.add(GG.guessed.key);
-  GG.cand = GG.cand.filter(c => c.key !== GG.guessed.key);
+  GG.cand = GG.cand.filter((c) => c.key !== GG.guessed.key);
   const left = GG.cand.length;
   document.getElementById("guessBox").innerHTML = `
     <div class="text-center">
       <p style="font-size:1.05rem;font-weight:800;margin:0 0 6px">Olamaz, ${cardName(GG.guessed)} değilmiş 😅</p>
-      <p class="muted" style="margin:0 0 18px">${left ? `Geriye ${left} kart kaldı. Devam edeyim mi?` : "Elemeye uyan başka kart kalmadı."}</p>
+      <p class="muted" style="margin:0 0 18px">${left
+        ? `Geriye ${left} kart kaldı. Devam edeyim mi?`
+        : "Elemede bir yerde yanılmış olmalıyım. İstersen baştan sorup seni bulmayı deneyeyim."}</p>
       <div class="flex gap-8 wrap" style="justify-content:center">
-        ${left ? `<button class="btn btn-primary" onclick="guessStep()">Devam Et</button>` : ""}
+        ${left
+          ? `<button class="btn btn-primary" onclick="guessStep()">Devam Et</button>`
+          : `<button class="btn btn-primary" onclick="guessGenislet()">Devam Et — tekrar dene</button>`}
         <button class="btn btn-ghost" onclick="guessStart()">Yeniden Başlat</button>
       </div>
     </div>`;
+}
+
+/* Aramayı genişlet: havuzu geri al, yanlış olduğu SÖYLENEN kartları
+   dışarıda bırak, soruları sıfırla. Oyuncunun kartı hâlâ havuzda, biz
+   yolda yanlış elemişiz demektir. */
+function guessGenislet(){
+  GG.cand = GG.pool.filter((c) => !GG.rejected.has(c.key));
+  GG.asked = new Set();
+  if (!GG.cand.length) return guessStart();   // her kart reddedildiyse baştan
+  guessStep();
 }
 
 /* boot */
