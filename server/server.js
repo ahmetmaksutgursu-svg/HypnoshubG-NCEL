@@ -1187,13 +1187,28 @@ const HERO_IMG_DIR = path.join(__dirname, "..", "assets", "img", "heroes");
 const heroSlug = (name) => String(name).toLowerCase()
   .replace(/[.'’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
-function heroPortrait(name) {
+/* Kahraman portresi.
+
+   ÖNCE DİSK, SONRA API. Diskteki dosya tercih ediliyor (dış bir sunucuya
+   bağımlı olmadan, tek istekte gelir); yoksa API'nin kendi kahraman
+   görseline düşülüyor.
+
+   Bu yedek bilerek eklendi. Portreler bir zamanlar SADECE diskten
+   geliyordu ve dosya adı elle konuyordu; bir dosya yanlış karta
+   adlandırıldığı için Haydut'un yerine Berserker'ın portresi çizildi
+   (kullanıcı "aynı destede iki Yaramaz var" diye bildirdi). Artık yanlış
+   ya da eksik bir dosya kahramanı boş bırakmıyor: doğru görsel API'den
+   geliyor.
+
+   Diskteki dosyaların adı kartın İNGİLİZCE adından türetiliyor. Türkçe
+   ada göre adlandırmayın — o hatanın kaynağı buydu. */
+function heroPortrait(name, kart) {
   const slug = heroSlug(name);
   for (const ext of ["png", "webp", "jpg", "jpeg"]) {
     if (fs.existsSync(path.join(HERO_IMG_DIR, `${slug}.${ext}`)))
       return `assets/img/heroes/${slug}.${ext}`;
   }
-  return "";
+  return kart?.iconUrls?.heroMedium || "";
 }
 
 app.get("/api/heroes", async (req, res) => {
@@ -1745,7 +1760,7 @@ app.get("/api/cards", async (req, res) => {
           traits: traitBul(traits, c.name),
           nameTR: tr.get(c.name) || c.name,
           // The in-game hero portrait, when one has been placed on disk.
-          heroImg: heroPortrait(c.name),
+          heroImg: heroPortrait(c.name, c),
           /* Kahraman yuvası bilgisi ARTIK SUNUCUDAN geliyor. Ön yüz bunu
              kendisi `maxEvolutionLevel` üzerinden çıkarıyordu ve kuralın
              kaçırdığı kartlarda (Yaramaz) yanılıyordu; tek doğru burada. */
@@ -1794,7 +1809,7 @@ function metaCard(c, isEvo, isHero) {
     icon: c.iconUrls?.medium, evoIcon: c.iconUrls?.evolutionMedium,
     evo: !!isEvo, hero: !!isHero,
     champion: c.rarity === "champion", rarity: c.rarity,
-    heroImg: isHero ? heroPortrait(c.name) : "",
+    heroImg: isHero ? heroPortrait(c.name, c) : "",
   };
 }
 
@@ -2447,7 +2462,7 @@ const gameDeps = {
       evoIcon: c.iconUrls?.evolutionMedium || "",
       kahraman: heroSet.has(c.name) || HERO_DUAL.has(c.name),
       kahramanTek: heroSet.has(c.name),          // evrimi yok, yalnızca kahraman
-      heroImg: heroPortrait(c.name),             // gerçek kahraman görseli (varsa)
+      heroImg: heroPortrait(c.name, c),             // gerçek kahraman görseli (varsa)
       arena: arenas.get(chrKey(c.name)) || 0,
       icon: c.iconUrls?.medium || "",
     }));

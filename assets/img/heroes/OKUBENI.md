@@ -2,70 +2,76 @@
 
 Oyundaki **kahraman** kartlarının altın çerçeveli portreleri buraya konur.
 
-## Neden elle konuyor?
+## Dosya adı kuralı — EN ÖNEMLİ MADDE
 
-Bu görseller hiçbir yerde yayınlanmıyor. Kontrol edildi:
+Dosya adı, kartın **İNGİLİZCE** adından türetilir (küçük harf, boşluk ve
+noktalar tire olur): `Mini P.E.K.K.A` → `mini-pekka`, `Berserker` →
+`berserker`.
 
-- Clash Royale API'sinde kahraman diye bir alan yok (kart görselleri sadece
-  normal `iconUrls`).
-- RoyaleAPI'nin asset deposunda `heroes/`, `hero/`, `prestige/`,
-  `cards-prestige/` klasörlerinin hiçbiri yok (hepsi 404).
-- `cards-gold/` **farklı bir şey**: normal kart resminin altın çerçeveli hâli,
-  kahraman portresi değil.
-- Oyunun kendi verisinde bu sistemin adı "prestige" ve görseller Supercell'in
-  paketlenmiş `.sc` dosyalarının içinde — dışarıdan indirilemiyor.
+**Türkçe ada göre adlandırmayın.** Bir kez yapıldı ve pahalıya mal oldu:
+oyunun kahraman ekranında "Yaramaz" yazan portre, Türkçesi tahmin edilerek
+`bandit.jpeg` diye kaydedildi. Oysa o kahraman **Berserker**'dı; Haydut
+(Bandit) kahraman bile değil. Sonuç: her Haydut'lu destede Haydut'un yerine
+Berserker'ın portresi çizildi ve kullanıcı "aynı destede iki Yaramaz var"
+diye bildirdi.
 
-Bu yüzden site diskteki dosyalara bakıyor. **Dosyayı buraya koymak yeterli** —
-kod değişikliği gerekmez, sunucuyu yeniden başlatmaya da gerek yok (en fazla
-15 saniye içinde görünür).
+Doğru dosya adını tahmin etmeden bulmanın yolu var — aşağıya bakın.
 
-## Dosya adları
+## Hangi kart hangi dosya?
 
-Oyundaki 16 kahraman, sırasıyla. `.png` tercih edilir; `.webp`, `.jpg` ve
-`.jpeg` de kabul edilir.
+Clash Royale API'si artık kahraman görselini **kendisi yayımlıyor**:
+`iconUrls.heroMedium`. Bu alanı taşıyan kart sayısı tam **16** ve oyunun
+kahraman sayısı da 16. Kod da kahraman listesini bu alandan kuruyor; tahmin
+yok.
 
-| # | Kahraman | Dosya adı |
-|---|----------|-----------|
-| 1 | Valkür | `valkyrie.png` |
-| 2 | Barbar Fıçısı | `barbarian-barrel.png` |
-| 3 | Büyücü | `wizard.png` |
-| 4 | Mini P.E.K.K.A | `mini-pekka.png` |
-| 5 | Şövalye | `knight.png` |
-| 6 | Goblinler | `goblins.png` |
-| 7 | Yaramaz (Berserker) | `berserker.png` |
-| 8 | Mezar Taşı | `tombstone.png` |
-| 9 | Büyülü Okçu | `magic-archer.png` |
-| 10 | Balon | `balloon.png` |
-| 11 | Kara Prens | `dark-prince.png` |
-| 12 | Atıcı | `bowler.png` |
-| 13 | Dev | `giant.png` |
-| 14 | Silahşör | `musketeer.png` |
-| 15 | Buz Golemi | `ice-golem.png` |
-| 16 | Mega Minyon | `mega-minion.png` |
+Görselleri o adresten indirdiyseniz dosya adları Supercell'in varlık
+karmasıdır (`jAj1Q5rclXxU9kVImGqSJxa4wEMfEhvwNQ_4jiGUuqg.webp` gibi). Doğru
+adı bulmak için karmayı `heroMedium` adresiyle eşleştirin — böyle
+eşleştirmek **birebir** olur, göze bakmaya gerek kalmaz:
 
-**Durum:** 16/16 portre yerinde (`.jpeg` olarak). Uzantı önemli değil —
-`heroPortrait()` png/webp/jpg/jpeg sırasıyla bakar.
+```
+karma = heroMedium adresinin son parçası (uzantısız)
+dosya adı = o karmaya sahip kartın İngilizce adının slug'ı
+```
+
+## Dosya koymak zorunlu değil
+
+`heroPortrait()` önce diske bakar, dosya yoksa API'nin `heroMedium`
+adresine düşer. Yani yanlış ya da eksik bir dosya artık kahramanı boş
+bırakmıyor. Disk kopyası sadece hızlı olsun ve dış sunucuya bağımlı
+kalmayalım diye tutuluyor.
+
+Kabul edilen uzantılar, bakılma sırasıyla: `png`, `webp`, `jpg`, `jpeg`.
+Kod değişikliği ya da yeniden başlatma gerekmez.
+
+## Şu anki durum
+
+16/16 portre yerinde (`.webp`). Hepsi API'nin `heroMedium` karmasıyla
+birebir eşleştirilerek adlandırıldı.
+
+| Kart (İngilizce) | Türkçe | Dosya |
+|---|---|---|
+| Knight | Şövalye | `knight.webp` |
+| Goblins | Goblinler | `goblins.webp` |
+| Giant | Dev | `giant.webp` |
+| Balloon | Balon | `balloon.webp` |
+| Valkyrie | Valkür | `valkyrie.webp` |
+| Musketeer | Silahşör | `musketeer.webp` |
+| Wizard | Büyücü | `wizard.webp` |
+| Mini P.E.K.K.A | Mini P.E.K.K.A | `mini-pekka.webp` |
+| Dark Prince | Kara Prens | `dark-prince.webp` |
+| Bowler | Atıcı | `bowler.webp` |
+| Ice Golem | Buz Golemi | `ice-golem.webp` |
+| Mega Minion | Mega Minyon | `mega-minion.webp` |
+| Berserker | Yaramaz | `berserker.webp` |
+| Magic Archer | Büyülü Okçu | `magic-archer.webp` |
+| Tombstone | Mezar Taşı | `tombstone.webp` |
+| Barbarian Barrel | Barbar Fıçısı | `barbarian-barrel.webp` |
 
 ## Notlar
 
 - Görseller **kendi altın çerçeveleriyle** kullanılır; site üzerlerine ikinci
-  bir çerçeve çizmez. Çerçevesiz bir görsel koyarsanız çıplak görünür.
+  bir çerçeve çizmez.
 - Dikey (portre) oran en iyisi — oyundaki kart oranı yaklaşık **5:6**.
-- Henüz konmamış olanlar, karakter render'ı + CSS çerçeve ile gösterilmeye
-  devam eder; yani eksik dosya sayfayı bozmaz.
-- Kartlar sayfasındaki sayaç kaç portrenin yerinde olduğunu yazar.
-
-## Düzeltme kaydı — 20 Ağustos 2026
-
-7 numaralı kahraman `bandit.png` diye kayıtlıydı ve kod da Haydut'u kahraman
-sanıyordu. Yanlıştı: portrenin içindeki karakter **Berserker**, Haydut ise
-yeşil kapüşonlu maskeli bir kadın. Kullanıcı "aynı destede iki Yaramaz var"
-diye bildirdi; sebebi buydu — bir yuvada Haydut, Berserker'ın portresiyle
-çiziliyordu, başka bir yuvada da gerçek Berserker duruyordu.
-
-Kesin ölçüt API'nin kendi alanı: `iconUrls.heroMedium`. Tam **16** kart bu
-alanı taşıyor ve oyunun kahraman sayısı da 16. Haydut'ta yok, Berserker'da var.
-Dosya `berserker.png/jpeg` oldu, kod da artık tahmin yerine bu alana bakıyor.
-
-Buraya dosya koyarken **görselin içindeki adı** kartın İngilizce adıyla
-eşleştirin; Türkçe ad tahmini bu hatanın kaynağıydı.
+- `t_kahraman` paketi bu klasörü denetler: 16 kahraman var mı, hepsinin
+  portresi var mı, dosya adı kartın İngilizce adıyla eşleşiyor mu.
