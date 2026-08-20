@@ -2781,11 +2781,19 @@ async function authSubmit(e){
        dağıtım sırasında sunucu yeniden başlarken araya giren vekil hata
        sayfası gibi. O durumda "bir şeyler" demek yerine NE OLDUĞUNU ve
        ne yapılacağını söylüyoruz. */
-    msg.textContent = r.message || (r.status >= 500 || !r.status
+    /* 429 AYRI ELE ALINIYOR. Bizim sunucumuz Türkçe bir mesajla
+       reddediyor, ama barındırma sağlayıcısının kenar koruması da 429
+       dönebiliyor ve onun gövdesi JSON DEĞİL — düz metin "rate limited".
+       O durumda mesaj alanı boş kalıyor ve kullanıcı ne olduğunu
+       anlamıyordu. Sayı ne derse desin, anlamı aynı: çok fazla deneme. */
+    msg.textContent = r.message || (r.status === 429
+      ? (TRa ? "Çok fazla deneme yapıldı. Birkaç dakika bekleyip tekrar deneyin."
+             : "Too many attempts. Please wait a few minutes and try again.")
+      : (r.status >= 500 || !r.status
       ? (TRa ? "Sunucuya şu an ulaşılamıyor. Birkaç saniye sonra tekrar deneyin."
              : "Server unavailable. Please try again in a few seconds.")
       : (TRa ? `İstek reddedildi (${r.status}). Bilgileri kontrol edip tekrar deneyin.`
-             : `Request rejected (${r.status}).`));
+             : `Request rejected (${r.status}).`)));
     return false;
   }
   ME = r.user; paintAuth(); closeModal();
