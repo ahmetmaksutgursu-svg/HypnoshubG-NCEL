@@ -2652,3 +2652,6 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
 .dr-ic .oyun-simge, .bn-ic .oyun-simge { height: 1.2em; max-width: 2.6em; }
 /* Bölüm başlığındaki simge yazıyla aynı yükseklikte dursun. */
 .oyun-simge.bas { height: 1.5em; max-width: 3.6em; }
+/* Üst menüdeki açılır oyun listesi. Bu kutu gözden kaçmıştı: simgeyi
+   ham basıyordu ve ekranda "assets/img/cenabet.png" yazısı çıkıyordu. */
+.ns-ic .oyun-simge { height: 1.1em; max-width: 2.4em; }

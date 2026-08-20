@@ -2311,7 +2311,7 @@ function funMenu(){
     ["eglence.html#tahmin", t("fun.guess"), "🔮", 0],
   ];
   return `<span class="nav-sub">${items.map(([h,l,i,p]) =>
-    `<a href="${h}"><span class="ns-ic">${i}</span>${l}${
+    `<a href="${h}"><span class="ns-ic">${oyunSimgesi(i)}</span>${l}${
       p ? `<span class="pts-badge">${t("tile.pts")}</span>` : ""}</a>`).join("")}</span>`;
 }
 
