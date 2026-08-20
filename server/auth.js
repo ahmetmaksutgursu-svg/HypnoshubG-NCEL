@@ -51,7 +51,26 @@ const COOKIE = "hs_session";
 
 /* Giriş denemesi sınırı: 15 dakikada 8 başarısız deneme. */
 const RATE_WINDOW = 15 * 60e3;
+/* Kullanıcı ADI başına deneme tavanı. Kaba kuvvete karşı asıl koruma bu:
+   saldırgan hangi IP'den gelirse gelsin tek hesaba 15 dakikada 8 denemeden
+   fazlasını yapamıyor. Sıkı kalması gerekiyor. */
 const RATE_MAX = 8;
+
+/* IP başına giriş tavanı AYRI ve çok daha gevşek.
+
+   Yayında öğrenildi: aynı sayı (15 dakikada 8) IP'ye de uygulanıyordu ve
+   video yayınlandığında insanlar "çok giriş yapıldı, 1 saat sonra tekrar
+   dene" hatası aldı. Sebep basit — mobil operatörler binlerce aboneyi tek
+   genel IP'nin arkasına koyuyor (CGNAT); okul ve iş ağları da öyle. Yani
+   IP başına sıkı bir tavan, kalabalık bir ağdaki HERKESİ birbirine
+   kilitliyor.
+
+   Kaba kuvvet koruması kullanıcı adı tavanında duruyor; buradaki tavan
+   yalnızca tek IP'den gelen makineli deneme akışını kesmek için. */
+const GIRIS_IP_MAX = (() => {
+  const n = parseInt(process.env.GIRIS_IP_MAX, 10);
+  return Number.isFinite(n) && n > 0 ? n : 120;
+})();
 
 /* ---------- KVKK: aydınlatma ve onay ----------
    6698 sayılı kanun, kişisel veri toplanmadan ÖNCE kişinin
@@ -209,7 +228,15 @@ const KAYIT_PENCERE = 3600e3;
    o test kendi eşiğini okuyarak çalışıyor. */
 const KAYIT_MAX = (() => {
   const n = parseInt(process.env.KAYIT_MAX, 10);
-  return Number.isFinite(n) && n > 0 ? n : 5;
+  /* Varsayılan 5'ti ve YAYINDA YETMEDİ: video çıkınca insanlar "bu
+     bağlantıdan çok fazla hesap açıldı" hatası aldı. Mobil operatörler
+     binlerce aboneyi tek IP'nin arkasına koyduğu için IP başına beş
+     hesap, o ağdaki altıncı kişiyi kapının dışında bırakıyor.
+
+     60 seçildi: tek betikle yüzlerce hesap açmayı hâlâ engelliyor ama
+     kalabalık bir ağdaki gerçek kullanıcıları kilitlemiyor. Ortam
+     değişkeniyle taşınabiliyor, çünkü doğru sayı trafiğe göre değişir. */
+  return Number.isFinite(n) && n > 0 ? n : 60;
 })();
 const attempts = new Map();          // anahtar -> [zaman damgaları]
 function tooManyAttempts(key, pencere = RATE_WINDOW, tavan = RATE_MAX) {
@@ -402,7 +429,8 @@ function mount(app) {
       const { username, password } = req.body || {};
       const uLower = String(username || "").toLowerCase();
       const ip = req.ip || req.socket?.remoteAddress || "?";
-      if (tooManyAttempts("u:" + uLower) || tooManyAttempts("ip:" + ip))
+      if (tooManyAttempts("u:" + uLower) ||
+          tooManyAttempts("ip:" + ip, RATE_WINDOW, GIRIS_IP_MAX))
         return res.status(429).json({ error: "rate", message: "Çok fazla deneme. 15 dakika sonra tekrar deneyin." });
 
       const user = db.users.find((u) => u.usernameLower === uLower);
