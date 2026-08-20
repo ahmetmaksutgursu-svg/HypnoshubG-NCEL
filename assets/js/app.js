@@ -2599,19 +2599,36 @@ function openAuth(tab){
         <input id="auPass" type="password" required minlength="8"
                autocomplete="${tab==="register"?"new-password":"current-password"}"
                placeholder="${TRa?"en az 8 karakter":"at least 8 characters"}"></label>
-      ${/* KVKK m.10: kişisel veri toplanmadan ÖNCE bilgilendirme. Kutu
-            `required` — tarayıcı boş bırakılmasına izin vermiyor; sunucu da
-            ayrıca denetliyor, çünkü doğrudan API'ye istek atan biri bu
-            kutuyu hiç görmez. */""}
-      <label class="auth-kvkk" id="auKvkkWrap" style="display:${tab==="register"?"flex":"none"}">
-        <input type="checkbox" id="auKvkk" ${tab==="register"?"required":""}>
-        <span>${TRa
-          ? `<a href="gizlilik.html" target="_blank" rel="noopener">Aydınlatma metnini</a>
-             okudum; kullanıcı adı, e-posta ve hesap verilerimin bu kapsamda
-             işlenmesini kabul ediyorum.`
-          : `I have read the <a href="gizlilik.html" target="_blank" rel="noopener">privacy notice</a>
-             and accept the processing of my account data as described.`}</span>
-      </label>
+      ${/* ÜÇ AYRI ONAY. Tek kutuda toplamak hem kullanıcıyı yanıltır
+            (neye onay verdiğini bilmez) hem de KVKK açısından yanlıştır:
+            farklı metinlere verilen onay ayrı ayrı alınmalı ve ayrı ayrı
+            ispatlanabilmeli. Üçü de `required` — tarayıcı boş bırakmıyor;
+            sunucu da ayrıca denetliyor, çünkü doğrudan API'ye istek atan
+            biri bu kutuları hiç görmez. */""}
+      <div class="auth-onaylar" id="auOnaylar" style="display:${tab==="register"?"block":"none"}">
+        <label class="auth-kvkk" id="auKvkkWrap">
+          <input type="checkbox" id="auKvkk" ${tab==="register"?"required":""}>
+          <span>${TRa
+            ? `<a href="gizlilik.html" target="_blank" rel="noopener">Aydınlatma metnini ve gizlilik politikasını</a>
+               okudum; kullanıcı adı, e-posta ve hesap verilerimin bu kapsamda
+               işlenmesini kabul ediyorum.`
+            : `I have read the <a href="gizlilik.html" target="_blank" rel="noopener">privacy notice</a>
+               and accept the processing of my account data as described.`}</span>
+        </label>
+        <label class="auth-kvkk">
+          <input type="checkbox" id="auKosullar" ${tab==="register"?"required":""}>
+          <span>${TRa
+            ? `<a href="kullanim.html" target="_blank" rel="noopener">Kullanım koşullarını</a>
+               okudum ve kabul ediyorum.`
+            : `I have read and accept the <a href="kullanim.html" target="_blank" rel="noopener">terms of use</a>.`}</span>
+        </label>
+        <label class="auth-kvkk">
+          <input type="checkbox" id="auYas" ${tab==="register"?"required":""}>
+          <span>${TRa
+            ? `<b>13 yaşından büyüğüm.</b> Daha küçüksem hesap açmıyorum.`
+            : `<b>I am over 13.</b>`}</span>
+        </label>
+      </div>
       <div class="auth-msg" id="auMsg"></div>
       <button class="btn btn-primary auth-go" type="submit" id="auGo">
         ${tab==="register" ? (TRa?"Hesap Oluştur":"Create account") : (TRa?"Giriş Yap":"Log in")}</button>
@@ -2638,8 +2655,10 @@ async function authSubmit(e){
   go.disabled = true; go.textContent = TRa ? "Bekleyin…" : "Please wait…";
 
   const kvkk = !!document.getElementById("auKvkk")?.checked;
+  const kosullar = !!document.getElementById("auKosullar")?.checked;
+  const yas = !!document.getElementById("auYas")?.checked;
   const r = AUTH_TAB === "register"
-    ? await authFetch("/register", { username, email, password, kvkk })
+    ? await authFetch("/register", { username, email, password, kvkk, kosullar, yas })
     : await authFetch("/login", { username, password });
 
   go.disabled = false;

@@ -2564,3 +2564,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   font-size: .72rem; line-height: 1; padding: 4px 6px;
 }
 .board-msg:hover { background: rgba(30, 90, 224, .28); }
+
+/* Kayıt formundaki onay kutuları. Üçü ayrı ayrı okunabilsin diye
+   aralarında nefes payı var; tek blok hâlinde görünmeleri de gerekiyor
+   ki kullanıcı "neyi onaylıyorum" sorusunu bir bakışta cevaplayabilsin. */
+.auth-onaylar { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 2px; }
+.auth-onaylar .auth-kvkk { margin: 0; }

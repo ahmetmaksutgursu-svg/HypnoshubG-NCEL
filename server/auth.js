@@ -329,7 +329,7 @@ function mount(app) {
         return res.status(429).json({ error: "rate",
           message: "Bu bağlantıdan çok fazla hesap açıldı. Bir saat sonra tekrar deneyin." });
 
-      const { username, email, password, kvkk } = req.body || {};
+      const { username, email, password, kvkk, kosullar, yas } = req.body || {};
       /* Sıra önemli: ÖNCE girdi denetimi. Onay kontrolünü öne almak,
          hem şifresi kısa hem onayı eksik olan birine önce "onaylayın"
          dedirtiyor; kişi onaylıyor, sonra "şifre kısa" duyuyor. Formu
@@ -340,9 +340,21 @@ function mount(app) {
       /* Aydınlatma metni onaylanmadan hesap açılmıyor (KVKK m.10).
          Sunucuda kontrol etmek şart: istemcideki onay kutusu yalnızca bir
          arayüz öğesi, doğrudan API'ye istek atan biri onu hiç görmez. */
+      /* ÜÇ AYRI ONAY, üç ayrı sebep. Tek kutuda toplamak KVKK açısından
+         da yanlış olurdu: farklı metinlere verilen onay ayrı ayrı
+         alınmalı ve ayrı ayrı ispatlanabilmeli.
+
+         Hepsi SUNUCUDA denetleniyor. İstemcideki kutular yalnızca arayüz;
+         doğrudan API'ye istek atan biri onları hiç görmez. */
       if (kvkk !== true)
         return res.status(400).json({ error: "kvkk",
           message: "Hesap açmak için aydınlatma metnini okuyup onaylamanız gerekiyor." });
+      if (kosullar !== true)
+        return res.status(400).json({ error: "kosullar",
+          message: "Kullanım koşullarını okuyup kabul etmeniz gerekiyor." });
+      if (yas !== true)
+        return res.status(400).json({ error: "yas",
+          message: "Hesap açmak için 13 yaşından büyük olduğunuzu onaylamanız gerekiyor." });
 
       const uLower = String(username).toLowerCase();
       const eLower = String(email).toLowerCase();
@@ -362,7 +374,16 @@ function mount(app) {
         /* Onayın ispatı: hangi metin sürümü, hangi anda kabul edildi.
            Onayın kendisini "true" diye saklamak yetmez — hangi metne
            onay verildiği sorulduğunda cevap verebilmemiz gerekiyor. */
+        /* Hangi metin sürümüne, hangi anda onay verildi. Onayı yalnızca
+           "true" diye saklamak yetmez: "hangi metne onay verdi" diye
+           sorulduğunda cevap verebilmemiz gerekiyor. Üç onay ayrı ayrı
+           kaydediliyor. */
         kvkk: { surum: KVKK_SURUM, at: Date.now() },
+        onaylar: {
+          aydinlatma: { surum: KVKK_SURUM, at: Date.now() },
+          kosullar:   { surum: KVKK_SURUM, at: Date.now() },
+          yas13:      { at: Date.now() },
+        },
         /* İlk kayıt olan sitenin sahibi. Bayrak kalıcı: sonradan hesap
            silinse bile yöneticilik başka birine kaymasın. */
         owner: db.users.length === 0,
@@ -456,6 +477,7 @@ function mount(app) {
         favoriler: (u.favorites || []).map((f) => ({ etiket: f.tag, ad: f.name, eklenme: f.at })),
         acikOturum: oturum,
         kvkkOnayi: u.kvkk || null,
+        onaylar: u.onaylar || null,
         yasak: banState(u) ? { bitis: u.ban.until, sebep: u.ban.reason || "" } : null,
       },
       /* Diğer modüllerdeki kayıtları da tek yerden gösteriyoruz; kişi
