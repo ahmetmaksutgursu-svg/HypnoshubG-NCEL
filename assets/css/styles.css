@@ -2596,3 +2596,18 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   .cerez-dugmeler { width: 100%; }
   .cerez-dugmeler .btn { flex: 1; }
 }
+
+/* Kullanıcı Yönetimi ekranındaki elle puan kutusu. Listeden görsel
+   olarak ayrı duruyor: biri okuma, biri yazma işi. */
+.ua-elle {
+  border: 1px solid var(--border); border-radius: 12px;
+  padding: 12px; margin: 0 0 12px; background: var(--surface-2);
+}
+.ua-elle-bas { font-weight: 900; font-size: .84rem; margin-bottom: 6px; }
+.ua-elle-form { display: flex; gap: 8px; flex-wrap: wrap; }
+.ua-elle-form input { min-width: 0; }
+.ua-elle-form input#epAd { flex: 2 1 140px; }
+.ua-elle-form input#epPuan { flex: 0 1 84px; }
+.ua-elle-form input#epSebep { flex: 3 1 180px; }
+/* Satırdaki işlem düğmeleri sığsın. */
+.ua-row .board-msg, .ua-row .board-del { flex: 0 0 auto; }

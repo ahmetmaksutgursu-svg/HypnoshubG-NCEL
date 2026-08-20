@@ -2476,6 +2476,23 @@ function openDrawer(){
         </div>
         <span class="dr-hint">${t("chrome.hint")}</span>
       </div>
+      ${/* YÖNETİCİ BÖLÜMÜ EN ÜSTTE.
+
+            Bu girdiler eskiden menünün en altındaydı — oyun bağlantılarının
+            ve "EĞLENCE" bölümünün de aşağısında. Site sahibi kullanıcıya puan
+            eklemek istediğinde ekranı BULAMADI; uzun listeyi sonuna kadar
+            kaydırmak gerekiyordu.
+
+            Yöneticinin en sık gittiği yer burası, dolayısıyla aramanın hemen
+            altına alındı. Yalnızca yöneticide görünüyor, sıradan ziyaretçi
+            için menü aynı kalıyor. */""}
+      ${IS_ADMIN ? `
+      <div class="dr-sec">${LANG === "tr" ? "YÖNETİM" : "ADMIN"}</div>
+      <button class="dr-link" onclick="closeDrawer();openUserAdmin('')"><span class="dr-ic">🛠️</span>${t("admin.users")}</button>
+      <button class="dr-link" onclick="closeDrawer();openInbox('')"><span class="dr-ic">📥</span>${t("fb.inbox")}${FB_UNREAD ? `<span class="pts-badge" style="margin-left:auto;background:rgba(224,67,95,.16);color:#e0435f">${FB_UNREAD}</span>` : ""}</button>
+      <button class="dr-link" onclick="closeDrawer();openProAdmin('bekliyor')"><span class="dr-ic">🏅</span>${t("pro.admin")}${PRO_PENDING ? `<span class="pts-badge" style="margin-left:auto;background:rgba(224,67,95,.16);color:#e0435f">${PRO_PENDING}</span>` : ""}</button>
+      <button class="dr-link" onclick="closeDrawer();openCanli()"><span class="dr-ic">📡</span>${LANG === "tr" ? "Şu an sitede" : "Online now"}</button>
+      ` : ""}
       <div class="dr-sec">${t("chrome.menu")}</div>
       ${link("index.html", t("nav.home"), "🏠")}
       ${link("siralamalar.html", t("ranks.pol")+" — "+t("nav.ranks"), "🏆")}
@@ -2502,10 +2519,7 @@ function openDrawer(){
       <div class="dr-link soon"><span class="dr-ic">❓</span>${t("chrome.newFun")} <span class="soon-badge">${t("tag.soon")}</span></div>
       <div class="dr-sec">${t("fb.section")}</div>
       <button class="dr-link" onclick="closeDrawer();openFeedback()"><span class="dr-ic">💬</span>${t("fb.title")}</button>
-      ${IS_ADMIN ? `<button class="dr-link" onclick="closeDrawer();openInbox('')"><span class="dr-ic">📥</span>${t("fb.inbox")}${FB_UNREAD ? `<span class="pts-badge" style="margin-left:auto;background:rgba(224,67,95,.16);color:#e0435f">${FB_UNREAD}</span>` : ""}</button>` : ""}
       ${ME ? `<button class="dr-link" onclick="closeDrawer();openMessages()"><span class="dr-ic">💌</span>${t("msg.title")}${MSG_UNREAD ? `<span class="pts-badge" style="margin-left:auto;background:rgba(224,67,95,.16);color:#e0435f">${MSG_UNREAD}</span>` : ""}</button>` : ""}
-      ${IS_ADMIN ? `<button class="dr-link" onclick="closeDrawer();openProAdmin('bekliyor')"><span class="dr-ic">🏅</span>${t("pro.admin")}${PRO_PENDING ? `<span class="pts-badge" style="margin-left:auto;background:rgba(224,67,95,.16);color:#e0435f">${PRO_PENDING}</span>` : ""}</button>` : ""}
-      ${IS_ADMIN ? `<button class="dr-link" onclick="closeDrawer();openUserAdmin('')"><span class="dr-ic">🚫</span>${t("admin.users")}</button>` : ""}
       <div class="dr-foot">
         <a href="${SOCIAL.instagram}" target="_blank" rel="noopener" class="icon-btn">${ICONS.instagram}</a>
         <a href="${SOCIAL.youtube}" target="_blank" rel="noopener" class="icon-btn">${ICONS.youtube}</a>
@@ -3292,6 +3306,97 @@ const adminApi = async (path, body) =>
     body: body ? JSON.stringify(body) : undefined,
   }).then(async (r) => ({ ok: r.ok, status: r.status, ...(await r.json().catch(() => ({}))) }));
 
+/* ---------- yönetici: mesaj, silme, elle puan ----------
+   Bu üçü ayrı bir sayfaya (yonetim.html) yazılmıştı ama site menüsünde
+   bağlantısı yoktu; adresi elle yazmak gerekiyordu ve kullanıcı doğal
+   olarak bulamadı. Doğru yer zaten var olan Kullanıcı Yönetimi ekranı. */
+
+async function userMesaj(userId, username){
+  const TRu = LANG === "tr";
+  const metin = prompt(TRu ? `"${username}" kişisine mesaj:` : `Message to "${username}":`, "");
+  if (metin == null) return;
+  if (!String(metin).trim()) { toast(TRu ? "Mesaj boş." : "Empty."); return; }
+  const r = await fetch(API_BASE + "/messages/reply", {
+    method: "POST", credentials: "same-origin",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId, text: metin }),
+  }).then((x) => x.json().then((j) => ({ ok: x.ok, j }))).catch(() => null);
+  toast(!r ? (TRu?"Sunucuya ulaşılamadı.":"Server unreachable.")
+           : r.ok ? (TRu?`"${username}" kişisine gönderildi.`:"Sent.")
+                  : (r.j.message || (TRu?"Gönderilemedi.":"Failed.")));
+}
+
+/* Silme geri alınamaz: kullanıcı adının birebir yazılması isteniyor.
+   Aynı kontrol sunucuda TEKRAR yapılıyor; buradaki yalnızca kazayı
+   önlüyor. */
+async function userSil(userId, username){
+  const TRu = LANG === "tr";
+  const yazilan = prompt(TRu
+    ? `"${username}" hesabı ve bağlı bütün kayıtları KALICI olarak silinecek.\n\nGeri alınamaz. Onaylamak için kullanıcı adını yazın:`
+    : `Permanently delete "${username}"? Type the username to confirm:`, "");
+  if (yazilan == null) return;
+  if (String(yazilan).trim().toLowerCase() !== String(username).toLowerCase()) {
+    toast(TRu ? "Kullanıcı adı eşleşmedi — hesap silinmedi." : "Name did not match.");
+    return;
+  }
+  const r = await fetch(API_BASE + "/admin/sil", {
+    method: "POST", credentials: "same-origin",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId, username: yazilan }),
+  }).then((x) => x.json().then((j) => ({ ok: x.ok, j }))).catch(() => null);
+  toast(!r ? (TRu?"Sunucuya ulaşılamadı.":"Server unreachable.") : (r.j.message || (r.ok?"Silindi.":"Silinemedi.")));
+  if (r && r.ok) openUserAdmin();
+}
+
+/* Elle puan. Bir hata yüzünden puanı yazılmayan kişiye telafi.
+   Sunucu ayrıca denetliyor: yönetici mi, sebep yazılmış mı, tavan
+   aşılmış mı. */
+async function ellePuanVer(){
+  const TRu = LANG === "tr";
+  const ad = (document.getElementById("epAd")?.value || "").trim();
+  const puan = parseInt(document.getElementById("epPuan")?.value, 10);
+  const sebep = (document.getElementById("epSebep")?.value || "").trim();
+  const kutu = document.getElementById("epSonuc");
+  if (!ad || !Number.isFinite(puan) || sebep.length < 3) {
+    if (kutu) kutu.textContent = TRu ? "Kullanıcı adı, puan ve sebep (en az 3 harf) gerekli." : "Name, points and reason required.";
+    return;
+  }
+  if (!confirm(`"${ad}" → ${puan >= 0 ? "+" : ""}${puan} puan\n\n${TRu?"Sebep":"Reason"}: ${sebep}`)) return;
+  if (kutu) kutu.textContent = TRu ? "ekleniyor…" : "adding…";
+  const r = await fetch(API_BASE + "/board/elle", {
+    method: "POST", credentials: "same-origin",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ username: ad, points: puan, reason: sebep }),
+  }).then((x) => x.json().then((j) => ({ ok: x.ok, j }))).catch(() => null);
+  if (kutu) kutu.textContent = !r ? (TRu?"Sunucuya ulaşılamadı.":"Server unreachable.")
+                                  : (r.j.message || (r.ok?"Eklendi.":"Eklenemedi."));
+  if (r && r.ok) {
+    document.getElementById("epPuan").value = "";
+    document.getElementById("epSebep").value = "";
+  }
+}
+
+/* Sınama sırasında açılmış hesapları tek listede topla. Toplu silme
+   ayrı bir uç kullanmıyor: her hesap için aynı /admin/sil çağrılıyor. */
+async function denemeHesaplari(){
+  const TRu = LANG === "tr";
+  const r = await adminApi("/users?deneme=1");
+  if (!r.ok) { toast(TRu?"Listelenemedi.":"Failed."); return; }
+  const liste = r.items || [];
+  if (!liste.length) { toast(TRu?"Deneme hesabı yok — liste temiz.":"No test accounts."); return; }
+  if (!confirm(`${liste.length} ${TRu?"deneme hesabı KALICI olarak silinecek":"test accounts will be deleted"}:\n\n` +
+      liste.map((u) => u.username).join(", ").slice(0, 400) + "\n\n" + (TRu?"Onaylıyor musunuz?":"Confirm?"))) return;
+  let ok = 0;
+  for (const u of liste) {
+    const x = await fetch(API_BASE + "/admin/sil", { method: "POST", credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userId: u.id, username: u.username }) }).catch(() => null);
+    if (x && x.ok) ok++;
+  }
+  toast(`${ok} ${TRu?"deneme hesabı silindi.":"test accounts deleted."}`);
+  openUserAdmin();
+}
+
 async function openUserAdmin(q){
   const TRu = LANG === "tr";
   const arama = q === undefined ? (document.getElementById("uaQ")?.value || "") : q;
@@ -3316,6 +3421,13 @@ async function openUserAdmin(q){
       ${u.admin ? "" : yasakli
         ? `<button class="btn btn-ghost" onclick="userBan(${jsArg(u.username)},0)">${TRu?"Yasağı kaldır":"Unban"}</button>`
         : `<button class="btn btn-ghost ua-ban" onclick="userBan(${jsArg(u.username)},1)">🚫 ${TRu?"Yasakla":"Ban"}</button>`}
+      ${/* Doğrudan mesaj: ödülü verirken doğru kişiye ulaşmanın yolu.
+            Mesaj kullanıcı ADINA değil KİMLİĞİNE gidiyor, yani birinciyi
+            taklit eden biri araya giremiyor. */""}
+      <button class="btn btn-ghost board-msg" title="${TRu?"Bu kişiye doğrudan mesaj yaz":"Message this user"}"
+        onclick="userMesaj(${jsArg(u.id)},${jsArg(u.username)})">💬</button>
+      ${u.admin ? "" : `<button class="board-del" title="${TRu?"Hesabı KALICI olarak sil":"Delete permanently"}"
+        onclick="userSil(${jsArg(u.id)},${jsArg(u.username)})">🗑️</button>`}
     </div>`;
   };
 
@@ -3328,10 +3440,30 @@ async function openUserAdmin(q){
       <input id="uaQ" placeholder="${TRu?"Kullanıcı adı ara…":"Search username…"}" maxlength="40"
              value="${esc(arama)}" onkeydown="if(event.key==='Enter')openUserAdmin()">
       <button class="btn btn-primary" onclick="openUserAdmin()">${TRu?"Ara":"Search"}</button>
+      <button class="btn btn-ghost" title="${TRu?"Sınama sırasında açılmış hesapları listele ve sil":"List and delete test accounts"}"
+        onclick="denemeHesaplari()">🧪</button>
     </div>
     <p class="muted" style="font-size:.78rem;margin:0 0 10px">${TRu
       ? `Ceza süresini sunucu belirler: 5 dakika → 30 dakika → 1 gün → 1 hafta → 6 ay → kalıcı. Yasaklanan hesabın oturumu anında kapanır ve Tokmakçılar tablosundan düşer.`
       : `The server picks the length: 5 min → 30 min → 1 day → 1 week → 6 months → permanent.`}</p>
+    ${/* ELLE PUAN. Yayın günü sunucu yeniden başlatıldığında devam eden
+          yarışma turları silinmişti ve bir oyuncu 12 soru bilip puan
+          alamamıştı. Oturumlar artık kalıcı, ama YAŞANMIŞ kaybı telafi
+          etmenin bir yolu olmalı. */""}
+    <div class="ua-elle">
+      <div class="ua-elle-bas">🔧 ${TRu?"Elle puan":"Manual points"}</div>
+      <p class="muted" style="font-size:.76rem;margin:0 0 8px">${TRu
+        ? `Bir hata yüzünden puanı yazılmayan kişiye telafi. <b>Sebep zorunlu</b> ve kayda geçer;
+           eksi değer de yazılabilir. Elle verilen puan “oynanan oyun” sayılmaz.`
+        : `Compensation when points were lost. Reason required; negative values allowed.`}</p>
+      <div class="ua-elle-form">
+        <input id="epAd" placeholder="${TRu?"Kullanıcı adı":"Username"}" maxlength="40" autocomplete="off">
+        <input id="epPuan" type="number" placeholder="${TRu?"Puan":"Points"}">
+        <input id="epSebep" placeholder="${TRu?"Sebep (zorunlu)":"Reason"}" maxlength="120" autocomplete="off">
+        <button class="btn btn-primary" onclick="ellePuanVer()">${TRu?"Ekle":"Add"}</button>
+      </div>
+      <div id="epSonuc" class="muted" style="font-size:.78rem;margin-top:8px"></div>
+    </div>
     <div id="uaMsg"></div>
     <div class="pa-list">${r.items.length ? r.items.map(satir).join("")
       : `<p class="muted text-center" style="padding:16px 0">${TRu?"Eşleşen kullanıcı yok.":"No matching user."}</p>`}</div>
