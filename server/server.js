@@ -40,6 +40,27 @@ require("dotenv").config({ path: path.join(__dirname, ".env") });
 process.env.TZ = process.env.SITE_TZ || "Europe/Istanbul";
 
 const app = express();
+
+/* ============================================================
+   VEKİLE GÜVEN  —  req.ip GERÇEKTEN ZİYARETÇİNİN Mİ?
+   ------------------------------------------------------------
+   Bu satır yokken Express, `req.ip` olarak soketin karşı ucunu
+   döndürür. Railway'de o uç ziyaretçi DEĞİL, Railway'in kendi
+   kenar vekilidir. Yani bütün ziyaretçiler tek ve aynı IP olarak
+   görünür.
+
+   Yayında bunun bedeli görüldü: hız sınırları IP başına yazılmıştı
+   ama tek IP olduğu için SİTE GENELİNE uygulandı. Video çıkınca
+   ilk beş kayıttan sonra kimse hesap açamadı, insanlar "bu
+   bağlantıdan çok fazla hesap açıldı" hatası aldı. Sınır kötü
+   niyetliyi değil, sıradaki herkesi kesiyordu.
+
+   `1` = yalnızca İLK vekile güven. `true` demek zincirdeki bütün
+   adresleri kabul etmek olurdu ve o zaman istemci kendi
+   X-Forwarded-For başlığını uydurup sınırı atlayabilirdi.
+   Railway'de trafik tek kenar vekilinden geldiği için doğru sayı 1.
+   ============================================================ */
+app.set("trust proxy", 1);
 const PORT = process.env.PORT || 8787;
 const TOKEN = process.env.CR_API_TOKEN;
 /* Clash Royale API adresi.
