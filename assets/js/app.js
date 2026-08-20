@@ -177,6 +177,65 @@ function sesTik(gecikme = 0, siddet = 1){
   src.start(t); src.stop(t + 0.06);
 }
 
+
+/* ---------- DÜĞMEYE BASMA SESİ ----------
+   Kullanıcı isteği: çark ve Cenabet düğmesine basınca "bastım" hissi
+   veren hafif, profesyonel bir ses; ve sesler üst üste binmesin.
+
+   TEK SESLİ (monofonik). Arka arkaya basıldığında yeni ses öncekini
+   8 ms'de kısıp susturuyor. Yoksa her basış bir öncekinin üstüne
+   biniyor ve arka arkaya birkaç basışta ses çamura dönüyordu.
+
+   Sesin kendisi iki katmandan oluşuyor, çünkü tek katman oyuncak gibi
+   duyuyor:
+     · GÖVDE  — 190 Hz'den 120 Hz'e düşen sinüs. Düşüş "tok" hissini
+                veriyor; sabit ton bip gibi kalıyor.
+     · VURUŞ  — 4 ms'lik, yüksek geçiren süzgeçten geçmiş gürültü.
+                Parmağın yüzeye değme anı bu; gövdeden ~4 kat kısık,
+                yani ayrı bir ses olarak değil dokunuş olarak duyuluyor.
+   Toplam 110 ms ve tepe seviye 0,09 — çark tıklarının (0,16) belirgin
+   altında, çünkü bu ses olayın kendisi değil sadece geri bildirimi. */
+let basSesi = null;
+function sesBas(){
+  const c = sesUyandir(); if (!c) return;
+  const t = c.currentTime;
+
+  /* Önceki basış hâlâ çalıyorsa sustur — üst üste binme buradan
+     engelleniyor. Sert kesmek "klik" çıkardığı için kısa bir iniş. */
+  if (basSesi){
+    try {
+      basSesi.g.gain.cancelScheduledValues(t);
+      basSesi.g.gain.setValueAtTime(basSesi.g.gain.value, t);
+      basSesi.g.gain.exponentialRampToValueAtTime(0.0001, t + 0.008);
+      basSesi.o.stop(t + 0.02);
+    } catch { /* zaten bitmiş */ }
+    basSesi = null;
+  }
+
+  const o = c.createOscillator(), g = c.createGain();
+  o.type = "sine";
+  o.frequency.setValueAtTime(190, t);
+  o.frequency.exponentialRampToValueAtTime(120, t + 0.075);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.09, t + 0.006);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.11);
+  o.connect(g); g.connect(c.destination);
+  o.start(t); o.stop(t + 0.13);
+  basSesi = { o, g };
+
+  /* Değme anı. Ayrı bir düğüm zinciri; gövde susturulsa bile bu
+     zaten 4 ms'de bitiyor, susturmaya değmez. */
+  if (sesGurultu){
+    const src = c.createBufferSource(); src.buffer = sesGurultu;
+    const hp = c.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 2200;
+    const vg = c.createGain();
+    vg.gain.setValueAtTime(0.024, t);
+    vg.gain.exponentialRampToValueAtTime(0.0001, t + 0.02);
+    src.connect(hp); hp.connect(vg); vg.connect(c.destination);
+    src.start(t); src.stop(t + 0.03);
+  }
+}
+
 /* Sonuç sesi: kısa yükselen üç nota. */
 function sesKazandi(gecikme = 0){
   const c = sesUyandir(); if (!c) return;

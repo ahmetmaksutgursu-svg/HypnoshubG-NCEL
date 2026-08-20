@@ -439,6 +439,10 @@ function carkSesiPlanla(toplamDerece, dilimSayisi){
 
 function spinWheel(){
   if (spinning || !META_LIST.length) return;
+  /* Basma sesi ilk satırda: ses AudioContext’i tıklamanın İÇİNDEN
+     uyandırmak zorunda (tarayıcı kuralı) ve kullanıcı geri bildirimi
+     ne kadar erken duyulursa o kadar "bastım" hissi veriyor. */
+  sesBas();
   spinning = true;
   const btn=document.getElementById("spinBtn"); btn.disabled=true;
   buildWheel();
@@ -543,6 +547,10 @@ function cenLive(){
 }
 
 function cenabet(){
+  /* Basma sesi ilk satırda: ses AudioContext’i tıklamanın İÇİNDEN
+     uyandırmak zorunda (tarayıcı kuralı) ve kullanıcı geri bildirimi
+     ne kadar erken duyulursa o kadar "bastım" hissi veriyor. */
+  sesBas();
   cenTimers.forEach(clearTimeout); cenTimers = [];
   const all = cenLive();
   /* KAHRAMAN ≠ EVRİM — kullanıcı bildirimi: "dev evrimi, atıcı evrimi
