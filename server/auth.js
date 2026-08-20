@@ -95,6 +95,22 @@ function load() {
     const now = Date.now();
     for (const [t, s] of Object.entries(db.sessions)) if (!s || s.exp < now) delete db.sessions[t];
     console.log(`👤  Hesap veritabanı yüklendi (${db.users.length} kullanıcı).`);
+  /* Katlanmış anahtar kuralı SONRADAN geldi. Ondan önce açılmış iki hesap
+     aynı anahtara düşüyor olabilir; bu bir hata değil ama bilinmeli:
+     girişte birebir eşleşme öncelikli olduğu için ikisi de çalışmaya
+     devam ediyor. Yine de sessizce geçmiyoruz. */
+  {
+    const gorulen = new Map();
+    const cakisan = [];
+    for (const u of db.users) {
+      const k = adAnahtari(u.username);
+      if (gorulen.has(k)) cakisan.push(`${gorulen.get(k)} ↔ ${u.username}`);
+      else gorulen.set(k, u.username);
+    }
+    if (cakisan.length)
+      console.warn(`⚠️  Aynı anahtara düşen ${cakisan.length} kullanıcı adı çifti: ` +
+                   cakisan.slice(0, 5).join(", ") + (cakisan.length > 5 ? " …" : ""));
+  }
   } catch { /* ilk çalıştırma: dosya yok, boş başla */ }
 }
 let saveTimer = null;
@@ -129,13 +145,38 @@ async function verifyPassword(password, user) {
 
 /* ---------- doğrulama ----------
    Kurallar bilerek dar: kullanıcı adı URL'de ve ekranda görünüyor. */
-const USERNAME_RE = /^[A-Za-z0-9_.]{3,20}$/;
+/* Kullanıcı adı — TÜRKÇE HARFLER DE GEÇERLİ.
+
+   Kural yalnızca A-Z kabul ediyordu ve bir kullanıcı "SİNYORBABBA46."
+   yazınca kayıt reddedildi. Hata metni "harf, rakam, nokta ve alt çizgi
+   kullanılabilir" diyordu — kullanıcı tam da bunları kullanmıştı. Türkçe
+   bir sitede İ, Ş, Ğ, Ü, Ö, Ç harf DEĞİLMİŞ gibi davranmak yanlıştı. */
+const USERNAME_RE = /^[A-Za-z0-9ÇĞİÖŞÜçğıöşü_.]{3,20}$/;
+
+/* AYNI GÖRÜNEN ADLAR ÇAKIŞMALI.
+
+   Benzersizlik için küçük harfe çevirmek yetmiyor; ölçüldü:
+     toLowerCase()            → "IŞIK" ile "ışık" AYRI hesap olurdu
+     toLocaleLowerCase("tr")  → "ALI" ile "Ali" AYRI hesap olurdu
+   İkisi de insanın aynı gördüğü iki adı ayırıyor.
+
+   Bu yüzden anahtarda Türkçe harfler ASCII karşılığına katlanıyor:
+   ALI, Ali, ALİ, alı hepsi "ali". Yan etkisi bilinçli — "Şükrü" ile
+   "Sukru" da çakışıyor. Puanlı bir yarışmada taklit riski buna değer:
+   birinciye çok benzeyen bir ad alıp ödül isteyen biri engelleniyor.
+
+   GÖRÜNEN ad olduğu gibi korunuyor; katlama yalnızca karşılaştırma
+   anahtarı. */
+const adAnahtari = (x) => String(x || "")
+  .replace(/[İIı]/g, "i").replace(/[Şş]/g, "s").replace(/[Ğğ]/g, "g")
+  .replace(/[Üü]/g, "u").replace(/[Öö]/g, "o").replace(/[Çç]/g, "c")
+  .toLowerCase();
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const MIN_PASSWORD = 8;
 
 function validate({ username, email, password }) {
   if (!USERNAME_RE.test(String(username || "")))
-    return "Kullanıcı adı 3-20 karakter olmalı; harf, rakam, nokta ve alt çizgi kullanılabilir.";
+    return "Kullanıcı adı 3-20 karakter olmalı; Türkçe dahil harfler, rakam, nokta ve alt çizgi kullanılabilir. Boşluk ve diğer işaretler kabul edilmiyor.";
   if (!EMAIL_RE.test(String(email || "")))
     return "Geçerli bir e-posta adresi girin.";
   if (String(password || "").length < MIN_PASSWORD)
@@ -385,7 +426,9 @@ function mount(app) {
 
       const uLower = String(username).toLowerCase();
       const eLower = String(email).toLowerCase();
-      if (db.users.some((u) => u.usernameLower === uLower))
+      /* Karşılaştırma katlanmış anahtarla: aynı görünen ad ikinci kez alınamıyor. */
+      const uKey = adAnahtari(username);
+      if (db.users.some((u) => adAnahtari(u.username) === uKey))
         return res.status(409).json({ error: "taken", message: "Bu kullanıcı adı zaten alınmış." });
       if (db.users.some((u) => u.emailLower === eLower))
         return res.status(409).json({ error: "taken", message: "Bu e-posta ile bir hesap zaten var." });
@@ -433,7 +476,13 @@ function mount(app) {
           tooManyAttempts("ip:" + ip, RATE_WINDOW, GIRIS_IP_MAX))
         return res.status(429).json({ error: "rate", message: "Çok fazla deneme. 15 dakika sonra tekrar deneyin." });
 
-      const user = db.users.find((u) => u.usernameLower === uLower);
+      /* ÖNCE birebir, SONRA katlanmış anahtar. Türkçe harf kullanan biri
+         adını farklı büyük/küçük yazdığında giriş yapamıyordu: "IŞIK"
+         küçültünce "işik" oluyor, kayıtlı "ışık" ile eşleşmiyordu.
+         Birebir eşleşme önce denenir ki iki hesap aynı anahtara düşerse
+         doğru olan seçilsin. */
+      const user = db.users.find((u) => u.usernameLower === uLower)
+        || db.users.find((u) => adAnahtari(u.username) === adAnahtari(username));
       /* Kullanıcı yoksa bile scrypt'i çalıştır: aksi hâlde cevap süresi
          "bu kullanıcı var mı" sorusunu ele verir. */
       const ok = user
@@ -506,6 +555,7 @@ function mount(app) {
         acikOturum: oturum,
         kvkkOnayi: u.kvkk || null,
         onaylar: u.onaylar || null,
+        adDegisimleri: u.adDegisim || [],
         yasak: banState(u) ? { bitis: u.ban.until, sebep: u.ban.reason || "" } : null,
       },
       /* Diğer modüllerdeki kayıtları da tek yerden gösteriyoruz; kişi
@@ -535,6 +585,70 @@ function hesabiSil(id, kim) {
   console.log(`🗑️  Hesap silindi (${kim}): ${ad} — ${silinen.join(", ")}`);
   return { ok: true, ad, silinen };
 }
+  /* ---------- kullanıcı adı değiştirme ----------
+     Kayıt sırasında seçilen ad kalıcı olmak zorunda değil; insanlar
+     yazım hatası yapıyor ya da fikir değiştiriyor.
+
+     Dört kilit var ve her biri ayrı bir riski kapatıyor:
+
+       PAROLA   — oturumu ele geçiren biri adı değiştirip hesabı
+                  tanınmaz hâle getirmesin. Silmede de aynı kural var.
+       BENZERSİZ— iki hesap aynı adı taşıyamaz; taklit için en kolay yol
+                  bu olurdu.
+       BEKLEME  — ad sık sık değişirse Tokmakçılar tablosunu takip eden
+                  kimse kimin kim olduğunu bilemez. Ödül verilirken bu
+                  ciddi bir sorun: birinci, ödül açıklandıktan sonra ad
+                  değiştirip başkasıymış gibi görünebilir.
+       YASAKLI  — yasaklı hesap ad değiştirip yasağı görünmez yapamaz.
+
+     Eski adlar KAYDA GEÇİYOR. Bir taklit şüphesi olduğunda "bu hesap
+     dün hangi addaydı" sorusunun cevabı olmalı. */
+  const AD_BEKLEME_MS = (() => {
+    const n = parseInt(process.env.AD_BEKLEME_SAAT, 10);
+    return (Number.isFinite(n) && n >= 0 ? n : 24) * 3600e3;
+  })();
+  app.post("/api/auth/username", async (req, res) => {
+    const s = readSession(req);
+    if (!s) return res.status(401).json({ error: "auth", message: "Önce giriş yapın." });
+    const u = s.user;
+
+    if (banState(u))
+      return res.status(403).json({ error: "ban",
+        message: "Yasaklı hesabın kullanıcı adı değiştirilemez." });
+
+    if (!(await verifyPassword(String(req.body?.password || ""), u)))
+      return res.status(401).json({ error: "bad", message: "Parola hatalı — ad değiştirilmedi." });
+
+    const yeni = String(req.body?.username || "").trim();
+    if (!USERNAME_RE.test(yeni))
+      return res.status(400).json({ error: "gecersiz",
+        message: "Kullanıcı adı 3-20 karakter olmalı; harf, rakam, nokta ve alt çizgi kullanılabilir." });
+
+    const yeniLower = yeni.toLowerCase();
+    if (yeniLower === u.usernameLower && yeni === u.username)
+      return res.status(400).json({ error: "ayni", message: "Bu zaten mevcut kullanıcı adınız." });
+    /* Başkası almış mı? Kendi hesabımız sayılmaz — yalnızca büyük/küçük
+       harf düzeltmek isteyen biri engellenmesin. */
+    if (db.users.some((x) => adAnahtari(x.username) === adAnahtari(yeni) && x.id !== u.id))
+      return res.status(409).json({ error: "alinmis", message: "Bu kullanıcı adı zaten alınmış." });
+
+    const son = u.adDegisim && u.adDegisim.length ? u.adDegisim[u.adDegisim.length - 1].at : 0;
+    const kalan = son + AD_BEKLEME_MS - Date.now();
+    if (kalan > 0) {
+      const saat = Math.ceil(kalan / 3600e3);
+      return res.status(429).json({ error: "bekleme",
+        message: `Kullanıcı adını çok sık değiştiremezsiniz. ${saat} saat sonra tekrar deneyin.` });
+    }
+
+    const eski = u.username;
+    u.adDegisim = (u.adDegisim || []).concat({ eski, yeni, at: Date.now() }).slice(-10);
+    u.username = yeni;
+    u.usernameLower = yeniLower;
+    save();
+    console.log(`✏️  Kullanıcı adı değişti: ${eski} → ${yeni}`);
+    res.json({ ok: true, username: yeni,
+      message: `Kullanıcı adınız "${yeni}" olarak değiştirildi.` });
+  });
   /* ---------- KVKK m.7: silme hakkı ----------
      Şu ana kadar hesap silmenin hiçbir yolu yoktu. Kanun bunu bir hak
      olarak tanımlıyor ve bir e-posta yazıp beklemeye bırakmak yerine
@@ -613,6 +727,8 @@ function hesabiSil(id, kim) {
   const satir = (u) => ({
     id: u.id, username: u.username, owner: !!u.owner, admin: isAdmin(u),
     createdAt: u.createdAt, banCount: u.banCount || 0,
+    /* Eski adlar: taklit şüphesinde "bu hesap dün hangi addaydı" sorusunun cevabı. */
+    adDegisim: (u.adDegisim || []).slice(-3),
     ban: banState(u) ? { until: u.ban.until, label: u.ban.label, reason: u.ban.reason || "" } : null,
     next: nextBanStep(u).label,
   });
@@ -683,7 +799,8 @@ function hesabiSil(id, kim) {
   app.post("/api/admin/ban", (req, res) => {
     if (!yonetici(req, res)) return;
     const ad = String(req.body?.username || "").trim().toLowerCase();
-    const u = db.users.find((x) => x.usernameLower === ad);
+    const u = db.users.find((x) => x.usernameLower === ad)
+      || db.users.find((x) => adAnahtari(x.username) === adAnahtari(ad));
     if (!u) return res.status(404).json({ error: "notfound", message: `"${req.body?.username}" adlı kullanıcı yok.` });
 
     /* Yöneticiler yasaklanamaz. banUser yalnızca `owner` bayrağına bakıyor;
@@ -703,7 +820,8 @@ function hesabiSil(id, kim) {
   app.post("/api/admin/unban", (req, res) => {
     if (!yonetici(req, res)) return;
     const ad = String(req.body?.username || "").trim().toLowerCase();
-    const u = db.users.find((x) => x.usernameLower === ad);
+    const u = db.users.find((x) => x.usernameLower === ad)
+      || db.users.find((x) => adAnahtari(x.username) === adAnahtari(ad));
     if (!u) return res.status(404).json({ error: "notfound", message: `"${req.body?.username}" adlı kullanıcı yok.` });
     const r = unbanUser(u.id, !!req.body?.reset);
     res.json({ ...r, user: satir(u),

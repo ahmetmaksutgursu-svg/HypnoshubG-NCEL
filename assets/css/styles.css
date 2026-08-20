@@ -2611,3 +2611,19 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
 .ua-elle-form input#epSebep { flex: 3 1 180px; }
 /* Satırdaki işlem düğmeleri sığsın. */
 .ua-row .board-msg, .ua-row .board-del { flex: 0 0 auto; }
+
+/* Hesap panelindeki "kullanıcı adını değiştir" bölümü.
+   Katlanır duruyor: çoğu kişi adını değiştirmeyecek, paneli sürekli
+   uzatmasının anlamı yok. Açıldığında kendi kutusu belli olsun diye
+   kenarlıklı. */
+.auth-adchg {
+  border: 1px solid var(--border); border-radius: 12px;
+  padding: 10px 12px; margin: 10px 0 0; background: var(--surface-2);
+}
+.auth-adchg > summary {
+  cursor: pointer; font-weight: 800; font-size: .84rem; list-style: none;
+}
+.auth-adchg > summary::-webkit-details-marker { display: none; }
+.auth-adchg > summary::before { content: "✏️ "; }
+.auth-adchg[open] > summary { margin-bottom: 4px; }
+.auth-adchg .auth-l { margin-top: 8px; }

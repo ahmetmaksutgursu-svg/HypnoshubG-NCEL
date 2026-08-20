@@ -2773,7 +2773,19 @@ async function authSubmit(e){
   go.textContent = AUTH_TAB === "register" ? (TRa?"Hesap Oluştur":"Create account") : (TRa?"Giriş Yap":"Log in");
   if (!r.ok){
     msg.className = "auth-msg bad";
-    msg.textContent = r.message || (TRa ? "Bir şeyler ters gitti." : "Something went wrong.");
+    /* SUNUCU MESAJI VARSA ONU GÖSTER — genel metin yalnızca son çare.
+
+       Bir kullanıcı kayıt olurken ekranda sadece "Bir şeyler ters gitti."
+       gördü ve neyi düzelteceğini bilemedi. Sunucu aslında net bir mesaj
+       döndürüyor; mesajsız kalan durum, yanıtın JSON bile olmadığı hâl:
+       dağıtım sırasında sunucu yeniden başlarken araya giren vekil hata
+       sayfası gibi. O durumda "bir şeyler" demek yerine NE OLDUĞUNU ve
+       ne yapılacağını söylüyoruz. */
+    msg.textContent = r.message || (r.status >= 500 || !r.status
+      ? (TRa ? "Sunucuya şu an ulaşılamıyor. Birkaç saniye sonra tekrar deneyin."
+             : "Server unavailable. Please try again in a few seconds.")
+      : (TRa ? `İstek reddedildi (${r.status}). Bilgileri kontrol edip tekrar deneyin.`
+             : `Request rejected (${r.status}).`));
     return false;
   }
   ME = r.user; paintAuth(); closeModal();
@@ -2782,6 +2794,27 @@ async function authSubmit(e){
   if (typeof window.onAuthChange === "function") window.onAuthChange();
   toast(TRa ? `Hoş geldin, ${ME.username}!` : `Welcome, ${ME.username}!`);
   return false;
+}
+
+/* Kullanıcı adı değiştirme. Sunucu ayrıca denetliyor: parola doğru mu,
+   ad kurallara uyuyor mu, başkası almış mı, bekleme süresi doldu mu,
+   hesap yasaklı mı. Buradaki kontroller yalnızca boş form göndermeyi
+   önlüyor. */
+async function adiDegistir(){
+  const TRa = LANG === "tr";
+  const ad = (document.getElementById("auYeniAd")?.value || "").trim();
+  const sifre = document.getElementById("auAdSifre")?.value || "";
+  const kutu = document.getElementById("auAdMsg");
+  const yaz = (m, iyi) => { if (kutu) { kutu.textContent = m; kutu.className = "auth-msg " + (iyi ? "ok" : "err"); } };
+  if (!ad || !sifre) return yaz(TRa ? "Yeni ad ve parola gerekli." : "Name and password required.", false);
+  yaz(TRa ? "gönderiliyor…" : "sending…", true);
+  const r = await authFetch("/username", { username: ad, password: sifre });
+  if (!r || !r.ok) return yaz((r && r.message) || (TRa ? "Değiştirilemedi." : "Failed."), false);
+  yaz(r.message || (TRa ? "Değiştirildi." : "Changed."), true);
+  /* Ad her yerde görünüyor: başlık, tablo, mesajlar. Oturumu tazeleyip
+     ekranı yeniden çizmek gerekiyor, yoksa eski ad ekranda kalır. */
+  await loadMe();
+  setTimeout(() => { closeModal(); if (typeof window.repaint === "function") window.repaint(); }, 900);
 }
 
 function openAccount(){
@@ -2796,6 +2829,25 @@ function openAccount(){
     </div>
     <label class="auth-l">${TRa?"Clash Royale etiketin (isteğe bağlı)":"Your Clash Royale tag (optional)"}
       <input id="auTag" placeholder="#298Q8YVGG" value="${esc(ME.playerTag||"")}" maxlength="16"></label>
+    ${/* KULLANICI ADI DEĞİŞTİRME.
+          Parola isteniyor: oturumu ele geçiren biri adı değiştirip hesabı
+          tanınmaz hâle getirmesin — silmede de aynı kural var. Bekleme
+          süresi ve benzersizlik sunucuda denetleniyor; buradaki alanlar
+          yalnızca formu oluşturuyor. */""}
+    <details class="auth-adchg">
+      <summary>${TRa?"Kullanıcı adını değiştir":"Change username"}</summary>
+      <p class="muted" style="font-size:.78rem;margin:8px 0 10px">${TRa
+        ? `Adınız Tokmakçılar tablosunda herkese görünür. Sık değiştirilemez —
+           tabloyu takip edenlerin kimin kim olduğunu bilmesi gerekiyor.
+           Eski adlarınız kayıtta tutulur.`
+        : `Your name is public on the leaderboard. Changes are rate-limited.`}</p>
+      <label class="auth-l">${TRa?"Yeni kullanıcı adı":"New username"}
+        <input id="auYeniAd" maxlength="20" autocomplete="off" placeholder="${esc(ME.username)}"></label>
+      <label class="auth-l">${TRa?"Parolan":"Your password"}
+        <input id="auAdSifre" type="password" autocomplete="current-password"></label>
+      <div class="auth-msg" id="auAdMsg"></div>
+      <button class="btn btn-primary" onclick="adiDegistir()">${TRa?"Adı değiştir":"Change name"}</button>
+    </details>
     <div class="auth-msg" id="auMsg"></div>
     <div class="flex gap-8 wrap" style="margin-top:14px">
       <button class="btn btn-primary" onclick="saveTag()">${TRa?"Kaydet":"Save"}</button>
