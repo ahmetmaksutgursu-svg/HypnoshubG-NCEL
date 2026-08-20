@@ -2166,6 +2166,51 @@ app.get("/api/meta", async (req, res) => {
    yani uç nokta her zaman anında yanıtlıyor, hiç API çağırmıyor.
    5 dakikalık tarayıcı önbelleği: tablo zaten 10 dakikada bir değişiyor. */
 const eslesme = require("./eslesme");
+/* ============================================================
+   OYUN KAPAK GÖRSELLERİ
+   ------------------------------------------------------------
+   assets/img/oyunlar/ klasörüne bir dosya konunca site onu kendiliğinden
+   kullanmaya başlasın diye var. Dosya adı oyunun KİMLİĞİ: gunun.png,
+   duello.webp gibi.
+
+   Neden kimlik, görünen ad değil: kahraman portrelerinde dosyalar Türkçe
+   ada göre adlandırılmıştı ve bir portre yanlış karta bağlanıp ekranda
+   yanlış kart gösterilmişti. Kimlik değişmez, çeviriye bağlı değil.
+
+   Klasör HER İSTEKTE değil, 60 saniyede bir taranıyor: dosya koyunca bir
+   dakika içinde görünüyor ama trafik altında disk sürekli okunmuyor.
+   ============================================================ */
+const OYUN_IMG_DIR = path.join(__dirname, "..", "assets", "img", "oyunlar");
+const OYUN_IMG_UZANTI = ["png", "webp", "jpg", "jpeg", "gif"];
+let oyunGorselleri = null, oyunGorselAn = 0;
+function oyunGorselleriOku() {
+  if (oyunGorselleri && Date.now() - oyunGorselAn < 60e3) return oyunGorselleri;
+  const harita = {};
+  try {
+    for (const dosya of fs.readdirSync(OYUN_IMG_DIR)) {
+      const nokta = dosya.lastIndexOf(".");
+      if (nokta <= 0) continue;
+      const kimlik = dosya.slice(0, nokta);
+      const uzanti = dosya.slice(nokta + 1).toLowerCase();
+      if (!OYUN_IMG_UZANTI.includes(uzanti)) continue;
+      /* Aynı oyun için iki uzantı varsa listedeki ÖNCE geleni kazanır;
+         yoksa hangisinin çıkacağı klasör sırasına kalırdı. */
+      const eski = harita[kimlik];
+      if (eski) {
+        const eskiU = eski.slice(eski.lastIndexOf(".") + 1);
+        if (OYUN_IMG_UZANTI.indexOf(eskiU) <= OYUN_IMG_UZANTI.indexOf(uzanti)) continue;
+      }
+      harita[kimlik] = "assets/img/oyunlar/" + dosya;
+    }
+  } catch { /* klasör yoksa boş harita */ }
+  oyunGorselleri = harita;
+  oyunGorselAn = Date.now();
+  return harita;
+}
+app.get("/api/oyun-gorselleri", (req, res) => {
+  res.set("Cache-Control", "public, max-age=60");
+  res.json(oyunGorselleriOku());
+});
 app.get("/api/eslesme", (req, res) => {
   res.set("Cache-Control", "public, max-age=300");
   res.json(eslesme.durum());

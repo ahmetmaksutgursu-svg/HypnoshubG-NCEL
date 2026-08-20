@@ -666,7 +666,7 @@ const GAMES = [
 function paintPicker(){
   document.getElementById("pickGrid").innerHTML = GAMES.map(g => `
     <button class="pick-card ${g.pts ? "scored" : ""}" onclick="openGame('${g.id}')">
-      <span class="pick-ic">${oyunSimgesi(g.ic)}</span>
+      <span class="pick-ic">${oyunSimgesi(oyunKapagi(g.id, g.ic))}</span>
       <span class="pick-tx">
         <span class="pick-n">${g.name}${g.pts ? `<span class="pts-badge">${t("fun.pts")}</span>` : ""}</span>
         <span class="pick-d">${g.desc}</span>
@@ -684,7 +684,7 @@ function openGame(id){
   bar.style.display = "";
   /* innerHTML: simge artık emoji DEĞİL, görsel olabiliyor. Ad `esc`
      ile geçiyor, yani oyun adından HTML sızma yolu yok. */
-  document.getElementById("gameTitle").innerHTML = `${oyunSimgesi(g.ic)} ${esc(g.name)}`;
+  document.getElementById("gameTitle").innerHTML = `${oyunSimgesi(oyunKapagi(g.id, g.ic))} ${esc(g.name)}`;
   if (location.hash !== "#" + id) history.replaceState(null, "", "#" + id);
   window.scrollTo({ top: 0, behavior: "instant" });
 }

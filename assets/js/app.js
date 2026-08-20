@@ -2311,7 +2311,7 @@ function funMenu(){
     ["eglence.html#tahmin", t("fun.guess"), "🔮", 0],
   ];
   return `<span class="nav-sub">${items.map(([h,l,i,p]) =>
-    `<a href="${h}"><span class="ns-ic">${oyunSimgesi(i)}</span>${l}${
+    `<a href="${h}"><span class="ns-ic">${oyunSimgesi(oyunKapagi(h.split("#")[1], i))}</span>${l}${
       p ? `<span class="pts-badge">${t("tile.pts")}</span>` : ""}</a>`).join("")}</span>`;
 }
 
@@ -2399,6 +2399,23 @@ function altCubuguSabitle(){ /* öteleme yok — bkz. yukarıdaki not */ }
    tokmak logosu. Simge listesi tek bir metin alanı olduğu için değer
    "assets/" ile başlıyorsa görsel, başlamıyorsa emoji basılıyor —
    böylece her çağıran yerde ayrı bir kural yazmak gerekmiyor. */
+/* Klasöre konan kapak görselleri. assets/img/oyunlar/<kimlik>.png gibi
+   bir dosya varsa o oyunun simgesi onunla değişiyor — kod değiştirmeden.
+   Liste sunucudan bir kez alınıyor; gelmezse simgeler olduğu gibi kalıyor,
+   yani bu istek başarısız olsa bile hiçbir şey bozulmuyor. */
+let OYUN_GORSEL = {};
+async function oyunGorselleriniYukle(){
+  try {
+    const r = await fetch(API_BASE + "/oyun-gorselleri");
+    if (r.ok) OYUN_GORSEL = await r.json();
+  } catch { /* görsel yoksa emoji kalır */ }
+}
+
+/* Bir oyunun simgesi: önce klasördeki kapak, yoksa tanımlı değer. */
+function oyunKapagi(kimlik, varsayilan){
+  return (kimlik && OYUN_GORSEL[kimlik]) || varsayilan;
+}
+
 function oyunSimgesi(ic){
   if (typeof ic === "string" && ic.startsWith("assets/"))
     return `<img class="oyun-simge" src="${ic}" alt="" loading="lazy">`;
@@ -2472,7 +2489,7 @@ function openDrawer(){
   }
   /* Puan kazandıran oyunların yanına küçük bir işaret. Bilerek sessiz:
      rozet küçük, soluk ve satırın sonunda — listeyi bağırtmasın. */
-  const link = (href,label,ic,pts) => `<a class="dr-link" href="${href}"><span class="dr-ic">${oyunSimgesi(ic)}</span>${label}${
+  const link = (href,label,ic,pts) => `<a class="dr-link" href="${href}"><span class="dr-ic">${oyunSimgesi(oyunKapagi(href.split("#")[1], ic))}</span>${label}${
     pts ? `<span class="pts-badge" title="${t("fun.earns")}">${t("fun.pts")}</span>` : ""}</a>`;
   d.innerHTML = `
     <aside class="drawer">
@@ -3875,6 +3892,15 @@ function mountChrome(active){
   /* Çerez bandı: karar verilmemişse göster, verilmişse reklamı
      karara göre yükle. Her sayfada çalışması gerekiyor. */
   try { cerezBandiCiz(); } catch {}
+  /* Kapak görselleri geldiğinde menüler yeniden çizilsin. */
+  if (!OYUN_GORSEL.__geldi) oyunGorselleriniYukle().then(() => {
+    OYUN_GORSEL.__geldi = 1;
+    if (Object.keys(OYUN_GORSEL).length <= 1) return;   // klasör boş, çizime gerek yok
+    mountChrome(active);
+    /* Eğlence sayfasındaki oyun listesi ayrı çiziliyor; kapaklar sonradan
+       geldiği için onu da tazelemek gerekiyor. */
+    if (typeof paintPicker === "function") paintPicker();
+  });
   // Every page was requesting /favicon.ico and getting a 404; point it at the
   // logo once here rather than adding a <link> to ten files.
   if (!document.querySelector("link[rel='icon']")){
