@@ -472,7 +472,9 @@ function showDeck(d){
   document.getElementById("deckElixir").textContent = deckElixir(d.cards);
   document.getElementById("deckCards").innerHTML = d.cards.map(c=>renderCard(c,desteYuva(d,c))).join("");
   document.getElementById("deckResult").classList.add("show");
-  const link = copyDeckLink(d.cards);
+  /* Yuva bilgisi VERİLMELİ: bağlantıdaki sıra oyunun yuva ataması.
+     Verilmezse evrim kartı kahraman yuvasına düşüp evrimsiz sayılıyor. */
+  const link = copyDeckLink(d.cards, { evo: d.evo || [], hero: d.hero || [] });
   /* "Oyunda Aç" PANOYA DA YAZMAK ZORUNDA.
 
      Kullanıcı bildirdi: çarkta ve Cenabet'te deste oyuna yapışmıyor.
@@ -507,11 +509,31 @@ function showDeck(d){
    so the result is a deck you could actually build. The eight cards are dealt
    one at a time rather than appearing at once, which is the whole point of a
    button you press for the reveal. */
-/* Oyunun gerçek deste yapısı: en fazla 2 EVRİM + 1 KAHRAMAN.
-   Eskiden 2 evrim + 1 ŞAMPİYON seçiliyordu ve kahraman yuvası hiç
-   yoktu; üstelik evrim adayları arasına kahramanlar da karışıyordu
-   (aşağıdaki nota bakınız). */
-const CEN_EVOS = 2, CEN_KAHRAMAN = 1, CEN_DEAL_MS = 320;
+/* Oyunun deste kuralı — kullanıcı bildirimi üzerine yeniden yazıldı.
+
+   HATA: üretilen destede 2 evrim + 1 kahraman + 2 ŞAMPİYON çıkıyordu.
+   Böyle bir deste oyunda kurulamıyor. Sebep, özel yuvalar seçildikten
+   sonra kalan 5 kartın TÜM kartlardan doldurulmasıydı: şampiyonlar da o
+   havuzdaydı ve deste ikinci, üçüncü şampiyonu oradan alıyordu.
+
+   Geçerli kurulumlar (kullanıcının saydıkları):
+       2 evrim + 1 kahraman
+       2 evrim + 1 şampiyon
+       1 evrim + 1 şampiyon + 1 kahraman
+   Ortak kural: en fazla 2 evrim, en fazla 1 kahraman, en fazla 1
+   şampiyon ve özel yuva toplamı en fazla 3.
+
+   Kalan yuvalar artık şampiyonsuz havuzdan dolduruluyor; şampiyon
+   yalnızca kendisine ayrılmış yuvadan gelebiliyor.
+
+   "Mantık arama" isteği duruyor: kartlar hâlâ tamamen rastgele, sadece
+   KURULABİLİR bir deste çıkıyor. */
+const CEN_DUZENLER = [
+  { evrim: 2, kahraman: 1, sampiyon: 0 },
+  { evrim: 2, kahraman: 0, sampiyon: 1 },
+  { evrim: 1, kahraman: 1, sampiyon: 1 },
+];
+const CEN_DEAL_MS = 320;
 let cenTimers = [];
 
 function cenLive(){
@@ -541,17 +563,27 @@ function cenabet(){
     (yalnizKahraman(k) || HERO_DUAL.has(CARD_DB[k].name));
   const gercekEvrim = (k) => !sampiyon(k) && !yalnizKahraman(k) && CARD_DB[k].canEvo;
 
-  const evos    = shuffle(all.filter(gercekEvrim)).slice(0, CEN_EVOS);
-  const kalanlar = new Set(evos);
-  const kahramanlar = shuffle(all.filter((k) => kahramanOlur(k) && !kalanlar.has(k)))
-                        .slice(0, CEN_KAHRAMAN);
-  const used   = new Set([...evos, ...kahramanlar]);
-  const rest   = shuffle(all.filter((k) => !used.has(k)))
-                   .slice(0, 8 - evos.length - kahramanlar.length);
-  /* Özel yuvalar önce — oyunun kendi sırası. */
-  const pick = [...evos, ...kahramanlar, ...rest];
+  const duzen = CEN_DUZENLER[Math.floor(Math.random() * CEN_DUZENLER.length)];
+  const kullanilan = new Set();
+  const al = (sart, adet) => {
+    const secim = shuffle(all.filter((k) => !kullanilan.has(k) && sart(k))).slice(0, adet);
+    secim.forEach((k) => kullanilan.add(k));
+    return secim;
+  };
+  const evos        = al(gercekEvrim,  duzen.evrim);
+  const kahramanlar = al(kahramanOlur, duzen.kahraman);
+  const sampiyonlar = al(sampiyon,     duzen.sampiyon);
+  /* Kalan yuvalar ŞAMPİYONSUZ havuzdan: ikinci bir şampiyon desteyi
+     kurulamaz yapıyordu (hatanın kendisi). */
+  const rest = al((k) => !sampiyon(k), 8 - kullanilan.size);
+
+  /* Yuva sırası oyunun kendi sırası: 1. ve 3. evrim, 2. kahraman.
+     Bağlantı da bu sırayla yazılıyor — sıra yanlışsa oyun evrimi
+     saymıyor (bkz. app.js desteYuvayaDiz). */
   const evoSet = new Set(evos);
   const kahramanSet = new Set(kahramanlar);
+  const pick = desteYuvayaDiz([...evos, ...kahramanlar, ...sampiyonlar, ...rest],
+                              { evo: evos, hero: kahramanlar });
 
   const res = document.getElementById("cenabetResult");
   const grid = document.getElementById("cenCards");
@@ -569,15 +601,18 @@ function cenabet(){
          rozeti bassın — evrim moru ile karışmasın. */
       cell.innerHTML = renderCard(k, { evo: evoSet.has(k), heroSlot: kahramanSet.has(k) });
       grid.appendChild(cell);
-      if (i === pick.length - 1) cenFinish(pick);
+      /* Ses: her kart düşerken kısa bir tık, son kartta sonuç ezgisi.
+         Çarkla aynı yardımcılar; ses kapalıysa ikisi de sessiz döner. */
+      sesTik();
+      if (i === pick.length - 1) { sesKazandi(0.05); cenFinish(pick, evoSet, kahramanSet); }
     }, i * CEN_DEAL_MS));
   });
 }
 
-function cenFinish(pick){
+function cenFinish(pick, evoSet, kahramanSet){
   document.getElementById("cenElixir").textContent = "💧 " + deckElixir(pick);
   document.getElementById("cenabetBtn").disabled = false;
-  const link = copyDeckLink(pick);
+  const link = copyDeckLink(pick, { evo: [...(evoSet || [])], hero: [...(kahramanSet || [])] });
   /* "Oyunda Aç" PANOYA DA YAZMAK ZORUNDA.
 
      Kullanıcı bildirdi: çarkta ve Cenabet'te deste oyuna yapışmıyor.

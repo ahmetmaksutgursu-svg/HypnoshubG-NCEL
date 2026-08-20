@@ -92,7 +92,7 @@ function side(pl, right){
     ${defter}
     <!-- Kartlar 4+4: sekizi yan yana dizmek gözü yoruyordu (kullanıcı
          bildirimi). Iki satır hem büyük hem oyunun kendi düzenine yakın. -->
-    <div class="decks">${deckIcons(pl.deck, pl.evo||[], "iki-sira", pl.hero||[])}${deckCopyBtn(pl.deck)}</div>
+    <div class="decks">${deckIcons(pl.deck, pl.evo||[], "iki-sira", pl.hero||[])}${deckCopyBtn(pl.deck, { evo: pl.evo||[], hero: pl.hero||[] })}</div>
   </div>`;
 }
 function matchHtml(m){

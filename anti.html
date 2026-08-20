@@ -215,7 +215,8 @@ function ciz(d, baslik){
   kutu.innerHTML = bas + anti.map((x, i) => {
     const dd = cizilecek[i];
     const p = Math.round(x.yuzde);
-    const link = copyDeckLink(dd.cards);
+    /* Yuva bilgisi iletiliyor: bağlantıdaki sıra oyunun yuva ataması. */
+    const link = copyDeckLink(dd.cards, { evo: dd.evo||[], hero: dd.hero||[] });
     return `
     <div class="card anti-sonuc">
       <div class="as-ust">

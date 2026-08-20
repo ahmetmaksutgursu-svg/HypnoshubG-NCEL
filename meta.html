@@ -142,7 +142,8 @@ function render(){
     SORT === "winrate" ? (b.winrate ?? -1)-(a.winrate ?? -1) || (b.battles||0)-(a.battles||0)
                        : (b.usage||0)-(a.usage||0));
   document.getElementById("metaGrid").innerHTML = list.map(d=>{
-    const link = copyDeckLink(d.cards);
+    /* Yuva bilgisi iletiliyor: bağlantıdaki sıra oyunun yuva ataması. */
+    const link = copyDeckLink(d.cards, { evo: d.evo||[], hero: d.hero||[] });
     const wr = d.winrate!=null ? d.winrate : null;
     const wrCls = wr==null ? "" : wr>=55 ? "good" : wr<45 ? "bad" : "";
     /* Deck order already puts the three special slots first (evolutions, then

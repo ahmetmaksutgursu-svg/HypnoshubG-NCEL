@@ -221,7 +221,8 @@ async function showCardDecks(key){
 
   const body = decks.length
     ? decks.map(d=>{
-        const link = copyDeckLink(d.keys);
+        /* Yuva bilgisi iletiliyor: bağlantıdaki sıra oyunun yuva ataması. */
+        const link = copyDeckLink(d.keys, { evo: d.evo||[], hero: d.hero||[] });
         return `<div style="border-top:1px solid var(--border);padding:12px 0">
           <div class="flex between center wrap gap-8" style="margin-bottom:8px">
             <b>${d.name}</b>

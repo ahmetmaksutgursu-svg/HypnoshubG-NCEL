@@ -137,7 +137,8 @@ function rowHtml(r){
   const medal = r.rank<=3 ? `<span class="rank-badge g${r.rank}">${r.rank}</span>` : `<span class="rank">${r.rank}</span>`;
   /* Desteyi oyunda açan düğme — ortak yardımcı (app.js/deckCopyBtn).
      Aynı düğme son maçlar ve profil savaş geçmişinde de var. */
-  const kopya = deckCopyBtn(r.deck);
+  /* Yuva bilgisi iletiliyor: bağlantıdaki sıra oyunun yuva ataması. */
+  const kopya = deckCopyBtn(r.deck, { evo: r.evo||[], hero: r.hero||[] });
   const deck = r.deck && r.deck.length
     ? `<span class="deck-cell" title="${deckTip(r)}">${deckIcons(r.deck, r.evo||[], "", r.hero||[])}</span>${kopya}`
     : `<span class="muted" style="font-size:.78rem">${LANG==="tr"?"Maç kaydı yok":"No battle record"}</span>`;

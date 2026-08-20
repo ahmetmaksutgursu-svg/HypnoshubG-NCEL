@@ -342,7 +342,7 @@ function renderHomeMeta(decks){
       <div class="foot">
         <span class="elixir-badge">💧 ${deckElixir(d.cards)}</span>
         ${d.usage!=null?`<span>${t("word.usage")}: <b>%${d.usage}</b></span>`:""}
-        ${copyDeckLink(d.cards)?`<a class="wr" style="margin-left:auto" href="${copyDeckLink(d.cards)}">${t("word.copy")} ↗</a>`:``}
+        ${copyDeckLink(d.cards, { evo: d.evo||[], hero: d.hero||[] })?`<a class="wr" style="margin-left:auto" href="${copyDeckLink(d.cards, { evo: d.evo||[], hero: d.hero||[] })}">${t("word.copy")} ↗</a>`:``}
       </div>
     </div>`).join("");
 }

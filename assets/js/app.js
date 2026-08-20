@@ -1045,9 +1045,37 @@ function deckElixir(cards){
    birebir korumak tercih edildi. İşlevsiz olduğu doğrulanırsa çıkarılır.
 
    Bu bağlantı biçimini ÖLÇMEDEN değiştirmeyin. */
+/* Bağlantıdaki KART SIRASI, oyunun yuva atamasıdır.
+
+   Kullanıcı bildirdi: "evrimli Elit Barbar'ı 3. slota koyması gerekirken
+   2'ye koyduğu için oyun evrimi saymadı". Haklı — bağlantıya kartları
+   geldiği sırayla yazıyorduk, oysa sıra anlam taşıyor.
+
+   Yuva haritası sitenin geri kalanıyla aynı (bkz. deckSpecialSlots
+   ölçümü): 1. ve 3. yuva EVRİM, 2. yuva KAHRAMAN. Evrim kartı kahraman
+   yuvasına düşerse oyun onu evrimsiz sayıyor — görülen tam olarak buydu.
+
+   Evrim/kahraman bilgisi verilmezse sıra olduğu gibi bırakılıyor: yanlış
+   tahminle kartları karıştırmaktansa dokunmamak daha doğru. */
+const DESTE_EVRIM_YUVA = [0, 2];
+const DESTE_KAHRAMAN_YUVA = 1;
+function desteYuvayaDiz(cards, ozel = {}){
+  const evo  = (ozel.evo  || []).filter((k) => cards.includes(k));
+  const hero = (ozel.hero || []).filter((k) => cards.includes(k) && !evo.includes(k));
+  if (!evo.length && !hero.length) return cards.slice();
+  const yuva = new Array(cards.length).fill(null);
+  evo.slice(0, DESTE_EVRIM_YUVA.length).forEach((k, i) => { yuva[DESTE_EVRIM_YUVA[i]] = k; });
+  if (hero.length) yuva[DESTE_KAHRAMAN_YUVA] = hero[0];
+  const kalan = cards.filter((k) => !yuva.includes(k));
+  let j = 0;
+  for (let i = 0; i < yuva.length; i++) if (!yuva[i]) yuva[i] = kalan[j++];
+  return yuva.filter(Boolean);
+}
+
 const DESTE_KULE = "159000000";        // Kule Prensesi — varsayılan kule askeri
-function copyDeckLink(cards){
-  const ids = cards.map(k => CARD_DB[k]?.id).filter(Boolean);
+function copyDeckLink(cards, ozel){
+  const sirali = desteYuvayaDiz(cards, ozel);
+  const ids = sirali.map(k => CARD_DB[k]?.id).filter(Boolean);
   if (ids.length !== cards.length) return null;
   return "https://link.clashroyale.com/en?clashroyale://copyDeck?deck="
        + ids.join(";") + "&tt=" + DESTE_KULE + "&l=Royals";
@@ -1057,8 +1085,8 @@ function copyDeckLink(cards){
    birden kullanılıyor: sıralamalar, son maçlar ve oyuncu profilindeki savaş
    geçmişi. Sekiz kartın da kimliği bilinmiyorsa hiç çizilmiyor — eksik
    kimlikle üretilen bağlantı oyunda hata verirdi. */
-function deckCopyBtn(cards){
-  const link = cards && cards.length ? copyDeckLink(cards) : null;
+function deckCopyBtn(cards, ozel){
+  const link = cards && cards.length ? copyDeckLink(cards, ozel) : null;
   if (!link) return "";
   const tr = LANG === "tr";
   return `<button class="deck-copy" onclick="openDeck(${jsArg(link)},this)"
