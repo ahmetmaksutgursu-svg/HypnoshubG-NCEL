@@ -108,6 +108,99 @@ function toggleTheme(){
    geçerli — ileride başka bir oyuna ses eklenirse ayrı bir
    düğme gerekmesin.
    ============================================================ */
+
+/* ============================================================
+   ÇEREZ ONAYI  🍪
+   ------------------------------------------------------------
+   Sitede iki tür çerez var ve ikisi AYNI ŞEY DEĞİL:
+
+     ZORUNLU  — `hs_session`. Oturumu açık tutar, giriş yapılmadıysa
+                hiç oluşturulmaz. Hizmetin çalışması için gerekli,
+                onaya bağlanamaz (bağlanırsa giriş çalışmaz).
+     REKLAM   — Google AdSense'in çerezleri. Hizmetin çalışması için
+                GEREKLİ DEĞİL, dolayısıyla önceden onay ister.
+
+   Önceki hâlde AdSense betiği her sayfanın <head> bölümünde duruyordu
+   ve ziyaretçiye sorulmadan, sayfa açılır açılmaz reklam çerezlerini
+   kuruyordu. Ölçüldü: googlesyndication, doubleclick ve
+   adtrafficquality alan adlarına istek gidiyordu.
+
+   Artık betik onaydan SONRA yükleniyor. Reddedildiğinde hiç
+   yüklenmiyor — "reddet"in gerçekten bir karşılığı olsun diye; onay
+   bandında reddetmeyi zorlaştırmak ya da yalnızca "kabul et" koymak
+   onayı anlamsız kılardı.
+
+   Karar cihazda saklanıyor (sunucuya gönderilmiyor: bu bilgi kişiyi
+   tanımlamak için değil, tercihini hatırlamak için tutuluyor).
+   ============================================================ */
+const CEREZ_ANAHTAR = "hs_cerez";
+const ADSENSE_ID = "ca-pub-2829452879673360";
+
+function cerezKarari(){
+  try { return localStorage.getItem(CEREZ_ANAHTAR); } catch { return null; }
+}
+function cerezKaydet(karar){
+  try { localStorage.setItem(CEREZ_ANAHTAR, karar); } catch {}
+}
+
+/* Reklam betiğini yalnızca onay varsa yükle. Bir kez yüklenir. */
+let reklamYuklendi = false;
+function reklamiYukle(){
+  if (reklamYuklendi || cerezKarari() !== "kabul") return;
+  reklamYuklendi = true;
+  const s = document.createElement("script");
+  s.async = true;
+  s.crossOrigin = "anonymous";
+  s.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=" + ADSENSE_ID;
+  document.head.appendChild(s);
+}
+
+function cerezBandiCiz(){
+  if (cerezKarari()) { reklamiYukle(); return; }
+  if (document.getElementById("cerezBandi")) return;
+  const tr = (typeof LANG === "undefined" || LANG === "tr");
+  const el = document.createElement("div");
+  el.id = "cerezBandi";
+  el.className = "cerez-bandi";
+  el.setAttribute("role", "dialog");
+  el.setAttribute("aria-label", tr ? "Çerez tercihi" : "Cookie preference");
+  el.innerHTML =
+    '<div class="cerez-ic">' +
+      '<div class="cerez-metin">' +
+        '<b>🍪 ' + (tr ? "Çerezler" : "Cookies") + '</b> ' +
+        (tr
+          ? 'Oturumunuzu açık tutan <b>zorunlu çerez</b> dışında, sayfadaki reklamlar için ' +
+            'Google AdSense <b>reklam çerezleri</b> kullanılabilir. Bunlar zorunlu değildir; ' +
+            'reddederseniz site tüm özellikleriyle çalışmaya devam eder. ' +
+            'Ayrıntı: <a href="gizlilik.html">Gizlilik ve KVKK</a>.'
+          : 'Besides the required session cookie, Google AdSense may set advertising cookies. ' +
+            'These are optional — the site works fully without them. ' +
+            'See the <a href="gizlilik.html">privacy notice</a>.') +
+      '</div>' +
+      '<div class="cerez-dugmeler">' +
+        '<button class="btn btn-ghost" onclick="cerezSec(\'ret\')">' + (tr ? "Reddet" : "Reject") + '</button>' +
+        '<button class="btn btn-primary" onclick="cerezSec(\'kabul\')">' + (tr ? "Kabul et" : "Accept") + '</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(el);
+}
+
+function cerezSec(karar){
+  cerezKaydet(karar);
+  const el = document.getElementById("cerezBandi");
+  if (el) el.remove();
+  if (karar === "kabul") reklamiYukle();
+}
+
+/* Kararı sonradan değiştirebilmek gerekiyor: onay bir kez alınıp
+   kilitlenmez. Alt bilgideki bağlantı bunu çağırıyor. */
+function cerezTercihiniAc(){
+  try { localStorage.removeItem(CEREZ_ANAHTAR); } catch {}
+  const el = document.getElementById("cerezBandi");
+  if (el) el.remove();
+  cerezBandiCiz();
+}
+
 const SES_ANAHTAR = "hs_ses";
 let sesBaglam = null, sesGurultu = null;
 
@@ -2332,6 +2425,7 @@ function buildFooter(){
                yasal olarak her sayfadan ulaşılabilir olması gerekiyor. -->
           <a href="hakkinda.html">${LANG==="tr"?"Hakkımızda":"About"}</a>
           <a href="gizlilik.html" data-i18n="footer.privacy">${t("footer.privacy")}</a>
+          <a href="#" onclick="event.preventDefault();cerezTercihiniAc()">${LANG==="tr"?"Çerez tercihi":"Cookie settings"}</a>
           <!-- Reklam ağları (AdSense) sitede gizlilik politikası, hakkında ve
                kullanım koşulları sayfalarının HER SAYFADAN ulaşılabilir olmasını
                istiyor; üçü de burada. -->
@@ -3574,6 +3668,9 @@ async function fbUnban(userId, username){
 
 /* ---------- Boot ---------- */
 function mountChrome(active){
+  /* Çerez bandı: karar verilmemişse göster, verilmişse reklamı
+     karara göre yükle. Her sayfada çalışması gerekiyor. */
+  try { cerezBandiCiz(); } catch {}
   // Every page was requesting /favicon.ico and getting a 404; point it at the
   // logo once here rather than adding a <link> to ten files.
   if (!document.querySelector("link[rel='icon']")){

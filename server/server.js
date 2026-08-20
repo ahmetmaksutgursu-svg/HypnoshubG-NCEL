@@ -2506,7 +2506,8 @@ const gameDeps = {
   },
 };
 require("./games").mount(app, gameDeps);
-require("./feedback").mount(app, {
+const feedback = require("./feedback");
+feedback.mount(app, {
   readSession: auth.readActiveSession, listUsers: auth.listUsers,
   banUser: auth.banUser, unbanUser: auth.unbanUser, userInfo: auth.userInfo, banSteps: auth.BAN_STEPS,
   isAdmin: auth.isAdmin, adminLabel: auth.adminLabel,
@@ -2530,6 +2531,10 @@ auth.veriKaydet("Tokmakçılar puanları", board.kullaniciOzeti, board.kullanici
 auth.veriKaydet("Yarışma hakları", quiz.kullaniciOzeti, quiz.kullaniciSil);
 auth.veriKaydet("Oyun hakları", games.kullaniciOzeti, games.kullaniciSil);
 auth.veriKaydet("Mesajlar", messages.kullaniciOzeti, messages.kullaniciSil);
+/* Bu ikisi eksikti: kullanıcı kimliğiyle kayıt tutuyorlardı ama hesap
+   silindiğinde temizlenmiyorlardı. */
+auth.veriKaydet("Geri bildirimler", feedback.kullaniciOzeti, feedback.kullaniciSil);
+auth.veriKaydet("Rozet başvuruları", badges.kullaniciOzeti, badges.kullaniciSil);
 
 /* ---------- PRO başvuruları ve rozet yönetimi ----------
    Oyuncu etiketini yazıp başvurur; yönetici kabul ya da reddeder.

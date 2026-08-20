@@ -27,8 +27,11 @@
   yüklenmeden çalıştığı için sayfa hiç yanıp sönmüyor. Varsayılan "gece". */
 try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribute("data-theme",
 ["gece","light","dark"].indexOf(_t)>=0?_t:"gece")}catch(e){}</script>
+<meta name="google-adsense-account" content="ca-pub-2829452879673360">
 <link rel="stylesheet" href="assets/css/styles.css">
-<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2829452879673360" crossorigin="anonymous"></script>
+<!-- AdSense betiği BURADA DEĞİL: reklam çerezleri onay gerektirdiği için
+     betik, ziyaretçi kabul ettikten sonra app.js tarafından yükleniyor
+     (bkz. ÇEREZ ONAYI). -->
 </head>
 <body>
 <div id="app-header"></div>
@@ -166,6 +169,8 @@ try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribut
           <tr><td><b>Railway</b> (sunucu, AB–Batı)</td><td>Siteyi barındırır, veriler burada saklanır</td><td>Evet — barındırma amacıyla</td></tr>
           <tr><td><b>Cloudflare</b></td><td>Yalnızca alan adı yönlendirmesi (DNS)</td><td>Hayır</td></tr>
           <tr><td><b>Supercell / Clash Royale API</b></td><td>Oyun verisi kaynağı</td><td>Hayır — yalnızca oyuncu etiketi sorgulanır</td></tr>
+          <tr><td><b>RoyaleAPI CDN</b></td><td>Kart görselleri (tarayıcınız doğrudan çeker)</td>
+              <td>Hesap veriniz <b>hayır</b>; görsel isteğinde IP'niz <b>görünür</b></td></tr>
           <tr><td><b>RoyaleAPI vekili</b></td><td>Oyun API'sine erişim</td><td>Hayır</td></tr>
           <tr><td><b>YouTube</b></td><td>Video listesi (herkese açık akış)</td><td>Hayır</td></tr>
           <tr><td><b>Google AdSense</b></td><td>Reklam gösterimi ve ölçümü</td>
@@ -220,9 +225,19 @@ try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribut
       nasıl işlediği kendi metninde anlatılıyor:
       <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener">Google iş ortağı siteleri politikası</a>.
     </p>
+    <p>
+      <b>Onay mekanizması.</b> Reklam çerezleri <b>siz kabul etmeden kurulmaz</b>.
+      Siteye ilk girişte alt kısımda bir çerez bandı çıkar; <b>Reddet</b> derseniz
+      Google AdSense betiği <b>hiç yüklenmez</b> ve hiçbir reklam çerezi
+      oluşturulmaz. Kararınızı sonradan değiştirmek isterseniz alt bilgideki
+      <b>Çerez tercihi</b> bağlantısından yeniden seçebilirsiniz. Tercihiniz
+      yalnızca kendi cihazınızda saklanır, sunucuya gönderilmez.
+    </p>
     <p class="muted" style="font-size:.86rem">
-      Not: reklam çerezleri sitenin çalışması için zorunlu değildir. Engellerseniz
-      site tüm özellikleriyle çalışmaya devam eder.
+      Not: reklam çerezleri sitenin çalışması için zorunlu değildir. Reddederseniz
+      site tüm özellikleriyle çalışmaya devam eder. Oturum çerezi
+      (<code>hs_session</code>) ise hizmetin çalışması için zorunludur ve yalnızca
+      giriş yaptığınızda oluşturulur.
     </p>
     <p>
       Tema (açık/koyu) ve dil tercihiniz çerez değil, <b>tarayıcınızın kendi

@@ -190,4 +190,20 @@ function mount(app, { readSession, listUsers, banUser, unbanUser, userInfo, banS
     ` Yönetici: ${adminLabel()}.`);
 }
 
-module.exports = { mount };
+/* ---------- KVKK m.7: hesap silinince geri bildirimler de gider ----------
+   Bu modül kullanıcı kimliğiyle kayıt tutuyordu ama silme zincirine
+   BAĞLI DEĞİLDİ: hesap silindiğinde geri bildirim satırları kullanıcı
+   adı ve kimliğiyle birlikte dosyada kalıyordu. Üstelik ekranda
+   "bağlı bütün kayıtlarınız silindi" yazıyordu — yani söylenen şey
+   doğru değildi. */
+const kullaniciOzeti = (userId) =>
+  `${db.items.filter((x) => x.userId === userId).length} geri bildirim`;
+function kullaniciSil(userId) {
+  const once = db.items.length;
+  db.items = db.items.filter((x) => x.userId !== userId);
+  const silinen = once - db.items.length;
+  if (silinen) save();
+  return `${silinen} geri bildirim silindi`;
+}
+
+module.exports = { mount, kullaniciOzeti, kullaniciSil };

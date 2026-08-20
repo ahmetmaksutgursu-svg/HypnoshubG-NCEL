@@ -185,7 +185,25 @@ function decide(id, karar, { by = "", note = "" } = {}) {
   return { ok: true, app };
 }
 
+/* ---------- KVKK m.7: hesap silinince rozet BAŞVURULARI da gider ----------
+   `apps` dizisi kullanıcı kimliği ve adıyla başvuru tutuyor ama silme
+   zincirine bağlı değildi.
+
+   `granted` bilerek DOKUNULMUYOR: o kayıt hesaba değil OYUN ETİKETİNE
+   bağlı ("#ABC123"), etiket de Supercell'in herkese açık verisi. Hesap
+   silinince kişiyle bağı zaten kopuyor. */
+const kullaniciOzeti = (userId) =>
+  `${db.apps.filter((a) => a.userId === userId).length} rozet başvurusu`;
+function kullaniciSil(userId) {
+  const once = db.apps.length;
+  db.apps = db.apps.filter((a) => a.userId !== userId);
+  const silinen = once - db.apps.length;
+  if (silinen) save();
+  return `${silinen} rozet başvurusu silindi`;
+}
+
 module.exports = {
+  kullaniciOzeti, kullaniciSil,
   KINDS, KIND_TR, normTag, gecerliTag,
   grant, revoke, get, listGranted,
   gizliMi, gizlemeKaldir, listGizli,

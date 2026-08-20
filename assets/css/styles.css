@@ -2570,3 +2570,29 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
    ki kullanıcı "neyi onaylıyorum" sorusunu bir bakışta cevaplayabilsin. */
 .auth-onaylar { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 2px; }
 .auth-onaylar .auth-kvkk { margin: 0; }
+
+/* ---------- Çerez onayı bandı ----------
+   Ekranın altında, içeriği kapatmayacak kadar dar. İki düğme AYNI
+   ağırlıkta: "reddet"i küçültmek ya da gizlemek onayı anlamsız kılar,
+   çünkü seçim gerçek olmalı. */
+.cerez-bandi {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 120;
+  background: var(--surface); border-top: 1px solid var(--border);
+  box-shadow: 0 -8px 28px rgba(0, 0, 0, .35);
+  padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+}
+.cerez-ic {
+  max-width: 1100px; margin: 0 auto;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+}
+.cerez-metin { flex: 1 1 320px; min-width: 0; font-size: .82rem; line-height: 1.55; color: var(--text-soft); }
+.cerez-metin b { color: var(--text); }
+.cerez-metin a { color: var(--gold-500); }
+.cerez-dugmeler { display: flex; gap: 8px; flex: 0 0 auto; }
+.cerez-dugmeler .btn { padding: 8px 16px; font-size: .82rem; }
+@media (max-width: 620px) {
+  /* Telefonda alt gezinme çubuğu var; bant onun üstünde durmalı. */
+  .cerez-bandi { bottom: var(--bottomnav-h, 62px); }
+  .cerez-dugmeler { width: 100%; }
+  .cerez-dugmeler .btn { flex: 1; }
+}
