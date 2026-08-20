@@ -135,6 +135,32 @@ async function cached(key, ttlMs, fn) {
   return p;
 }
 
+/* ============================================================
+   KART LİSTESİ — tek kapı
+   ------------------------------------------------------------
+   Altı ayrı yerde `cached("cards", …, () => cr("/cards").body)` yazılıydı
+   ve hiçbiri gelen gövdeyi DOĞRULAMIYORDU.
+
+   Yayında yakalandı: RoyaleAPI vekili Cloudflare'in "Error 525: SSL
+   handshake failed" JSON'unu döndürdü. O gövdede `items` yok ama hata da
+   fırlatılmadığı için doğrudan önbelleğe yazıldı — ve önbellek ömrü BİR
+   SAAT. Yani birkaç saniyelik bir yukarı akış kesintisi, sitedeki bütün
+   kartları bir saat boyunca boşaltıyordu.
+
+   Artık gövde doğrulanıyor: `items` bir dizi değilse ya da boşsa HATA
+   fırlatılıyor. `cached()` reddedilen işi silmediği için bozuk yanıt
+   önbelleğe girmiyor ve bir sonraki istek yeniden deniyor. Çağıran uçlar
+   da boş liste yerine 502 görüyor, yani sorun sessizce yutulmuyor. */
+async function kartListesi() {
+  return cached("cards", 3600e3, async () => {
+    const body = (await cr(`/cards`)).body;
+    if (!body || !Array.isArray(body.items) || !body.items.length)
+      throw new Error("kart listesi boş geldi — yukarı akış hatası: " +
+                      String(body && (body.title || body.detail || body.reason) || "bilinmiyor"));
+    return body;
+  });
+}
+
 /*
   Bayatını ver, arkada tazele.
 
@@ -1176,7 +1202,7 @@ app.get("/api/heroes", async (req, res) => {
        new file into assets/img/heroes/ has to show up without a restart. */
     const data = await cached("heroes:roster", 15e3, async () => {
       const [cards, art, kinds] = await Promise.all([
-        cached("cards", 3600e3, async () => (await cr(`/cards`)).body),
+        kartListesi(),
         characterArt(),
         cardKinds(),
       ]);
@@ -1705,7 +1731,7 @@ app.get("/api/cards", async (req, res) => {
   try {
     const data = await cached("cards+kind+traits+tr", 3600e3, async () => {
       const [body, kinds, traits, tr, heroSet] = await Promise.all([
-        cached("cards", 3600e3, async () => (await cr(`/cards`)).body),
+        kartListesi(),
         cardKinds(),
         cardTraits(),
         cardNamesTR(),
@@ -2016,7 +2042,7 @@ let heroOnly = null;
 let heroAll = null;
 async function heroOnlyCards() {
   if (heroOnly) return heroOnly;
-  const body = await cached("cards", 3600e3, async () => (await cr(`/cards`)).body);
+  const body = await kartListesi();
   const items = body.items || [];
   heroAll = new Set(items.filter((c) => c.iconUrls?.heroMedium).map((c) => c.name));
   heroOnly = new Set(items
@@ -2156,7 +2182,7 @@ app.get("/api/analiz", (req, res) => {
 let kartHaritasi = null;
 async function kartlarIdIle() {
   if (kartHaritasi) return kartHaritasi;
-  const body = await cached("cards", 3600e3, async () => (await cr(`/cards`)).body);
+  const body = await kartListesi();
   kartHaritasi = new Map((body.items || []).map((c) => [c.id, c]));
   return kartHaritasi;
 }
@@ -2395,7 +2421,7 @@ quiz.mount(app, {
   readSession: auth.readActiveSession,
   addPoints: board.award,
   banUser: auth.banUser,                 // bot tespitinde otomatik ceza
-  cardsBody: () => cached("cards", 3600e3, async () => (await cr(`/cards`)).body),
+  cardsBody: () => kartListesi(),
   cardKinds, cardTraits, cardNamesTR, cardArenas, chrKey,
 });
 /* Oyunların ortak veri kaynakları. Hepsi zaten hesapladığımız şeyler:
@@ -2405,7 +2431,7 @@ const gameDeps = {
   addPoints: board.award,
   allCards: async () => {
     const [body, kinds, traits, tr, arenas, heroSet] = await Promise.all([
-      cached("cards", 3600e3, async () => (await cr(`/cards`)).body),
+      kartListesi(),
       cardKinds(), cardTraits(), cardNamesTR(), cardArenas(), heroOnlyCards(),
     ]);
     return (body.items || []).map((c) => ({
