@@ -1475,14 +1475,29 @@ async function cardCombat() {
 */
 const TEXTS_DATA = "https://royaleapi.github.io/cr-api-data/json/texts.json";
 /* Names the published table gets wrong or spells differently from the current
-   Turkish client, plus the cards it is simply too old to know. Checked against
-   the game's own Kahramanlar screen: "Barbar Fıçısı" (not Varili), "Yaramaz"
-   (not Haydut), "Silahşör" (not Silahşor). If one of these ever reads wrong
-   in game, this is the line to fix.
+   Turkish client, plus the cards it is simply too old to know.
+
+   BURAYA YAZMADAN ÖNCE OKU. Bu tablo yayımlanan çeviriyi EZİYOR, yani buraya
+   konan her yanlış doğrudan ekrana çıkıyor ve doğrulaması zor. Bir kartın
+   Türkçe adını buraya yalnızca oyunun kendi ekranında GÖRDÜKTEN sonra ekle.
+
+   Düzeltildi (kullanıcı bildirimi + oyundan doğrulandı): "Bandit" burada
+   "Yaramaz" yazıyordu. Kullanıcı desteyi oyuna yapıştırdığında kartın
+   "Haydut" olduğunu gördü. Supercell'in kendi çeviri tablosu da
+   TID_SPELL_ASSASSIN için "Haydut" diyor ve "Yaramaz" hiçbir kartın adı
+   değil — kelime yalnızca Serseriler'in AÇIKLAMA metninde geçiyor.
+   Satır kaldırıldı, yayımlanan ad kullanılıyor.
+
    Düzeltildi: "Boss Bandit" burada "Patron Haydut" diye tahmin edilmişti;
-   Türkçe istemcide "Boss Haydut" yazıyor (oyundan doğrulandı). */
+   Türkçe istemcide "Boss Haydut" yazıyor (oyundan doğrulandı).
+
+   Aşağıda yayımlanan tabloyla ÇELİŞEN iki satır kaldı; ikisi de yalnızca
+   yazım farkı ve ikisi de oyun ekranından teyit bekliyor:
+     "Barbarian Barrel" → bizde "Barbar Fıçısı", tabloda "Barbar Varili"
+     "Musketeer"        → bizde "Silahşör",      tabloda "Silahşor"
+*/
 const TR_NAME_EXTRA = {
-  "Barbarian Barrel": "Barbar Fıçısı", "Bandit": "Yaramaz", "Musketeer": "Silahşör",
+  "Barbarian Barrel": "Barbar Fıçısı", "Musketeer": "Silahşör",
   "Little Prince": "Küçük Prens", "Goblin Demolisher": "Goblin Yıkıcı",
   "Goblin Machine": "Goblin Makinesi", "Suspicious Bush": "Şüpheli Çalı",
   "Goblinstein": "Goblinstein", "Rune Giant": "Rün Devi", "Berserker": "Cengâver",
