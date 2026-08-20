@@ -2409,3 +2409,29 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   .bl-row .bl-deste .deck-icons.iki-sira { max-width:none; }
   .bl-yan.sag .bl-deste .deck-cell { justify-content:flex-end; }
 }
+
+/* ---------- Kart görseli kutusunu taşmasın ----------
+   HATA: yeni kahraman portreleri (285x420) diğer kart görsellerinden
+   (150x180) belirgin daha uzun oranlı. Görsele `height:100%` yazılmıştı
+   ama kutunun yüksekliği `aspect-ratio`dan geliyor, yani KESİN değil —
+   yüzdelik yükseklik böyle bir kapta `auto`ya düşüyor. Sonuç: kahraman
+   görseli genişliğe göre ölçeklenip kutusunu aşıyordu (deste satırında
+   67 px'lik kutuda 80 px, büyük kartta 155 px'lik kutuda 190 px) ve
+   satırdaki kartlar hizasız görünüyordu.
+
+   Çözüm yüzdelik yüksekliğe hiç güvenmemek: görsel kutuya mutlak
+   konumla oturtuluyor, `inset:0` her iki ekseni de kesinleştiriyor. */
+.cr-card .art { position: relative; }
+.cr-card .art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.di { position: relative; }
+.di img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+
+/* Kahraman portresi için AYRI KURAL YOK — gerek kalmadı.
+   Bir ara `object-fit: cover` ile kırpılıyordu; kırpma tepeden alınınca
+   kompozisyon kayıyor ve kart komşularından farklı duruyordu (kullanıcı
+   bildirdi). Doğru çözüm CSS değil GÖRSELİN KENDİSİYDİ: portrelerin
+   üstünde kartın kendisinden dar bir altın şerit vardı ve oranı 0,689
+   yapıyordu (normal kart 0,833). Şerit kesilip 257x289 (oran 0,889)
+   olarak yeniden kaydedildiler. Artık kutunun 26/31 oranına yakın
+   olduklarından diğer kartlarla aynı boyutta ve ortalı çiziliyorlar;
+   hiçbir şey kırpılmıyor ya da esnetilmiyor. */
