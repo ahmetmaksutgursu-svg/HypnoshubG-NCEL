@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="gece">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Yönetim — HYPNOSHUB</title>
+<!-- Arama motorlarına kapalı: yönetim ekranının dizine girmesinin hiçbir
+     faydası yok. Güvenliği bu sağlamıyor — sunucu her isteği ayrıca
+     doğruluyor ve yetkisiz isteğe 403 dönüyor. -->
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" href="assets/img/hammer-logo.jpg">
+<link rel="apple-touch-icon" href="assets/img/hammer-logo.jpg">
+<meta name="theme-color" content="#0b0b0d">
+<script>try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribute("data-theme",
+["gece","light","dark"].indexOf(_t)>=0?_t:"gece")}catch(e){}</script>
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<div id="app-header"></div>
+
+<section class="page-strip">
+  <div class="container">
+    <p class="eyebrow">YALNIZCA YÖNETİCİ</p>
+    <h1>YÖNETİM</h1>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div id="yonetimGovde">
+      <div class="card"><p class="muted" style="margin:0">Yükleniyor…</p></div>
+    </div>
+  </div>
+</section>
+
+<div id="app-footer"></div>
+<script src="assets/js/app.js"></script>
+<script>
+/* ============================================================
+   YÖNETİM EKRANI
+   ------------------------------------------------------------
+   Yönetici uçları (/api/admin/*) vardı ama onları kullanan hiçbir ekran
+   YOKTU: kullanıcıları görmenin tek yolu Tokmakçılar tablosuydu ve oraya
+   yalnızca PUAN TOPLAMIŞ kişiler düşüyor. Yani küfürlü bir adla kayıt
+   olup hiç oynamamış biri sitede hiçbir yerde görünmüyordu — tam da
+   silinmesi istenen hesaplar.
+
+   Bu sayfa o boşluğu kapatıyor: ada göre ara, yasakla, yasağı kaldır,
+   gerekiyorsa hesabı kalıcı olarak sil.
+
+   GÜVENLİK: buradaki hiçbir kontrol güvenlik sağlamıyor. Sayfa yalnızca
+   ekran çiziyor; asıl karar sunucuda veriliyor. Silme, kullanıcı adının
+   birebir yazılmasını istiyor — hem burada (kazayı önlemek için) hem
+   sunucuda (asıl kilit).
+   ============================================================ */
+const API = (typeof API_BASE !== "undefined") ? API_BASE : "/api";
+let BEN = null;
+
+const cagir = async (yol, govde) => {
+  const r = await fetch(API + yol, {
+    method: govde ? "POST" : "GET", credentials: "same-origin",
+    headers: govde ? { "content-type": "application/json" } : {},
+    body: govde ? JSON.stringify(govde) : undefined,
+  });
+  const j = await r.json().catch(() => ({}));
+  return { ok: r.ok, status: r.status, j };
+};
+
+function kapali(mesaj) {
+  document.getElementById("yonetimGovde").innerHTML =
+    '<div class="card"><div class="card-head"><span class="dot">🔒</span><h3>Erişim yok</h3></div>' +
+    '<p class="muted" style="margin:0">' + esc(mesaj) + '</p></div>';
+}
+
+async function baslat() {
+  const ben = await cagir("/auth/me");
+  BEN = ben.ok ? ben.j : null;
+  if (!BEN || !BEN.username)
+    return kapali("Bu sayfayı görmek için yönetici hesabıyla giriş yapmalısınız.");
+  /* Yönetici mi? Bayrağa güvenmek yerine gerçek uca soruyoruz: cevap
+     403 ise yönetici değil. Tek doğru sunucuda. */
+  const dene = await cagir("/admin/users");
+  if (dene.status === 403) return kapali('"' + BEN.username + '" bir yönetici hesabı değil.');
+  if (!dene.ok) return kapali("Sunucuya ulaşılamadı.");
+  ciz();
+  yukle("");
+}
+
+function ciz() {
+  document.getElementById("yonetimGovde").innerHTML =
+    '<div class="card">' +
+      '<div class="card-head"><span class="dot">👥</span><h3>Kullanıcılar</h3>' +
+        '<span class="badge" id="yonSayac" style="margin-left:auto">—</span></div>' +
+      '<p class="muted" style="font-size:.84rem;margin:0 0 12px">' +
+        'Ada göre ara. Arama boşsa en son kayıt olanlar listelenir — uygunsuz adlar ' +
+        'çoğunlukla yeni hesaplarda çıkıyor.</p>' +
+      '<div class="flex gap-8" style="margin-bottom:14px">' +
+        '<input type="search" id="yonAra" placeholder="Kullanıcı adı ara…" autocomplete="off" ' +
+          'oninput="araDegisti(this.value)" style="flex:1;min-width:0">' +
+        '<button class="btn btn-ghost" onclick="yukle(document.getElementById(\'yonAra\').value)">Ara</button>' +
+      '</div>' +
+      '<div id="yonListe"></div>' +
+    '</div>';
+}
+
+let araZaman = null;
+function araDegisti(v) { clearTimeout(araZaman); araZaman = setTimeout(function(){ yukle(v); }, 250); }
+
+async function yukle(q) {
+  const kutu = document.getElementById("yonListe");
+  if (!kutu) return;
+  kutu.innerHTML = '<p class="muted" style="margin:0">Yükleniyor…</p>';
+  const r = await cagir("/admin/users?q=" + encodeURIComponent(String(q || "").trim()));
+  if (!r.ok) { kutu.innerHTML = '<p class="muted" style="margin:0">Liste alınamadı.</p>'; return; }
+  const sayac = document.getElementById("yonSayac");
+  if (sayac) sayac.textContent = r.j.total + " kayıt · " + r.j.yasakli + " yasaklı";
+  if (!r.j.items.length) {
+    kutu.innerHTML = '<p class="muted" style="margin:0">Eşleşen kullanıcı yok.</p>'; return;
+  }
+  kutu.innerHTML = '<div class="yon-liste">' + r.j.items.map(satir).join("") + '</div>';
+}
+
+/* Bir kullanıcı satırı. Yönetici ve site sahibi için işlem düğmesi
+   ÇİZİLMİYOR — sunucu zaten reddediyor, ama olmayan düğmeye basılamaz. */
+function satir(u) {
+  const korumali = u.owner || u.admin;
+  const tarih = u.createdAt
+    ? new Date(u.createdAt).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" })
+    : "—";
+  const yasak = u.ban
+    ? '<span class="yon-yasak">yasaklı' + (u.ban.label ? " · " + esc(u.ban.label) : "") + '</span>'
+    : "";
+  const islem = korumali
+    ? '<span class="muted" style="font-size:.72rem">korumalı</span>'
+    : (u.ban
+        ? '<button class="btn btn-ghost btn-mini" onclick="yasagiKaldir(' + jsArg(u.id) + ',' + jsArg(u.username) + ')">Yasağı kaldır</button>'
+        : '<button class="btn btn-ghost btn-mini" onclick="yasakla(' + jsArg(u.id) + ',' + jsArg(u.username) + ')">Yasakla</button>')
+      + '<button class="board-del" title="Hesabı KALICI olarak sil" onclick="sil('
+        + jsArg(u.id) + ',' + jsArg(u.username) + ')">🗑️ Sil</button>';
+  return '<div class="yon-satir">' +
+    '<span class="yon-av">' + esc(String(u.username).slice(0, 1).toUpperCase()) + '</span>' +
+    '<span class="yon-ad">' + esc(u.username) + yasak + '</span>' +
+    '<span class="yon-tarih">' + tarih + (u.banCount ? " · " + u.banCount + " ceza" : "") + '</span>' +
+    '<span class="yon-islem">' + islem + '</span>' +
+  '</div>';
+}
+
+async function yasakla(id, ad) {
+  const sebep = prompt('"' + ad + '" yasaklansın mı? Sebep:', "Uygunsuz kullanıcı adı");
+  if (sebep == null) return;
+  const r = await cagir("/admin/ban", { userId: id, reason: sebep });
+  toast(r.j.message || (r.ok ? "Yasaklandı." : "Yasaklanamadı."));
+  yukle(document.getElementById("yonAra").value);
+}
+
+async function yasagiKaldir(id, ad) {
+  if (!confirm('"' + ad + '" hesabının yasağı kaldırılsın mı?')) return;
+  const r = await cagir("/admin/unban", { userId: id });
+  toast(r.j.message || (r.ok ? "Yasak kaldırıldı." : "Kaldırılamadı."));
+  yukle(document.getElementById("yonAra").value);
+}
+
+/* Silme geri alınamaz: kullanıcı adının birebir yazılması isteniyor ki
+   yanlış satıra basmak tek başına hesap silmesin. Aynı kontrol sunucuda
+   TEKRAR yapılıyor; buradaki yalnızca kazayı önlüyor. */
+async function sil(id, ad) {
+  const yazilan = prompt(
+    '"' + ad + '" hesabı ve bağlı bütün kayıtları KALICI olarak silinecek.\n\n' +
+    'Geri alınamaz. Onaylamak için kullanıcı adını yazın:', "");
+  if (yazilan == null) return;
+  if (String(yazilan).trim().toLowerCase() !== String(ad).toLowerCase()) {
+    toast("Kullanıcı adı eşleşmedi — hesap silinmedi.");
+    return;
+  }
+  const r = await cagir("/admin/sil", { userId: id, username: yazilan });
+  toast(r.j.message || (r.ok ? "Silindi." : "Silinemedi."));
+  yukle(document.getElementById("yonAra").value);
+}
+
+baslat();
+window.onAuthChange = baslat;
+</script>
+</body>
+</html>

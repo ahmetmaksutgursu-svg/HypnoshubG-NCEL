@@ -2512,3 +2512,47 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   font-size: .72rem; line-height: 1; padding: 4px 6px;
 }
 .board-del:hover { background: rgba(220, 53, 69, .24); }
+/* Arşiv kutusu daha hiç dolmadıysa: gizlemek yerine ne olacağını yaz.
+   Ziyaretçi haftalık bir yarış olduğunu ve ilk üçün burada duracağını
+   ilk bakışta görsün. */
+.gecen-bos {
+  padding: 2px 14px 14px; font-size: .74rem; line-height: 1.5;
+  color: var(--text-soft);
+}
+.gecen-bos b { color: var(--gold-500); }
+
+/* ---------- Yönetim ekranı ----------
+   Kullanıcı listesi. Sıkı ve okunur: ad solda, tarih ortada, işlem
+   düğmeleri sağda. Yasaklı satır kırmızıya çalıyor ki listeye bakınca
+   durum bir bakışta anlaşılsın. */
+.yon-liste { display: flex; flex-direction: column; gap: 2px; }
+.yon-satir {
+  display: grid; grid-template-columns: 30px minmax(0, 1fr) auto auto;
+  align-items: center; gap: 10px;
+  padding: 9px 8px; border-radius: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.yon-satir:hover { background: var(--surface-2); }
+.yon-av {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center; font-weight: 900; font-size: .8rem;
+  background: var(--gold-500); color: #17130a;
+}
+.yon-ad {
+  font-weight: 800; font-size: .9rem; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.yon-yasak {
+  margin-left: 8px; font-size: .66rem; font-weight: 900;
+  color: #ff6b7a; background: rgba(220, 53, 69, .14);
+  border: 1px solid rgba(220, 53, 69, .3);
+  border-radius: 999px; padding: 2px 7px; white-space: nowrap;
+}
+.yon-tarih { font-size: .72rem; color: var(--text-soft); white-space: nowrap; }
+.yon-islem { display: flex; gap: 6px; align-items: center; }
+@media (max-width: 640px) {
+  /* Dar ekranda ad ve düğmeler öncelikli; tarih alt satıra iniyor. */
+  .yon-satir { grid-template-columns: 30px minmax(0, 1fr); row-gap: 6px; }
+  .yon-tarih { grid-column: 2; }
+  .yon-islem { grid-column: 1 / -1; justify-content: flex-end; }
+}

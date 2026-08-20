@@ -350,9 +350,26 @@ async function loadGecenHafta(){
   if (!kutu) return;
   const d = await fetch(API_BASE + "/board/gecen", { credentials: "same-origin" })
     .then(r => r.ok ? r.json() : null).catch(() => null);
-  /* Tamamlanmış dönem yoksa kutu görünmüyor. İlk hafta boyunca durum
-     bu; 27 Ağustos 18.00'dan sonra kendiliğinden dolacak. */
-  if (!d || !d.var || !d.items.length) { kutu.hidden = true; return; }
+  /* Henüz tamamlanmış dönem yok (ilk hafta). Kutuyu gizlemek yerine ne
+     olacağını yazıyoruz: ziyaretçi haftalık bir yarış olduğunu ve ilk
+     üçün burada duracağını görsün. Boş bir başlık değil, bir vaat. */
+  if (!d || !d.var || !d.items.length) {
+    const b = await fetch(API_BASE + "/board/weekly", { credentials: "same-origin" })
+      .then(r => r.ok ? r.json() : null).catch(() => null);
+    const bitis = b && b.week && b.week.end ? new Date(b.week.end) : null;
+    const nezaman = bitis
+      ? bitis.toLocaleDateString(TRb ? "tr-TR" : "en-GB", { day: "numeric", month: "long" }) +
+        " " + String(bitis.getHours()).padStart(2, "0") + ".00"
+      : (TRb ? "dönem bitiminde" : "at the end of the period");
+    kutu.hidden = false;
+    kutu.innerHTML =
+      '<div class="gecen-bas"><span class="gecen-baslik">' +
+        (TRb ? "GEÇEN HAFTANIN TOKMAKÇILARI" : "LAST WEEK’S CHAMPIONS") + '</span></div>' +
+      '<div class="gecen-bos">' + (TRb
+        ? "İlk dönem sürüyor. <b>" + nezaman + "</b>’da tablo sıfırlanacak ve dönemi ilk üçte bitirenler puanlarıyla burada kalacak."
+        : "First period in progress. The top three will be listed here when it ends.") + '</div>';
+    return;
+  }
   const madalya = ["🥇", "🥈", "🥉"];
   const tarih = (iso) => { const t = new Date(iso);
     return t.toLocaleDateString(TRb ? "tr-TR" : "en-GB", { day: "numeric", month: "long" }); };
