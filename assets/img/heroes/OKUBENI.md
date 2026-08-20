@@ -32,7 +32,7 @@ Oyundaki 16 kahraman, sırasıyla. `.png` tercih edilir; `.webp`, `.jpg` ve
 | 4 | Mini P.E.K.K.A | `mini-pekka.png` |
 | 5 | Şövalye | `knight.png` |
 | 6 | Goblinler | `goblins.png` |
-| 7 | Yaramaz | `bandit.png` |
+| 7 | Yaramaz (Berserker) | `berserker.png` |
 | 8 | Mezar Taşı | `tombstone.png` |
 | 9 | Büyülü Okçu | `magic-archer.png` |
 | 10 | Balon | `balloon.png` |
@@ -54,3 +54,18 @@ Oyundaki 16 kahraman, sırasıyla. `.png` tercih edilir; `.webp`, `.jpg` ve
 - Henüz konmamış olanlar, karakter render'ı + CSS çerçeve ile gösterilmeye
   devam eder; yani eksik dosya sayfayı bozmaz.
 - Kartlar sayfasındaki sayaç kaç portrenin yerinde olduğunu yazar.
+
+## Düzeltme kaydı — 20 Ağustos 2026
+
+7 numaralı kahraman `bandit.png` diye kayıtlıydı ve kod da Haydut'u kahraman
+sanıyordu. Yanlıştı: portrenin içindeki karakter **Berserker**, Haydut ise
+yeşil kapüşonlu maskeli bir kadın. Kullanıcı "aynı destede iki Yaramaz var"
+diye bildirdi; sebebi buydu — bir yuvada Haydut, Berserker'ın portresiyle
+çiziliyordu, başka bir yuvada da gerçek Berserker duruyordu.
+
+Kesin ölçüt API'nin kendi alanı: `iconUrls.heroMedium`. Tam **16** kart bu
+alanı taşıyor ve oyunun kahraman sayısı da 16. Haydut'ta yok, Berserker'da var.
+Dosya `berserker.png/jpeg` oldu, kod da artık tahmin yerine bu alana bakıyor.
+
+Buraya dosya koyarken **görselin içindeki adı** kartın İngilizce adıyla
+eşleştirin; Türkçe ad tahmini bu hatanın kaynağıydı.

@@ -1500,7 +1500,7 @@ const TR_NAME_EXTRA = {
   "Barbarian Barrel": "Barbar Fıçısı", "Musketeer": "Silahşör",
   "Little Prince": "Küçük Prens", "Goblin Demolisher": "Goblin Yıkıcı",
   "Goblin Machine": "Goblin Makinesi", "Suspicious Bush": "Şüpheli Çalı",
-  "Goblinstein": "Goblinstein", "Rune Giant": "Rün Devi", "Berserker": "Cengâver",
+  "Goblinstein": "Goblinstein", "Rune Giant": "Rün Devi", "Berserker": "Yaramaz",
   "Boss Bandit": "Boss Haydut", "Ronin": "Ronin", "Void": "Boşluk",
   "Goblin Curse": "Goblin Laneti", "Spirit Empress": "Ruh İmparatoriçe",
   "Vines": "Sarmaşıklar",
@@ -1728,7 +1728,9 @@ app.get("/api/cards", async (req, res) => {
           /* API'de hiç işaret taşımayan kahraman (Yaramaz). Ön yüz savaş
              günlüklerini kendi eşlediği için aynı kuralı orada da uygulaması
              gerekiyor; "işaretli mi" diye bakmak bu kartlarda çalışmıyor. */
-          heroNoFlag: HERO_EXTRA.has(c.name),
+          /* Eskiden "API’de işaret taşımayan kahraman" (Haydut) için vardı;
+             Haydut kahraman olmadığı anlaşıldı, alan uyumluluk için kalıyor. */
+          heroNoFlag: false,
         })),
       };
     });
@@ -1988,31 +1990,39 @@ const metaCached = () => cachedSWR(`meta:${META_TOP_PLAYERS}`, 1200e3, 7200e3, (
 */
 const MAX_EVO_SLOTS = 2;
 const HERO_DUAL = new Set(["Knight", "Valkyrie", "Musketeer", "Wizard"]);
-/* Kuralın kaçırdığı kahramanlar: API'de HİÇBİR işaret taşımayanlar.
+/* KAHRAMAN LİSTESİ — API'nin kendi işaretinden.
 
-   Yaramaz (Bandit) savaş günlüğünde sıradan bir kart gibi geliyor — ne
-   `evolutionLevel`, ne `maxEvolutionLevel`, ne evrim görseli. Yani yukarıdaki
-   kural onu göremiyor, `heroOnly` listesine eklemek de tek başına yetmiyor:
-   ayıklama yalnızca İŞARETLİ kartlara bakıyordu, Yaramaz hiç işaretlenmiyor.
+   Bu liste bir zamanlar tahminle kuruluyordu ("maxEvolutionLevel taşıyıp evrim
+   görseli olmayan kart kahramandır") ve kuralın kaçırdığı sanılan Haydut
+   (Bandit) elle eklenmişti. İKİSİ DE YANLIŞTI.
 
-   Ölçüm (3.058 sıralamalı deste, 70 oyuncunun günlüğü):
-     · Yaramaz 86 destede geçti, HİÇBİRİNDE işaretli değildi.
-     · O destelerin 66'sında yalnızca 2 işaretli kart vardı, yani üçüncü özel
-       yuva boştu. Genel oran %30,5 — Yaramaz'lı destelerde %76,7.
-     · Kalan 20 destede üç yuva zaten doluydu.
-   Yani Yaramaz çoğu zaman kahraman yuvasını dolduruyor ama her zaman değil.
-   Bu yüzden kural "her Yaramaz kahramandır" değil: bir destede en fazla BİR
-   kahraman yuvası olduğu için, yuva doluysa kart düz kart sayılıyor. */
-const HERO_EXTRA = new Set(["Bandit"]);
+   Kullanıcı bildirdi: aynı destede iki "Yaramaz" çıkıyor, biri 3 iksir.
+   İncelenince görüldü ki:
+     · assets/img/heroes/bandit.jpeg dosyasının içine "Yaramaz" yazısı basılı
+       ve karakter sarı saçlı bir çocuk. Haydut ise yeşil kapüşonlu, maskeli,
+       beyaz saçlı bir kadın (kart görselinden doğrulandı).
+     · O portredeki karakter 26000102 Berserker'ın ta kendisi.
+   Yani oyunun "Yaramaz" adlı kahramanı Berserker; Haydut ise kahraman DEĞİL.
+
+   Kesin ölçüt API'nin kendisinde: `iconUrls.heroMedium`. Bu alanı tam 16 kart
+   taşıyor ve oyunun kahraman sayısı da 16. Haydut'ta bu alan yok, üstelik
+   `maxEvolutionLevel` de yok — hiçbir işareti yokken listeye zorlanmıştı.
+   Berserker'da ise var.
+
+   Artık tahmin yok: kahraman = heroMedium taşıyan kart. "Yalnızca kahraman" =
+   heroMedium var, evrim görseli yok (Şövalye, Valkür, Silahşör ve Büyücü
+   ikisini birden taşıdığı için bu listeye girmez). */
 let heroOnly = null;
+let heroAll = null;
 async function heroOnlyCards() {
   if (heroOnly) return heroOnly;
   const body = await cached("cards", 3600e3, async () => (await cr(`/cards`)).body);
-  heroOnly = new Set((body.items || [])
-    .filter((c) => c.maxEvolutionLevel && !c.iconUrls?.evolutionMedium)
+  const items = body.items || [];
+  heroAll = new Set(items.filter((c) => c.iconUrls?.heroMedium).map((c) => c.name));
+  heroOnly = new Set(items
+    .filter((c) => c.iconUrls?.heroMedium && !c.iconUrls?.evolutionMedium)
     .map((c) => c.name));
-  for (const ad of HERO_EXTRA) heroOnly.add(ad);
-  console.log(`🦸  Kahraman yuvası kuralı hazır (${heroOnly.size} kart yalnızca kahraman).`);
+  console.log(`🦸  Kahraman kuralı hazır (${heroAll.size} kahraman · ${heroOnly.size} yalnızca kahraman).`);
   return heroOnly;
 }
 
@@ -2028,7 +2038,7 @@ const HERO_SLOT_INDEX = 1;
 /* İşaretli kartları evrim ve kahraman yuvalarına ayırır.
 
    `deste`  = o destenin TÜM kartları. Ayrı bir parametre çünkü işaretsiz
-              kahramanlar (HERO_EXTRA) tanım gereği `flagged` içinde olmuyor.
+              kahramanlar tanım gereği `flagged` içinde olmuyor.
               Meta destelerinde "işaretli" listesi bir oylamayla çıkıyor
               (evoTally), destenin kendisiyle aynı şey değil.
    `sirali` = `deste` gerçek yuva sırasında mı? Savaş günlüğünde öyle, meta
@@ -2060,13 +2070,10 @@ function splitSlots(flagged, heroSet, deste = flagged, sirali = false) {
     evos = [...evos, ...dusen].sort((a, b) => deste.indexOf(a) - deste.indexOf(b));
   }
 
-  /* İşaretsiz kahraman (bkz. HERO_EXTRA). Yuva doluysa kart kahraman olarak
-     oynanmış olamaz, boşsa oraya oturduğu sonucuna varıyoruz. Üç evrimli bir
-     deste de kahraman alamaz, o yüzden evrim sayısı da kontrol ediliyor. */
-  if (!heroes.length && evos.length <= MAX_EVO_SLOTS) {
-    const c = deste.find((x) => HERO_EXTRA.has(x.name) && !flagged.includes(x));
-    if (c) heroes.push(c);
-  }
+  /* Buradaki "işaretsiz kahraman" kuralı KALDIRILDI. Tek amacı Haydut’u
+     kahraman yuvasına oturtmaktı; Haydut’un kahraman olmadığı anlaşıldı
+     (API’de heroMedium taşımıyor — bkz. heroOnlyCards). Kural kalsaydı her
+     Haydut’lu destede boş kahraman yuvasına Haydut yazılırdı. */
   return { evos: evos.slice(0, MAX_EVO_SLOTS), heroes };
 }
 
