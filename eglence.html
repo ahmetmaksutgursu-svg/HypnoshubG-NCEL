@@ -128,7 +128,7 @@ try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribut
 <section class="section game-sec" id="cenabet" style="padding-top:0">
   <div class="container game-wrap">
     <div class="card text-center" style="padding:26px">
-      <h2 class="section-title" style="font-size:1.5rem">🤪 Cenabet Deste</h2>
+      <h2 class="section-title" style="font-size:1.5rem"><img class="oyun-simge bas" src="assets/img/cenabet.png" alt=""> Cenabet Deste</h2>
       <p class="muted" style="margin:0 0 18px">Oyundaki kartlardan tamamen rastgele 8 kartlık kafadan bir deste! Mantık arama.</p>
       <button class="big-green-btn" id="cenabetBtn" onclick="cenabet()" style="max-width:420px;margin:0 auto">CENABET BUTON</button>
       <div id="cenabetResult" style="margin-top:22px;display:none">
@@ -652,7 +652,7 @@ window.onAuthChange = refreshGames;
    yani menüdeki kısayollar çalışmaya devam eder. */
 const GAMES = [
   { id:"gunun",    ic:"🎯", name:"Günün Kartı",         desc:"Herkese aynı kart, 6 hak. Az denemede bul, çok puan al.", pts:"günde 1 · 12 puana kadar" },
-  { id:"yarisma",  ic:"🎓", name:"Tokmak Yarışması",     desc:"13 soru, barajlar 2 ve 7. Çekilirsen bildiğin kadar.",    pts:"günde 3 · 13 puana kadar" },
+  { id:"yarisma",  ic:"assets/img/hammer-logo.jpg", name:"Tokmak Yarışması",     desc:"13 soru, barajlar 2 ve 7. Çekilirsen bildiğin kadar.",    pts:"günde 3 · 13 puana kadar" },
   { id:"duello",   ic:"⚔️", name:"Deste Düellosu",       desc:"İki meta destesi — hangisi daha çok kazanıyor?",          pts:"günde 10 · tur başına 1" },
   { id:"eksik",    ic:"🧩", name:"Eksik Kartı Bul",      desc:"Meta destesinin 7 kartı açık — 8.'sini dört şıktan bul.", pts:"günde 3 · tur başına 3" },
   { id:"kapisma",  ic:"🥊", name:"Kart Kapışması",       desc:"İki kart yan yana — can, hasar ya da vuruş hızı: hangisi üstün?", pts:"günde 3 · 3 soru × 1 puan" },
@@ -660,13 +660,13 @@ const GAMES = [
   { id:"siralama", ic:"🎲", name:"Kart Sıralama Oyunu",  desc:"Senaryoya göre kartları sırala, sonucu paylaş." },
   { id:"tahmin",   ic:"🔮", name:"Kart Tahmin Oyunu",    desc:"Bir kart tut, sorularla bulayım." },
   { id:"cark",     ic:"🎡", name:"Rastgele Deste Çarkı", desc:"Çarkı çevir, günün meta destesini gör." },
-  { id:"cenabet",  ic:"🤪", name:"Cenabet Buton",        desc:"Kafadan rastgele bir deste. Mantık arama." },
+  { id:"cenabet",  ic:"assets/img/cenabet.png", name:"Cenabet Buton",        desc:"Kafadan rastgele bir deste. Mantık arama." },
 ];
 
 function paintPicker(){
   document.getElementById("pickGrid").innerHTML = GAMES.map(g => `
     <button class="pick-card ${g.pts ? "scored" : ""}" onclick="openGame('${g.id}')">
-      <span class="pick-ic">${g.ic}</span>
+      <span class="pick-ic">${oyunSimgesi(g.ic)}</span>
       <span class="pick-tx">
         <span class="pick-n">${g.name}${g.pts ? `<span class="pts-badge">${t("fun.pts")}</span>` : ""}</span>
         <span class="pick-d">${g.desc}</span>
@@ -682,7 +682,9 @@ function openGame(id){
   document.querySelectorAll(".game-sec").forEach(s => s.style.display = s.id === id ? "" : "none");
   const bar = document.getElementById("gameBar");
   bar.style.display = "";
-  document.getElementById("gameTitle").textContent = `${g.ic} ${g.name}`;
+  /* innerHTML: simge artık emoji DEĞİL, görsel olabiliyor. Ad `esc`
+     ile geçiyor, yani oyun adından HTML sızma yolu yok. */
+  document.getElementById("gameTitle").innerHTML = `${oyunSimgesi(g.ic)} ${esc(g.name)}`;
   if (location.hash !== "#" + id) history.replaceState(null, "", "#" + id);
   window.scrollTo({ top: 0, behavior: "instant" });
 }

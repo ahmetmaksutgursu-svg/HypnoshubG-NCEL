@@ -2627,3 +2627,28 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
 .auth-adchg > summary::before { content: "✏️ "; }
 .auth-adchg[open] > summary { margin-bottom: 4px; }
 .auth-adchg .auth-l { margin-top: 8px; }
+
+/* ---------- Oyun simgesi görsel olduğunda ----------
+   İki oyunun kendi çizimi var (Cenabet düğmesi, Tokmak logosu). Emoji
+   metin akışında dururken görsel durmuyor; kutusunu emojinin kapladığı
+   alana oturtuyoruz ki hizalar bozulmasın.
+
+   `contain`: Cenabet düğmesi geniş (276x132), tokmak logosu kare. İkisi
+   de esnetilmeden kendi oranında sığıyor. */
+/* YÜKSEKLİK sabit, GENİŞLİK serbest. Kare kutuya sıkıştırmak yanlıştı:
+   Cenabet düğmesi 276x132, yani iki kat geniş; kare alanda küçülüp
+   okunmaz bir yeşil şeride dönüyordu. Yükseklik satırla hizalanıyor,
+   genişlik kendi oranından geliyor, üst sınır da taşmayı önlüyor. */
+.oyun-simge {
+  display: inline-block; vertical-align: middle;
+  height: 1.4em; width: auto; max-width: 3.2em;
+  object-fit: contain; border-radius: 4px;
+}
+/* Kart ve sekme kutuları kare; geniş görsel ortalanıp sığsın. */
+.pick-ic .oyun-simge, .t-ic .oyun-simge {
+  max-width: 100%; max-height: 100%; height: auto; width: auto; border-radius: 6px;
+}
+.pick-ic, .t-ic { display: grid; place-items: center; }
+.dr-ic .oyun-simge, .bn-ic .oyun-simge { height: 1.2em; max-width: 2.6em; }
+/* Bölüm başlığındaki simge yazıyla aynı yükseklikte dursun. */
+.oyun-simge.bas { height: 1.5em; max-width: 3.6em; }

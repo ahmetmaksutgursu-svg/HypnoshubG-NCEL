@@ -2302,9 +2302,9 @@ function funMenu(){
     ["eglence.html#siralama", t("fun.rank"), "🎲", 0],
     ["eglence.html#deste", t("fun.deck"), "🧪", 0],
     ["eglence.html#cark", t("fun.wheel"), "🎡", 0],
-    ["eglence.html#cenabet", t("nav.cenabet"), "🤪", 0],
+    ["eglence.html#cenabet", t("nav.cenabet"), "assets/img/cenabet.png", 0],
     ["eglence.html#gunun", t("fun.daily"), "🎯", 1],
-    ["eglence.html#yarisma", t("fun.quiz"), "🎓", 1],
+    ["eglence.html#yarisma", t("fun.quiz"), "assets/img/hammer-logo.jpg", 1],
     ["eglence.html#duello", t("fun.duel"), "⚔️", 1],
     ["eglence.html#eksik", t("fun.missing"), "🧩", 1],
     ["eglence.html#kapisma", t("fun.clash"), "🥊", 1],
@@ -2368,7 +2368,7 @@ function mountBottomNav(active){
   el.innerHTML = NAV.map(([href, key]) => {
     const kisa = "bn." + key.slice(4);          // nav.ranks → bn.ranks
     return `<a href="${href}" class="${active === href ? "active" : ""}" title="${t(key)}">
-       <span class="bn-ic">${bottomIcon(key)}</span>
+       <span class="bn-ic">${oyunSimgesi(bottomIcon(key))}</span>
        <span class="bn-tx" data-i18n="${kisa}">${t(kisa)}</span>
      </a>`;
   }).join("");
@@ -2392,8 +2392,20 @@ function mountBottomNav(active){
    Başsız tarayıcıda iOS Safari davranışı taklit edilemiyor, yani bu
    düzeltme gerçek cihazda doğrulanmalı. */
 function altCubuguSabitle(){ /* öteleme yok — bkz. yukarıdaki not */ }
+/* Oyun simgesi: emoji ya da GÖRSEL.
+
+   İki oyunun kendi görseli var ve emoji onların yerini tutmuyordu:
+   Cenabet Buton'un kendi düğme çizimi, Tokmak Yarışması'nın ise sitenin
+   tokmak logosu. Simge listesi tek bir metin alanı olduğu için değer
+   "assets/" ile başlıyorsa görsel, başlamıyorsa emoji basılıyor —
+   böylece her çağıran yerde ayrı bir kural yazmak gerekmiyor. */
+function oyunSimgesi(ic){
+  if (typeof ic === "string" && ic.startsWith("assets/"))
+    return `<img class="oyun-simge" src="${ic}" alt="" loading="lazy">`;
+  return ic;
+}
 function bottomIcon(key){
-  return ({ "nav.home":"🏠","nav.meta":"🃏","nav.ranks":"🏆","nav.live":"🔴","nav.cards":"📇","nav.fun":"🎉","nav.cenabet":"🤪" })[key] || "•";
+  return ({ "nav.home":"🏠","nav.meta":"🃏","nav.ranks":"🏆","nav.live":"🔴","nav.cards":"📇","nav.fun":"🎉","nav.cenabet":"assets/img/cenabet.png" })[key] || "•";
 }
 
 function buildFooter(){
@@ -2460,7 +2472,7 @@ function openDrawer(){
   }
   /* Puan kazandıran oyunların yanına küçük bir işaret. Bilerek sessiz:
      rozet küçük, soluk ve satırın sonunda — listeyi bağırtmasın. */
-  const link = (href,label,ic,pts) => `<a class="dr-link" href="${href}"><span class="dr-ic">${ic}</span>${label}${
+  const link = (href,label,ic,pts) => `<a class="dr-link" href="${href}"><span class="dr-ic">${oyunSimgesi(ic)}</span>${label}${
     pts ? `<span class="pts-badge" title="${t("fun.earns")}">${t("fun.pts")}</span>` : ""}</a>`;
   d.innerHTML = `
     <aside class="drawer">
@@ -2509,9 +2521,9 @@ function openDrawer(){
       <div class="dr-sec fun">🎉 ${t("chrome.fun")}</div>
       ${link("eglence.html", t("fun.rank"), "🎲")}
       ${link("eglence.html#cark", t("fun.wheel"), "🎡")}
-      ${link("eglence.html#cenabet", t("fun.cenabet"), "🤪")}
+      ${link("eglence.html#cenabet", t("fun.cenabet"), "assets/img/cenabet.png")}
       ${link("eglence.html#gunun", t("fun.daily"), "🎯", 1)}
-      ${link("eglence.html#yarisma", t("fun.quiz"), "🎓", 1)}
+      ${link("eglence.html#yarisma", t("fun.quiz"), "assets/img/hammer-logo.jpg", 1)}
       ${link("eglence.html#duello", t("fun.duel"), "⚔️", 1)}
       ${link("eglence.html#eksik", t("fun.missing"), "🧩", 1)}
       ${link("eglence.html#kapisma", t("fun.clash"), "🥊", 1)}
