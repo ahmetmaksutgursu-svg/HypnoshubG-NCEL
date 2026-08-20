@@ -106,6 +106,23 @@ function ciz() {
         '<span id="yonDeneme" class="muted" style="font-size:.76rem"></span>' +
       '</div>' +
       '<div id="yonListe"></div>' +
+    '</div>' +
+    /* Elle puan: yayın günü sunucu yeniden başlatıldığında devam eden
+       yarışma turları silinmişti ve bir oyuncu 12 soru bilip puan
+       alamamıştı. Oturumlar artık kalıcı ama YAŞANMIŞ kaybı telafi
+       etmenin bir yolu olması gerekiyor. */
+    '<div class="card">' +
+      '<div class="card-head"><span class="dot">🔧</span><h3>Elle puan</h3></div>' +
+      '<p class="muted" style="font-size:.84rem;margin:0 0 12px">' +
+        'Bir hata yüzünden puanı yazılmayan kişiye telafi. Sebep zorunlu ve kayda geçer; ' +
+        'eksi değer de yazılabilir. Elle verilen puan “oynanan oyun” sayılmaz.</p>' +
+      '<div class="flex gap-8" style="flex-wrap:wrap">' +
+        '<input id="epAd" placeholder="Kullanıcı adı" autocomplete="off" style="flex:2 1 160px;min-width:0">' +
+        '<input id="epPuan" type="number" placeholder="Puan" style="flex:0 1 90px;min-width:0">' +
+        '<input id="epSebep" placeholder="Sebep (zorunlu)" autocomplete="off" style="flex:3 1 200px;min-width:0">' +
+        '<button class="btn btn-primary" onclick="ellePuan()">Ekle</button>' +
+      '</div>' +
+      '<div id="epSonuc" class="muted" style="font-size:.82rem;margin-top:10px"></div>' +
     '</div>';
 }
 
@@ -150,6 +167,26 @@ async function denemeleriSil() {
   toast(ok + " deneme hesabı silindi.");
   DENEME = [];
   yukle("");
+}
+
+/* Elle puan. Sunucu ayrıca denetliyor: yönetici mi, sebep yazılmış mı,
+   puan tavanı aşılmış mı. Buradaki kontroller yalnızca kazayı önlüyor. */
+async function ellePuan() {
+  const ad = document.getElementById("epAd").value.trim();
+  const puan = parseInt(document.getElementById("epPuan").value, 10);
+  const sebep = document.getElementById("epSebep").value.trim();
+  const kutu = document.getElementById("epSonuc");
+  if (!ad || !Number.isFinite(puan) || sebep.length < 3) {
+    kutu.textContent = "Kullanıcı adı, puan ve sebep (en az 3 harf) gerekli."; return;
+  }
+  if (!confirm('"' + ad + '" hesabına ' + (puan >= 0 ? "+" : "") + puan + " puan eklenecek.\n\nSebep: " + sebep)) return;
+  kutu.textContent = "ekleniyor…";
+  const r = await cagir("/board/elle", { username: ad, points: puan, reason: sebep });
+  kutu.textContent = r.j.message || (r.ok ? "Eklendi." : "Eklenemedi.");
+  if (r.ok) {
+    document.getElementById("epPuan").value = "";
+    document.getElementById("epSebep").value = "";
+  }
 }
 
 let araZaman = null;

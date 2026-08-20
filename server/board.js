@@ -197,7 +197,10 @@ function addPoints(userId, points, game) {
   if (!db.weeks[key]) db.weeks[key] = {};
   const row = db.weeks[key][userId] || { points: 0, games: 0, byGame: {}, at: 0 };
   row.points += points;
-  row.games += 1;
+  /* Elle yapılan düzeltme OYNANMIŞ OYUN sayılmıyor: tablodaki "kaç oyun"
+     sayısı gerçekten oynananları göstermeli, yoksa telafi alan kişi daha
+     çok oynamış gibi görünür. */
+  if (game !== "elle") row.games += 1;
   row.byGame[game] = (row.byGame[game] || 0) + points;
   row.at = Date.now();
   db.weeks[key][userId] = row;
@@ -318,6 +321,42 @@ function mount(app, { readSession, listUsers, isAdmin, banUser, userInfo }) {
                items, toplam: Object.keys(d.satirlar).length });
   });
 
+  /* ---------- yönetici: elle puan ekleme ----------
+     Neden gerekli: yayın günü sunucu birkaç kez yeniden başlatıldı ve
+     o anda yarışmayı sürdüren kullanıcıların oturumu silindi; biri 12
+     soru bilip hiç puan alamadı. Oturumlar artık diske yazılıyor ama
+     BİR KEZ YAŞANMIŞ kaybı telafi etmenin yolu yoktu.
+
+     Bu uç o boşluğu kapatıyor. Kötüye kullanımı zorlaştıran üç şey var:
+       · yalnızca yönetici çağırabiliyor,
+       · sebep YAZILMAK ZORUNDA ve kayda geçiyor,
+       · tek seferde verilebilecek puan sınırlı.
+     Verilen puan normal puanla aynı yere yazılıyor, yani tablo tek
+     doğruyu göstermeye devam ediyor. */
+  const ELLE_TAVAN = 100;
+  app.post("/api/board/elle", (req, res) => {
+    if (!needAdmin(req, res)) return;
+    const kullanici = String(req.body?.username || "").trim();
+    const puan = parseInt(req.body?.points, 10);
+    const sebep = String(req.body?.reason || "").trim();
+    if (!kullanici) return res.status(400).json({ error: "kullanici", message: "Kullanıcı adı gerekli." });
+    if (!Number.isFinite(puan) || puan === 0 || Math.abs(puan) > ELLE_TAVAN)
+      return res.status(400).json({ error: "puan",
+        message: `Puan 1 ile ${ELLE_TAVAN} arasında olmalı (eksi de verilebilir).` });
+    if (sebep.length < 3)
+      return res.status(400).json({ error: "sebep", message: "Sebep yazmadan puan verilemez." });
+    if (!acikMi())
+      return res.status(400).json({ error: "kapali", message: "Tablo henüz açılmadı." });
+    const u = listUsers().find((x) => String(x.username).toLowerCase() === kullanici.toLowerCase());
+    if (!u) return res.status(404).json({ error: "notfound", message: "Kullanıcı bulunamadı." });
+    const satir = addPoints(u.id, puan, "elle");
+    console.log(`🔧  Elle puan: ${u.username} ${puan >= 0 ? "+" : ""}${puan} — ${sebep}` +
+                ` (yeni toplam ${satir ? satir.points : "?"})`);
+    res.json({ ok: true, username: u.username, eklenen: puan,
+      toplam: satir ? satir.points : null,
+      message: `${u.username} → ${puan >= 0 ? "+" : ""}${puan} puan eklendi.` +
+               (satir ? ` Yeni toplam: ${satir.points}.` : "") });
+  });
   /* Tablodan yasaklama — yalnızca yönetici.
      Ceza kademesi auth.js'teki merdivenden geliyor (5 dk → … → kalıcı),
      yani buradan "süre" seçilemiyor; sunucu karar veriyor. */

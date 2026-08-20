@@ -310,11 +310,55 @@ function pools(all) {
   return { easy: easy.length >= 8 ? easy : mid, mid, hard: all };
 }
 
-/* ---------- oturumlar ---------- */
+/* ---------- oturumlar ----------
+   DEVAM EDEN TUR SUNUCU YENİDEN BAŞLAYINCA KAYBOLMAMALI.
+
+   Oturumlar yalnızca bellekteydi. Yayın günü bunun bedeli görüldü:
+   gün içinde birkaç kez dağıtım yapıldı, her dağıtım süreci yeniden
+   başlattı ve o anda yarışmayı sürdüren herkesin oturumu silindi.
+   Bir sonraki cevapta "Yarışma oturumu bulunamadı" hatası çıktı;
+   kullanıcı hem o turda biriktirdiği puanı hem de günlük hakkını
+   kaybetti. Bir oyuncu 12 soru bilip hiç puan alamadı.
+
+   Artık oturumlar diske yazılıyor. Küçük ve kısa ömürlüler
+   (SESSION_TTL kadar), yani maliyeti yok. Dosya sunucu tarafında;
+   içindeki doğru cevaplar dışarı açılmıyor. */
+const SESSIONS_FILE = veriYolu("quiz-sessions.json");
 const sessions = new Map();          // id -> {userId, questions:[], step, score, done}
+
+let oturumZaman = null;
+function oturumKaydet() {
+  clearTimeout(oturumZaman);
+  /* Gecikmeli yazım: her cevapta diske gitmek gereksiz. 400 ms, bir
+     kullanıcının iki cevabı arasındaki en kısa süreden bile kısa. */
+  oturumZaman = setTimeout(() => {
+    try {
+      const tmp = SESSIONS_FILE + ".tmp";
+      fs.writeFileSync(tmp, JSON.stringify([...sessions]));
+      fs.renameSync(tmp, SESSIONS_FILE);
+    } catch (e) { console.warn("⚠️  Yarışma oturumları kaydedilemedi:", String(e)); }
+  }, 400);
+}
+function oturumYukle() {
+  try {
+    const ham = JSON.parse(fs.readFileSync(SESSIONS_FILE, "utf8"));
+    const simdi = Date.now();
+    let n = 0;
+    for (const [id, g] of ham) {
+      /* Süresi geçmiş ya da bitmiş oturumu geri yüklemenin anlamı yok. */
+      if (!g || g.done || simdi - (g.at || 0) > SESSION_TTL) continue;
+      sessions.set(id, g); n++;
+    }
+    if (n) console.log(`🎓  ${n} yarım kalan yarışma oturumu geri yüklendi.`);
+  } catch { /* ilk çalıştırma */ }
+}
+oturumYukle();
+
 function sweep() {
   const now = Date.now();
-  for (const [id, s] of sessions) if (now - s.at > SESSION_TTL) sessions.delete(id);
+  let dustu = 0;
+  for (const [id, s] of sessions) if (now - s.at > SESSION_TTL) { sessions.delete(id); dustu++; }
+  if (dustu) oturumKaydet();
 }
 
 async function buildQuestions(deps) {
@@ -395,6 +439,7 @@ function mount(app, deps) {
     /* `soruAt` = ilk soruyu gönderdiğim an. Cevap süresi buradan ölçülüyor. */
     sessions.set(id, { userId: s.user.id, questions, step: 0, score: 0,
                        at: Date.now(), soruAt: Date.now(), hizli: 0, done: false });
+    oturumKaydet();
     notePlay(s.user.id);
 
     const q = questions[0];
@@ -423,7 +468,7 @@ function mount(app, deps) {
     const bot = botMu(g, gecen);
     if (bot) {
       g.done = true;
-      sessions.delete(req.body.sessionId);
+      sessions.delete(req.body.sessionId); oturumKaydet();
       const r = banUser ? banUser(s.user.id, BOT_SEBEP, BOT_BAN) : null;
       console.warn(`🚫  Bot tespiti — ${s.user.username} (${bot.kod}: ${bot.detay})` +
                    (r && r.ok ? ` → ${r.ban.label} yasak` : " → yasaklanamadı"));
@@ -440,7 +485,7 @@ function mount(app, deps) {
       const answered = g.step;                       // kaç soruyu bilerek geçti
       const points = checkpointScore(answered);      // baraja düşer
       if (points) addPoints(s.user.id, points, "yarisma");
-      sessions.delete(req.body.sessionId);
+      sessions.delete(req.body.sessionId); oturumKaydet();
       return res.json({
         correct: false, answer: q.answer, finished: true, reason: "wrong",
         answered, points,
@@ -455,7 +500,7 @@ function mount(app, deps) {
     if (g.step >= TOTAL_Q) {
       g.done = true;
       addPoints(s.user.id, TOTAL_Q, "yarisma");
-      sessions.delete(req.body.sessionId);
+      sessions.delete(req.body.sessionId); oturumKaydet();
       return res.json({
         correct: true, answer: q.answer, finished: true, reason: "complete",
         answered: TOTAL_Q, points: TOTAL_Q,
@@ -463,6 +508,7 @@ function mount(app, deps) {
       });
     }
 
+    oturumKaydet();                                  // ilerleme diske yazılsın
     const next = g.questions[g.step];
     /* Soru ŞİMDİ değil, arayüz beklemesi bittiğinde ekrana gelecek. Süreyi
        oradan saymak gerekiyor; aksi hâlde her cevap 750 ms şişik ölçülür. */
@@ -485,7 +531,7 @@ function mount(app, deps) {
     g.done = true;
     const points = g.step;                           // çekilende baraj yok, bildiği kadar
     if (points) addPoints(s.user.id, points, "yarisma");
-    sessions.delete(req.body.sessionId);
+    sessions.delete(req.body.sessionId); oturumKaydet();
     res.json({
       finished: true, reason: "withdraw", answered: g.step, points,
       message: points ? `Çekildin ve <b>${points} puan</b> ile ayrıldın.` : "Hiç soru bilmeden çekildin, puan yok.",
