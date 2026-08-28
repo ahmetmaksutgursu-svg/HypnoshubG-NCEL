@@ -37,3 +37,7 @@ desktop.ini
 *.log
 npm-debug.log*
 tmp/
+
+# Hata ayıklama artığı: API'den gelmiş ham klan yanıtı, elle kaydedilmiş.
+# Kaynak kodu değil, veri kopyası — arşivde yeri yok.
+k.json

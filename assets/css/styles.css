@@ -1,4 +1,24 @@
 /* ============================================================
+   DOKUNMATİKTE YAPIŞAN :hover
+   ------------------------------------------------------------
+   Aşağıdaki bütün :hover kuralları `@media (hover: hover)` ile
+   korunuyor. Sebebi ölçüldü:
+
+   Dokunmatik bir cihazda parmak kalkınca tarayıcı :hover durumunu
+   KALDIRMIYOR — başka bir yere basılana kadar öğe "üzerine gelinmiş"
+   sayılıyor. Kullanıcı bildirdi: favori kalbi yanıp sönüyor. Olan
+   şuydu: kalbe basılıp favoriden ÇIKARILIYOR, `.on` sınıfı gidiyor
+   ama `:hover` kuralı kalbi kırmızı tutmaya devam ediyor. Kullanıcı
+   çıkmadığını sanıp tekrar basıyor, bu kez ekleniyor — ekranda
+   yanıp sönüyor gibi görünüyor.
+
+   Aynı tuzak 53 kuralın hepsinde vardı: düğmeler basılı kalmış gibi
+   duruyor, tablo satırları vurgulu kalıyor, kartlar havada asılı
+   kalıyor. iPhone 15'te fark edilmemesinin sebebi cihaz değil; iOS
+   Safari bazı durumlarda dokunma sonrası hover'ı daha erken temizliyor.
+   Fare kullanan masaüstünde davranış hiç değişmiyor.
+   ============================================================ */
+/* ============================================================
    HYPNOSHUB — Clash Royale Analiz Platformu
    Shared stylesheet. Clean white base, blue + gold accents.
    Light/Dark theme via [data-theme] on <html>.
@@ -142,7 +162,9 @@ body {
 }
 
 a { color: var(--link); text-decoration: none; }
+ @media (hover: hover) {
 a:hover { text-decoration: underline; }
+}
 
 .container { max-width: var(--maxw); margin: 0 auto; padding: 0 20px; }
 .section { padding: 46px 0; }
@@ -166,11 +188,17 @@ h1,h2,h3 { line-height: 1.15; margin: 0 0 .5em; letter-spacing: -.01em; }
   transition: transform .12s ease, box-shadow .2s ease, background .2s;
   font-family: inherit;
 }
+ @media (hover: hover) {
 .btn:hover { transform: translateY(-1px); text-decoration: none; }
+}
 .btn-primary { background: var(--blue-600); color: #fff; box-shadow: 0 6px 16px rgba(37,99,235,.25); }
+ @media (hover: hover) {
 .btn-primary:hover { background: var(--blue-700); }
+}
 .btn-gold { background: var(--surface); color: var(--blue-700); border: 1px solid var(--border-strong); box-shadow: var(--shadow-sm); }
+ @media (hover: hover) {
 .btn-gold:hover { border-color: var(--blue-500); }
+}
 .btn-ghost { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
 .btn-lg { padding: 16px 26px; font-size: 1.05rem; border-radius: 14px; }
 
@@ -206,7 +234,9 @@ h1,h2,h3 { line-height: 1.15; margin: 0 0 .5em; letter-spacing: -.01em; }
 /* On dark footer the white needs no strong outline */
 .site-footer .brand-name .w { -webkit-text-stroke: 0; text-shadow: none; }
 .brand-sub { font-size: .58rem; font-weight: 800; letter-spacing: .18em; color: var(--text-muted); text-transform: uppercase; margin-top: 3px; }
+ @media (hover: hover) {
 .brand:hover { text-decoration: none; }
+}
 
 .main-nav { display: flex; gap: 2px; margin-left: 4px; }
 .main-nav a {
@@ -216,7 +246,9 @@ h1,h2,h3 { line-height: 1.15; margin: 0 0 .5em; letter-spacing: -.01em; }
      line and making the header look ragged. */
   white-space: nowrap;
 }
+ @media (hover: hover) {
 .main-nav a:hover { background: var(--blue-100); color: var(--blue-700); text-decoration: none; }
+}
 .main-nav a.active { color: var(--blue-700); background: var(--blue-100); }
 
 /* Eğlence opens a submenu instead of spilling each game into the top bar.
@@ -230,7 +262,9 @@ h1,h2,h3 { line-height: 1.15; margin: 0 0 .5em; letter-spacing: -.01em; }
 }
 /* An invisible bridge across the 6px gap. */
 .nav-sub::before { content: ""; position: absolute; left: 0; right: 0; top: -8px; height: 8px; }
+ @media (hover: hover) {
 .nav-item.has-sub:hover .nav-sub, .nav-item.has-sub:focus-within .nav-sub { display: block; }
+}
 .main-nav .nav-sub a {
   display: flex; align-items: center; gap: 9px; padding: 9px 11px; border-radius: 9px;
   text-transform: none; letter-spacing: 0; font-size: .84rem; font-weight: 700; white-space: nowrap;
@@ -302,7 +336,9 @@ h1,h2,h3 { line-height: 1.15; margin: 0 0 .5em; letter-spacing: -.01em; }
    görünüyordu. Sayfadaki diğer simgelerin hepsinde böyle bir kural var
    (.icon-btn svg, .social-link svg …), atlanan tek yer burasıydı. */
 .search-box .search-go svg { width: 17px; height: 17px; flex: none; }
+ @media (hover: hover) {
 .search-box .search-go:hover { background: var(--blue-700); }
+}
 
 .icon-btn {
   width: 40px; height: 40px; border-radius: 11px; border: 1px solid var(--border);
@@ -310,7 +346,9 @@ h1,h2,h3 { line-height: 1.15; margin: 0 0 .5em; letter-spacing: -.01em; }
   display: grid; place-items: center; font-weight: 800; font-size: .8rem;
   transition: .15s;
 }
+ @media (hover: hover) {
 .icon-btn:hover { color: var(--blue-700); border-color: var(--blue-500); }
+}
 .icon-btn svg { width: 18px; height: 18px; }
 
 /* mobile nav toggle */
@@ -348,7 +386,52 @@ h1,h2,h3 { line-height: 1.15; margin: 0 0 .5em; letter-spacing: -.01em; }
   .hero-watermark { right: -40px; top: auto; bottom: 0; transform: rotate(-8deg); }
   .hero-watermark img, .hero-watermark svg { width: 320px; height: 320px; }
 }
-.hero-stats { display: flex; gap: 30px; margin-top: 28px; flex-wrap: wrap; }
+/* ---------- CANLI SAYAÇ ŞERİDİ ----------
+   Hero'nun altındaki rakamlar. Eskiden burada tek bir "Veri alınamadı"
+   rozeti duruyordu ve .hero-stat kuralları hiç kullanılmıyordu.
+
+   IZGARA, flex değil: üç sayaç DAR ekranda da eşit genişlikte kalsın
+   istiyoruz. Flex-wrap'te son eleman tek başına satıra düşüp iki katı
+   genişliyordu. auto-fit + minmax ile geniş ekranda tek satır, dar
+   ekranda iki sütun, en darda tek sütun oluyor — kırılma noktası
+   yazmadan.
+
+   Rakam tabular-nums: sayaç animasyonu sırasında basamak genişlikleri
+   eşit olmayınca kutu her karede hafifçe titriyordu. */
+.hero-stats { display: grid; gap: 12px; margin-top: 28px;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); align-items: stretch; }
+
+.hstat { display: flex; align-items: center; gap: 12px; min-width: 0;
+  padding: 13px 15px; border-radius: 14px;
+  background: var(--surface); border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm); }
+
+.hs-ic { flex: none; width: 38px; height: 38px; border-radius: 11px; display: grid;
+  place-items: center; font-size: 1.15rem; line-height: 1;
+  background: var(--blue-100); color: var(--blue-700); overflow: hidden; }
+.hs-ic img { width: 24px; height: 24px; object-fit: contain; border-radius: 6px; }
+
+.hs-tx { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.hs-tx b { font-size: 1.32rem; font-weight: 900; color: var(--blue-600);
+  line-height: 1.1; font-variant-numeric: tabular-nums; }
+.hs-tx span { font-size: .72rem; color: var(--text-muted); text-transform: uppercase;
+  letter-spacing: .06em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Rozet, sayaçlarla aynı yükseklikte dursun: ızgara hücresini
+   doldurup ortalanıyor, yoksa satırın tepesine yapışıyordu. */
+.hero-stats .api-status { align-self: stretch; display: flex; align-items: center;
+  justify-content: center; }
+
+/* Çok dar ekranda ikon yer kaplamasın; rakam okunaklılığı önce gelir. */
+@media (max-width: 420px) {
+  .hero-stats { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .hstat { padding: 11px 12px; gap: 9px; }
+  .hs-ic { width: 32px; height: 32px; font-size: 1rem; }
+  .hs-tx b { font-size: 1.12rem; }
+  .hero-stats .api-status { grid-column: 1 / -1; }
+}
+
+/* Eski kullanım — başka sayfalarda kalmış olabilir, bozmuyoruz. */
 .hero-stat b { display: block; font-size: 1.6rem; font-weight: 900; color: var(--blue-600); }
 .hero-stat span { font-size: .82rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .08em; }
 
@@ -363,7 +446,9 @@ h1,h2,h3 { line-height: 1.15; margin: 0 0 .5em; letter-spacing: -.01em; }
   border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 20px;
 }
 .card.hoverable { transition: transform .16s ease, box-shadow .2s ease; }
+ @media (hover: hover) {
 .card.hoverable:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+}
 .card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
 .card-head .dot { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; background: var(--blue-100); color: var(--blue-700); }
 .card-head h3 { margin: 0; font-size: 1.05rem; font-weight: 900; }
@@ -517,7 +602,9 @@ table.data thead th {
 }
 table.data tbody td { padding: 12px 16px; border-bottom: 1px solid var(--border); }
 table.data tbody tr:last-child td { border-bottom: none; }
+ @media (hover: hover) {
 table.data tbody tr:hover { background: var(--surface-2); }
+}
 table.data .rank { font-weight: 900; color: var(--text-muted); width: 54px; }
 table.data .rank.top1 { color: var(--gold-500); }
 table.data .rank.top2 { color: #9fb0c9; }
@@ -576,7 +663,9 @@ table.data .rank.top3 { color: #c98a3f; }
     linear-gradient(180deg,#3fd47b,#1f9d4d),
     repeating-linear-gradient(45deg, rgba(255,255,255,.06) 0 6px, transparent 6px 12px);
 }
+ @media (hover: hover) {
 .big-green-btn:hover { filter: brightness(1.04); }
+}
 .big-green-btn:active { top: 6px; box-shadow: 0 2px 0 #14712f, 0 6px 12px rgba(31,157,77,.4); }
 .big-green-btn:disabled { opacity: .7; cursor: wait; }
 
@@ -618,7 +707,9 @@ table.data .rank.top3 { color: #c98a3f; }
 .anti-satir { display:block; width:100%; text-align:left; cursor:pointer; font:inherit;
   color:inherit; background:var(--surface); border:2px solid var(--border);
   border-radius:14px; padding:10px 12px; transition:border-color .15s, background .15s; }
+ @media (hover: hover) {
 .anti-satir:hover { border-color:var(--blue-600); }
+}
 .anti-satir.secili { border-color:var(--blue-600); background:rgba(30,90,224,.06); }
 .anti-satir .as-ust { display:flex; align-items:baseline; gap:10px; margin-bottom:8px; }
 .anti-satir .as-ad { font-weight:900; font-size:.86rem; line-height:1.25;
@@ -649,7 +740,9 @@ table.data .rank.top3 { color: #c98a3f; }
 .anti-koc { flex:0 0 auto; font:inherit; font-size:.75rem; font-weight:800; cursor:pointer;
   padding:5px 11px; border-radius:999px; border:1px solid var(--border);
   background:var(--surface-2); color:var(--text-soft); }
+ @media (hover: hover) {
 .anti-koc:hover { border-color:var(--blue-600); color:var(--blue-600); }
+}
 .anti-koc.secili { background:var(--blue-600); border-color:var(--blue-600); color:#fff; }
 
 /* ---- sonuç ---- */
@@ -808,6 +901,31 @@ table.data .rank.top3 { color: #c98a3f; }
 .metadeck { }
 .metadeck .mini-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin:12px 0; }
 .metadeck .mini-cards .cr-card { aspect-ratio: 4/5; }
+
+/* Oyuncunun desteleri (desteler.html). Yukarıdaki uyarının aynısı: ortak bir
+   `.mini-cards` kuralı YOK, her bağlam kendi ızgarasını yazmak zorunda. Bu
+   sayfa düz bir `.card` içinde kullandığı için kartlar tek sütuna dizildi,
+   her kart 1179 piksele çıktı ve sayfa 34.841 piksel uzadı. */
+.ds-deste .mini-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin:6px 0; max-width:420px; }
+.ds-deste .mini-cards .cr-card { aspect-ratio:4/5; width:100%; }
+
+/* Yarışma soru süresi çubuğu. Sayı ve çubuk birlikte: sayıya bakmayan
+   da çubuğun erimesinden anlasın, çubuğu fark etmeyen sayıyı görsün. */
+.quiz-sure { position:relative; height:22px; margin:0 0 10px; border-radius:11px;
+  background:rgba(255,255,255,.07); overflow:hidden; display:flex; align-items:center; }
+.quiz-sure .qs-bar { position:absolute; inset:0 auto 0 0; width:100%;
+  background:linear-gradient(90deg,var(--blue-600),#4c8dff); transition:width .1s linear; }
+.quiz-sure .qs-bar.az { background:linear-gradient(90deg,#c62828,#ef5350); }
+.quiz-sure .qs-num { position:relative; margin-left:auto; margin-right:10px;
+  font-weight:900; font-size:.8rem; color:#fff; font-variant-numeric:tabular-nums;
+  text-shadow:0 1px 2px rgba(0,0,0,.5); }
+
+/* Canlı akışta kule hasarı satırı. Madalyon defterinin (.pdelta) hemen
+   altında duruyor; oyuncu adının ve destesinin arasına giren üçüncü bir
+   satır olduğu için küçük ve sessiz tutuldu. */
+.match-side .pkule { font-size:.72rem; font-weight:800; color:var(--text-muted);
+  margin:2px 0 4px; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.match-side.right .pkule { text-align:right; }
 .metadeck .foot { display:flex; align-items:center; gap:14px; font-size:.82rem; color:var(--text-soft); }
 .metadeck .foot .wr { color: var(--green-600); font-weight:900; }
 .elixir-badge { display:inline-flex; align-items:center; gap:4px; font-weight:800; color:#a01bd6; }
@@ -885,7 +1003,9 @@ h1 .vtick { width:.82em; height:.82em; }
 .ua-tx b { font-size:.92rem; }
 .ua-sub { width:100%; font-size:.75rem; color:var(--text-muted); }
 .ua-row .btn { padding:5px 11px; font-size:.8rem; flex:none; }
+ @media (hover: hover) {
 .ua-row .ua-ban:hover { border-color:#e0435f; color:#e0435f; }
+}
 
 /* ---------- Özel mesajlar ----------
    Sohbet iki taraflı: "me" sağda mavi, karşı taraf solda nötr. */
@@ -907,7 +1027,9 @@ h1 .vtick { width:.82em; height:.82em; }
   background:var(--surface-2); border:1px solid var(--border); border-radius:12px;
   padding:9px 12px; cursor:pointer; font-family:inherit; color:inherit;
 }
+ @media (hover: hover) {
 .msg-row:hover { border-color:var(--blue-500); }
+}
 .msg-av { width:30px; height:30px; border-radius:9px; background:var(--blue-600); color:#fff;
           display:grid; place-items:center; font-weight:900; font-size:.82rem; flex:none; }
 .msg-main { display:flex; flex-direction:column; gap:2px; min-width:0; flex:1; }
@@ -920,7 +1042,9 @@ h1 .vtick { width:.82em; height:.82em; }
   border:none; background:transparent; cursor:pointer; font-size:.9rem; line-height:1;
   padding:3px 5px; border-radius:7px; opacity:.5; flex:none;
 }
+ @media (hover: hover) {
 .board-ban:hover { opacity:1; background:rgba(224,67,95,.14); }
+}
 
 /* ---------- Açılır kapanır kart başlığı ----------
    Başlık <button> olduğu için klavyeyle de açılabiliyor. */
@@ -929,7 +1053,9 @@ h1 .vtick { width:.82em; height:.82em; }
   background:none; border:none; padding:0; margin:0 0 2px;
   font-family:inherit; color:inherit; cursor:pointer; text-align:left;
 }
+ @media (hover: hover) {
 .card.collapsible .as-toggle:hover h3 { color:var(--blue-600); }
+}
 .card.collapsible .chev { display:inline-flex; width:18px; height:18px; color:var(--text-muted); transition:transform .18s; }
 .card.collapsible .chev svg { width:100%; height:100%; }
 .card.collapsible.open .chev { transform:rotate(180deg); }
@@ -950,7 +1076,9 @@ h1 .vtick { width:.82em; height:.82em; }
   padding:16px 12px; cursor:pointer; font-family:inherit; color:inherit;
   transition:border-color .12s, transform .12s;
 }
+ @media (hover: hover) {
 .kp-card:hover:not(:disabled) { border-color:var(--blue-500); transform:translateY(-2px); }
+}
 .kp-card:disabled { cursor:default; }
 .kp-card img { width:96px; max-width:100%; height:auto; display:block; }
 .kp-n { font-weight:800; font-size:.9rem; text-align:center; line-height:1.2; }
@@ -990,7 +1118,9 @@ h1 .vtick { width:.82em; height:.82em; }
   padding:14px 10px; cursor:pointer; font-family:inherit; color:inherit;
   transition:border-color .12s, transform .12s;
 }
+ @media (hover: hover) {
 .dj-pick:hover { border-color:var(--blue-500); transform:translateY(-2px); }
+}
 .dj-pick .cr-card { width:100%; max-width:120px; }
 .dj-name { font-weight:800; font-size:.86rem; text-align:center; line-height:1.2; }
 .dj-acts { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:18px; }
@@ -1026,7 +1156,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
 .footer-brand .brand-name .b { color: var(--blue-500); }
 .footer-col h4 { color:#fff; font-size:.82rem; text-transform:uppercase; letter-spacing:.1em; margin-bottom:12px; }
 .footer-col a { display:block; padding:4px 0; font-size:.88rem; opacity:.85; }
+ @media (hover: hover) {
 .footer-col a:hover { opacity:1; }
+}
 .footer-disclaimer {
   margin-top: 26px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,.12);
   display:flex; gap:14px; align-items:center; flex-wrap:wrap; font-size:.82rem; opacity:.8;
@@ -1037,7 +1169,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
 .footer-credit b { color:#fff; }
 .social-icons { margin-left:auto; display:flex; gap:10px; }
 .social-icons a { width:34px; height:34px; border-radius:9px; background:rgba(255,255,255,.08); display:grid; place-items:center; }
+ @media (hover: hover) {
 .social-icons a:hover { background:var(--blue-600); }
+}
 .social-icons svg { width:17px; height:17px; }
 /* DİKKAT: seçicideki `.footer-col` şart. Yalnızca `.social-link` yazınca
    `.footer-col a { display:block }` (özgüllüğü daha yüksek) bunu eziyordu;
@@ -1045,13 +1179,17 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
    yazının hizasından kayıyordu. */
 .social-link,
 .footer-col a.social-link { display:flex; align-items:center; gap:9px; padding:6px 0; font-size:.88rem; opacity:.85; }
+ @media (hover: hover) {
 .social-link:hover { opacity:1; }
+}
 .social-link svg { width:18px; height:18px; flex:none; }
 
 /* ---------- Latest videos ---------- */
 .video-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
 .video-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; box-shadow:var(--shadow-sm); transition:transform .16s, box-shadow .2s; text-decoration:none; color:inherit; display:block; }
+ @media (hover: hover) {
 .video-card:hover { transform:translateY(-3px); box-shadow:var(--shadow); text-decoration:none; }
+}
 .video-thumb { position:relative; aspect-ratio:16/9; background:var(--surface-2); overflow:hidden; }
 .video-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
 .video-thumb .play { position:absolute; inset:0; display:grid; place-items:center; }
@@ -1171,7 +1309,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
 .kvkk-haklar .kh-sil { color: #c0392b; border-color: rgba(192,57,43,.35); }
 [data-theme="dark"] .kvkk-haklar .kh-sil, [data-theme="gece"] .kvkk-haklar .kh-sil{ color: #f0897a; border-color: rgba(240,137,122,.3); }
 .kh-sil-onay { background: #c0392b !important; border-color: #c0392b !important; }
+ @media (hover: hover) {
 .kh-sil-onay:hover { background: #a83226 !important; }
+}
 
 /* ---------- Yasal metin sayfası (gizlilik.html) ----------
    Okunması gereken bir metin, taranan bir arayüz değil: satır uzunluğu
@@ -1330,7 +1470,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   transition: background .12s, color .12s, border-color .12s;
 }
 .deck-copy svg { width: 15px; height: 15px; }
+ @media (hover: hover) {
 .deck-copy:hover { background: var(--blue-100); color: var(--blue-700); border-color: var(--blue-100); }
+}
 .deck-copy.ok { background: rgba(34,160,110,.16); color: #22a06e; border-color: transparent; }
 .deck-icons.lg .di { width:34px; height:41px; }
 .di {
@@ -1424,10 +1566,14 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   font-weight: 700; color: var(--text); font-size: .94rem;
   width: 100%; text-align: left; background: none; border: none;
   font-family: inherit; cursor: pointer; }
+ @media (hover: hover) {
 .dr-link:hover { background: var(--surface-2); text-decoration: none; color: var(--blue-700); }
+}
 .dr-ic { width: 26px; text-align: center; font-size: 1.05rem; }
 .dr-link.soon { color: var(--text-muted); cursor: default; }
+ @media (hover: hover) {
 .dr-link.soon:hover { background: transparent; }
+}
 .soon-badge { margin-left: auto; font-size: .64rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; background: var(--blue-100); color: var(--blue-700); }
 .dr-foot { padding-top: 16px; display: flex; gap: 10px; border-top: 1px solid var(--border); margin-top: 20px; }
 
@@ -1438,7 +1584,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-sm);
   color: var(--text); font-weight: 800; transition: transform .15s, box-shadow .2s, border-color .2s;
 }
+ @media (hover: hover) {
 .tile:hover { transform: translateY(-2px); box-shadow: var(--shadow); text-decoration: none; border-color: var(--blue-500); }
+}
 .tile .t-ic { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; font-size: 1.2rem; background: var(--blue-100); color: var(--blue-700); flex: none; }
 /* Title and subtitle are two inline <span>s; without an explicit column they
    flow onto the same line and read as one run-on word ("Deste DüellosuYakında"). */
@@ -1483,7 +1631,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
 .rank-list { display:flex; flex-direction:column; gap:8px; }
 .rank-slot { display:flex; align-items:center; gap:14px; background:var(--surface); border:1.5px dashed var(--border-strong); border-radius:12px; padding:8px 12px; min-height:64px; transition:.15s; }
 .rank-slot.empty { cursor:pointer; }
+ @media (hover: hover) {
 .rank-slot.empty:hover { border-color:var(--blue-500); background:var(--blue-100); }
+}
 .rank-slot.filled { border-style:solid; }
 .rank-slot .pos { width:34px; height:34px; border-radius:9px; display:grid; place-items:center; font-weight:900; background:var(--surface-2); color:var(--text-muted); flex:none; }
 .rank-slot.filled .pos { background:var(--blue-600); color:#fff; }
@@ -1541,7 +1691,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   border:1px solid var(--border); background:var(--surface); color:var(--text);
   font-family:inherit; font-weight:800; font-size:.9rem; transition:.15s;
 }
-.pager .pg:hover:not(.dis):not(.active){ border-color:var(--blue-500); color:var(--blue-700); }
+@media (hover: hover) {
+.pager .pg:hover:not(.dis):not(.active) { border-color:var(--blue-500); color:var(--blue-700); }
+}
 .pager .pg.active { background:var(--blue-600); color:#fff; border-color:var(--blue-600); box-shadow:0 4px 12px rgba(30,90,224,.3); }
 .pager .pg.dis { opacity:.4; cursor:not-allowed; }
 .pager .pg-dots { display:grid; place-items:center; min-width:24px; color:var(--text-muted); font-weight:800; }
@@ -1553,7 +1705,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
 .lb-head h3 { margin:0; font-size:.92rem; font-weight:900; text-transform:uppercase; letter-spacing:.05em; }
 .lb-row { display:flex; align-items:center; gap:12px; padding:12px 18px; border-bottom:1px solid var(--border); }
 .lb-row:last-of-type { border-bottom:none; }
+ @media (hover: hover) {
 .lb-row:hover { background:var(--surface-2); }
+}
 .lb-medal { width:34px; height:34px; border-radius:9px; display:grid; place-items:center; font-weight:900; font-size:.9rem; flex:none; background:var(--surface-2); color:var(--text-muted); border:1px solid var(--border); }
 .lb-medal.g1 { background:linear-gradient(135deg,#ffe08a,#f2b807); color:#4a3400; border:none; }
 .lb-medal.g2 { background:linear-gradient(135deg,#e9eef6,#b7c3d6); color:#39485e; border:none; }
@@ -1586,7 +1740,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
 .res-head b { font-size:.95rem; }
 .res-row { display:flex; align-items:center; gap:14px; padding:12px 18px; border-bottom:1px solid var(--border); text-decoration:none; color:inherit; }
 .res-row:last-child { border-bottom:none; }
+ @media (hover: hover) {
 .res-row:hover { background:var(--surface-2); }
+}
 .res-ic { width:38px; height:38px; flex:none; display:grid; place-items:center; font-size:1.15rem; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); }
 .res-main { min-width:0; flex:1; }
 .res-main .n { font-weight:900; font-size:1rem; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
@@ -1665,7 +1821,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   display:flex; flex-direction:column; gap:6px; align-items:center;
   transition:transform .12s ease;
 }
+ @media (hover: hover) {
 .guess-pick:hover { transform:translateY(-4px); }
+}
 .guess-pick .gp-art { display:block; width:100%; }
 .guess-pick .gp-name { font-size:.76rem; font-weight:800; line-height:1.2; }
 
@@ -1686,7 +1844,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   padding:12px 8px 10px; cursor:pointer; font-family:inherit; color:inherit;
   box-shadow:var(--shadow-sm); transition:transform .12s ease, box-shadow .12s ease;
 }
+ @media (hover: hover) {
 .hero-tile:hover { transform:translateY(-3px); box-shadow:0 10px 24px rgba(15,30,60,.14); }
+}
 .hero-tile.champ { border:2px solid transparent; background:
   linear-gradient(var(--surface),var(--surface)) padding-box,
   linear-gradient(135deg,var(--gold-400),var(--gold-600)) border-box; }
@@ -1713,7 +1873,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   width: 100%; height: 100%; object-fit: contain; display: block; border-radius: 10px;
   filter: drop-shadow(0 6px 14px rgba(15,30,60,.28));
 }
+ @media (hover: hover) {
 .hero-tile.hero-real:hover { transform: translateY(-4px); }
+}
 .hero-tile.hero-real .hero-cost {
   position: absolute; top: 6px; right: 6px; z-index: 2;
   background: rgba(12,20,40,.72); color: #fff; border-radius: 999px;
@@ -1785,7 +1947,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   padding: 16px; font-family: inherit; color: inherit; box-shadow: var(--shadow-sm);
   transition: transform .12s, border-color .12s, box-shadow .16s;
 }
+ @media (hover: hover) {
 .pick-card:hover { transform: translateY(-3px); border-color: var(--blue-600); box-shadow: var(--shadow); }
+}
 /* Puan veren oyunlar hafifçe öne çıksın — bağırmadan. */
 .pick-card.scored { border-left: 3px solid var(--gold-400); }
 .pick-ic {
@@ -1856,9 +2020,15 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   border: none; background: none; cursor: pointer; font-size: .95rem;
   padding: 2px 5px; border-radius: 7px; color: var(--text-muted);
 }
+ @media (hover: hover) {
 .inbox-acts button:hover { background: var(--surface-2); color: var(--text); }
+}
+ @media (hover: hover) {
 .inbox-acts button.danger:hover { background: rgba(224,67,95,.14); color: #e0435f; }
-.inbox-acts button.ok:hover     { background: rgba(34,160,110,.14); color: #22a06e; }
+}
+     @media (hover: hover) {
+.inbox-acts button.ok:hover { background: rgba(34,160,110,.14); color: #22a06e; }
+}
 /* Gönderen şu an yasaklıysa adının yanında görünür. */
 .inbox-ban {
   font-size: .64rem; font-weight: 800; letter-spacing: .5px; padding: 2px 7px;
@@ -1889,7 +2059,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   border: 2px solid var(--border); border-radius: 12px; background: var(--surface);
   font-family: inherit; color: inherit; cursor: pointer; transition: border-color .12s, background .12s;
 }
+ @media (hover: hover) {
 .ek-opt:hover:not(:disabled) { border-color: var(--blue-600); }
+}
 .ek-opt:disabled { cursor: default; }
 .ek-opt.right { border-color: var(--green-600); background: rgba(47,191,106,.14); }
 .ek-opt.wrong { border-color: #d23c3c; background: rgba(224,60,60,.12); }
@@ -1914,7 +2086,12 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
 .gn-hint b { color: var(--text-muted); font-weight: 800; }
 .gn-msg { margin: 0; font-size: .86rem; font-weight: 700; }
 .gn-msg .bad { color: #d23c3c; }
+/* Kutu 420 piksel ama içindeki yazı alanı sabit 210 pikselde kalıyordu
+   (`.search-box input` min-width) ve büyümediği için TAHMİN düğmesinin
+   sağında ~140 piksel boşluk kalıyordu — kullanıcı bildirdi. Başlıktaki
+   arama kutusunda bu kural zaten var, burada eksikti. */
 .gn-box { max-width: 420px; width: 100%; }
+.gn-box input { flex: 1 1 auto; min-width: 0; }
 .gn-ok { color: var(--green-600); font-weight: 800; margin: 0; }
 .gn-no { color: #d23c3c; font-weight: 800; margin: 0; }
 
@@ -1927,7 +2104,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   padding: 12px; font-family: inherit; color: inherit;
   transition: border-color .12s, transform .1s;
 }
+ @media (hover: hover) {
 .du-deck:hover:not(:disabled) { border-color: var(--blue-600); transform: translateY(-2px); }
+}
 .du-deck:disabled { cursor: default; }
 .du-deck.right { border-color: var(--green-600); background: rgba(47,191,106,.10); }
 .du-deck.lost { opacity: .65; }
@@ -1977,7 +2156,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   background: var(--surface); color: var(--text); font-family: inherit;
   font-weight: 700; font-size: .92rem; transition: border-color .12s, background .12s, transform .1s;
 }
+ @media (hover: hover) {
 .quiz-opt:hover:not(:disabled) { border-color: var(--blue-600); transform: translateY(-1px); }
+}
 .quiz-opt:disabled { cursor: default; }
 /* Yeni soru çizilince şıklar çok kısa bir an kapalı gelir (bot koruması,
    bkz. quiz.js). Sertçe kaybolup belirmesin diye yalnızca soluk açılıyor —
@@ -2063,7 +2244,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   display: grid; grid-template-columns: 26px 28px minmax(0,1fr) auto auto;
   align-items: center; gap: 9px; padding: 8px 10px; border-radius: 11px;
 }
+ @media (hover: hover) {
 .board-row:hover { background: var(--surface-2); }
+}
 .board-row.me { background: var(--blue-100); }
 .board-rank { font-weight: 900; font-size: .84rem; color: var(--text-muted); text-align: center; }
 .board-rank.m1 { color: #c9971a; } .board-rank.m2 { color: #8c98a8; } .board-rank.m3 { color: #b0713a; }
@@ -2078,6 +2261,14 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
 :root[data-theme="dark"] .board-p, [data-theme="gece"] .board-p{ color: var(--gold-400); }
 
 .board-empty { padding: 20px 18px; font-size: .84rem; color: var(--text-soft); line-height: 1.55; margin: 0; }
+
+/* Ara uyarısı — dönem sürerken "gelecek hafta ne zaman başlıyor" notu.
+   Ödül kutusuyla karışmasın diye ayrı renk (amber), ama aynı yuvarlaklık
+   ve boşluk dilini kullanıyor. */
+.board-ara { margin: 0 0 12px; padding: 12px 14px; border-radius: 12px;
+  background: rgba(255,176,32,.10); border: 1px solid rgba(255,176,32,.32);
+  font-size: .86rem; line-height: 1.55; color: var(--text-soft); }
+.board-ara b { color: #ffb020; }
 .board-note { padding: 0 18px 16px; font-size: .76rem; color: var(--text-muted); margin: 0; }
 .board-foot {
   padding: 9px 16px; border-top: 1px solid var(--border);
@@ -2098,6 +2289,17 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
 }
 .board-prize .bp-tx span { font-size: .8rem; color: var(--text-soft); line-height: 1.45; }
 .board-prize .bp-tx span b { text-transform: none; letter-spacing: 0; font-size: inherit; color: var(--text); }
+/* ÖDÜL LİSTESİ — sıra başına bir satır.
+
+   Tek cümle yerine liste: yarışan kişi kendi sırasının karşılığını tek
+   bakışta bulmalı. Madalya sütunu sabit genişlikte, böylece ödül adları
+   alt alta hizalı başlıyor; değişken genişlik bırakılırsa üç satır
+   birbirine göre kayıyor ve savruk duruyor. */
+.board-prize .bp-donem { font-size: .74rem; color: var(--text-muted); }
+.board-prize .bp-liste { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; }
+.board-prize .bp-satir { display: flex; align-items: baseline; gap: 7px; font-size: .82rem; }
+.board-prize .bp-yer { flex: none; width: 1.15em; text-align: center; font-size: .9rem; }
+.board-prize .bp-ne { color: var(--text); font-weight: 600; }
 
 @media (max-width: 1100px){
   .hero-split { grid-template-columns: 1fr; gap: 24px; }
@@ -2118,7 +2320,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   transition: color .12s, border-color .12s, background .12s;
 }
 .fav-btn svg { width: 16px; height: 16px; }
+ @media (hover: hover) {
 .fav-btn:hover { color: #e0435f; border-color: #e0435f; }
+}
 .fav-btn.on { color: #e0435f; border-color: #e0435f; background: rgba(224,67,95,.08); }
 .fav-btn.on svg { fill: #e0435f; }
 
@@ -2132,7 +2336,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   padding: 8px 12px; display: grid; place-items: center;
 }
 .fav-x svg { width: 16px; height: 16px; }
+ @media (hover: hover) {
 .fav-x:hover { color: #d23c3c; }
+}
 
 /* ---------- Account (register / log in) ---------- */
 .auth-btn { padding: 8px 12px; font-size: .8rem; white-space: nowrap; }
@@ -2142,7 +2348,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 11px;
   padding: 5px 11px 5px 5px; font-family: inherit; color: inherit; font-weight: 800; font-size: .84rem;
 }
+ @media (hover: hover) {
 .auth-name:hover { border-color: var(--blue-600); }
+}
 .auth-av {
   width: 28px; height: 28px; border-radius: 8px; flex: none; display: grid; place-items: center;
   background: linear-gradient(135deg, var(--blue-600), var(--blue-700)); color: #fff;
@@ -2187,7 +2395,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   border-radius: 14px; padding: 12px 18px; letter-spacing: .1px;
 }
 .toast-click.show { pointer-events: auto; }
+ @media (hover: hover) {
 .toast-click:hover { filter: brightness(1.12); }
+}
 
 @media (max-width: 620px){
   .auth-btn { padding: 7px 9px; font-size: .74rem; }
@@ -2196,14 +2406,53 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
 
 /* ---------- Type-ahead suggestions ----------
    Dropdown under a search box; the host gets position:relative in JS. */
-.sug-box { display:none; position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:60;
-  background:var(--surface); border:1px solid var(--border); border-radius:12px;
-  box-shadow:0 16px 40px rgba(15,30,60,.20); overflow:hidden; max-height:min(70vh,420px); overflow-y:auto; }
+/* ÖNERİ LİSTESİ — yığın sırası ve yüksekliği.
+
+   z-index 60 idi ve mobilde ölçüldü: alt gezinme çubuğu da 60. Eşit
+   olunca DOM'da SONRA gelen kazanıyor ve çubuk listenin üstüne
+   biniyordu. Çerez bandı (120) ise listeyi tamamen örtüyordu.
+   Kullanıcının bildirdiği "oyuncu aramada üst çalışıyor alt
+   çalışmıyor" tam olarak buydu: 8 öneriden ilk 3'ü tıklanıyor,
+   4-5'ini çerez bandı, 6'sını alt çubuk yutuyor, 7-8 ekran dışında
+   kalıyordu.
+
+   140 seçildi: çerez bandının (120), çekmecenin (100) ve alt çubuğun
+   (60) üstünde. Liste yalnızca kullanıcı arama kutusuna yazarken
+   görünüyor, yani kalıcı olarak hiçbir şeyi örtmüyor.
+
+   Yükseklik de sınırlandı: uzun liste ekranın dışına taşıyordu.
+   Artık kendi içinde kayıyor; `overscroll-behavior` de listenin
+   sonuna gelince sayfanın kaymaya başlamasını engelliyor. */
+/* Konum artık JS'ten geliyor (bkz. attachSuggest → yerlestir): kutu
+   body'nin çocuğu olduğu için girdiye göre hizalanması ölçümle
+   yapılıyor. `position: fixed` seçildi ki sayfa kaydığında kutu
+   girdiyle birlikte hareket etsin. */
+/* GÖLGE TEMADAN GELİYOR.
+
+   Buraya sabit `rgba(15,30,60,.20)` yazılıydı: mavimsi ve %20 saydam.
+   Açık temada iş görüyor ama KOYU temada (gece/dark) zemin zaten
+   #0b0b0d — üstüne %20 lacivert koymak hiçbir şey göstermiyor. Gölge
+   görünmeyince kutu havada durmuyor, arama çubuğuna YAPIŞIK
+   görünüyordu; bildirilen "temada çok bitişik" tam olarak buydu.
+
+   `--shadow` her temada ayrı tanımlı (gece: rgba(0,0,0,.6)), yani
+   kutu artık üç temada da zeminden ayrılıyor. Kenarlık da
+   --border-strong: ince bir çizgi, koyuda seçilmiyordu.
+
+   Yinelenen max-height/overflow bildirimleri de temizlendi; ikisi de
+   iki kez yazılmıştı ve sonuncular kazanıyordu. */
+.sug-box { display:none; position:fixed; z-index:140;
+  max-height:min(70vh, 420px); overflow-x:hidden; overflow-y:auto;
+  overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
+  background:var(--surface); border:1px solid var(--border-strong); border-radius:12px;
+  box-shadow:var(--shadow); }
 .sug-box.open { display:block; }
 .sug-row { display:flex; align-items:center; gap:10px; padding:9px 12px; text-decoration:none;
   color:inherit; border-bottom:1px solid var(--border); }
 .sug-row:last-child { border-bottom:none; }
+ @media (hover: hover) {
 .sug-row:hover, .sug-row.on { background:var(--surface-2); }
+}
 .sug-ic { width:28px; height:28px; flex:none; display:grid; place-items:center; font-size:.95rem; }
 .sug-main { min-width:0; flex:1; }
 .sug-main .n { font-weight:800; font-size:.9rem; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
@@ -2223,7 +2472,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
 .match-side .pn { display:flex; align-items:center; gap:2px; flex-wrap:wrap; line-height:1.3; }
 .match-side.right .pn { justify-content:flex-end; }
 .pc-clan { color:var(--text-muted); text-decoration:none; }
+ @media (hover: hover) {
 .pc-clan:hover { text-decoration:underline; }
+}
 .mledger { display:inline-flex; align-items:center; gap:4px; font-size:.8rem; color:var(--text-soft); white-space:nowrap; }
 .mledger .arw { color:var(--text-muted); }
 .match-side .pdelta { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:3px; }
@@ -2511,7 +2762,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   color: #ff6b7a; border-radius: 8px; cursor: pointer;
   font-size: .72rem; line-height: 1; padding: 4px 6px;
 }
+ @media (hover: hover) {
 .board-del:hover { background: rgba(220, 53, 69, .24); }
+}
 /* Arşiv kutusu daha hiç dolmadıysa: gizlemek yerine ne olacağını yaz.
    Ziyaretçi haftalık bir yarış olduğunu ve ilk üçün burada duracağını
    ilk bakışta görsün. */
@@ -2532,7 +2785,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   padding: 9px 8px; border-radius: 10px;
   border-bottom: 1px solid var(--border);
 }
+ @media (hover: hover) {
 .yon-satir:hover { background: var(--surface-2); }
+}
 .yon-av {
   width: 30px; height: 30px; border-radius: 50%;
   display: grid; place-items: center; font-weight: 900; font-size: .8rem;
@@ -2563,7 +2818,9 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   color: #7ea8ff; border-radius: 8px; cursor: pointer;
   font-size: .72rem; line-height: 1; padding: 4px 6px;
 }
+ @media (hover: hover) {
 .board-msg:hover { background: rgba(30, 90, 224, .28); }
+}
 
 /* Kayıt formundaki onay kutuları. Üçü ayrı ayrı okunabilsin diye
    aralarında nefes payı var; tek blok hâlinde görünmeleri de gerekiyor
@@ -2645,13 +2902,242 @@ td > .notice.warn, .lb-body > .notice.warn { margin:6px 0; }
   object-fit: contain; border-radius: 4px;
 }
 /* Kart ve sekme kutuları kare; geniş görsel ortalanıp sığsın. */
+/* Kapak görseli kutuyu ASLA taşmamalı.
+
+   `max-height: 100%` yeterli sanılmıştı ama ızgara içindeki değiştirilmiş
+   öğede uygulanmıyor: dikey bir kapak (738x1600) 46 piksellik kutuda 100
+   piksel yükseklikte çizilip alt satıra taşıyordu. Yüzdelik yüksekliğe
+   güvenmek yerine görsel kutuya MUTLAK konumla oturtuluyor; `inset: 0`
+   her iki ekseni de kesinleştiriyor ve `contain` oranı koruyor. Böylece
+   kare olmayan bir kapak da bozulmadan, kutunun içinde kalıyor. */
+.pick-ic, .t-ic { display: grid; place-items: center; position: relative; overflow: hidden; }
 .pick-ic .oyun-simge, .t-ic .oyun-simge {
-  max-width: 100%; max-height: 100%; height: auto; width: auto; border-radius: 6px;
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  /* Sabit 6 piksel yerine kutunun kendi yuvarlaklığı devralınıyor:
+     kapak kutuyu tamamen doldurduğu için köşeleri kutuyla aynı yayda
+     kesilmezse beyaz zeminli bir kapak kutunun içinde köşeli bir kare
+     gibi duruyordu. */
+  object-fit: contain; border-radius: inherit;
 }
-.pick-ic, .t-ic { display: grid; place-items: center; }
 .dr-ic .oyun-simge, .bn-ic .oyun-simge { height: 1.2em; max-width: 2.6em; }
 /* Bölüm başlığındaki simge yazıyla aynı yükseklikte dursun. */
 .oyun-simge.bas { height: 1.5em; max-width: 3.6em; }
 /* Üst menüdeki açılır oyun listesi. Bu kutu gözden kaçmıştı: simgeyi
    ham basıyordu ve ekranda "assets/img/cenabet.png" yazısı çıkıyordu. */
 .ns-ic .oyun-simge { height: 1.1em; max-width: 2.4em; }
+
+/* MOD KUTUCUĞU SİMGESİ (Meta sayfası).
+
+   Kapak görseli varsa kare kutuya oturuyor, yoksa emoji aynı kutuda
+   duruyor — klasör boşken de hizalama bozulmasın. Ölçü oyun
+   kutucuklarından biraz büyük: bu kutucuklar sayfanın ana seçimi. */
+.mod-ic {
+  width: 56px; height: 56px; flex: none; border-radius: 14px;
+  display: grid; place-items: center; font-size: 1.7rem;
+  background: var(--surface-2); overflow: hidden; position: relative;
+}
+.mod-ic .oyun-simge {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: contain; border-radius: inherit;
+}
+
+/* ---------- DESTE ÖNERİSİ (profil → Deste Öner penceresi) ----------
+   IZGARA BURADA DA YAZILIYOR ve bu zorunlu: `.mini-cards` için ortak bir
+   kural YOK, her bağlam kendi ızgarasını tanımlıyor (bkz. yukarıdaki
+   `.as-kartlar` notu). Yazmayı atlarsak sekiz kart alt alta diziliyor —
+   desteler sayfasında tam olarak bu yaşandı, sayfa 34.841 piksel oldu. */
+.on-liste { display:flex; flex-direction:column; gap:14px; margin-top:14px; }
+.on-deste { border:1px solid var(--border); border-radius:14px; padding:12px; background:var(--surface); }
+.on-deste:hover { border-color:var(--blue-600); }
+.on-ust { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:10px; }
+.on-sira { font-weight:900; font-size:.95rem; opacity:.65; min-width:20px; }
+.on-kartlar { display:grid; grid-template-columns:repeat(8,1fr); gap:4px; }
+.on-not { font-size:.75rem; margin:9px 0 0; line-height:1.5; }
+.on-alt { display:flex; gap:8px; margin-top:10px; }
+/* Dar ekranda sekiz kart 40 pikselin altına inip okunmaz oluyordu;
+   dört sütuna geçip iki sıra hâlinde gösteriyoruz. */
+@media (max-width:520px){
+  .on-kartlar { grid-template-columns:repeat(4,1fr); }
+}
+
+/* ---------- EŞLEŞME ORANI HESABI (anti.html) ----------
+   Kendi ızgarası yazılıyor: `.mini-cards` için ortak kural yok (bkz.
+   `.as-kartlar` notu), yazmayı atlarsak kartlar alt alta dizilir. */
+.anti-sekme { display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap; }
+.anti-sek {
+  flex:1; min-width:200px; padding:14px 16px; border-radius:14px; cursor:pointer;
+  border:1px solid var(--border); background:var(--surface); color:inherit;
+  font-weight:800; font-size:.92rem; text-align:left; line-height:1.35;
+}
+.anti-sek:hover { border-color:var(--blue-600); }
+.anti-sek.aktif { border-color:var(--blue-600); box-shadow:0 0 0 2px var(--blue-600) inset; }
+.anti-sek small { display:block; font-weight:600; opacity:.65; font-size:.78rem; margin-top:3px; }
+
+.es-slotlar { display:grid; grid-template-columns:repeat(8,1fr); gap:6px; }
+@media (max-width:640px){ .es-slotlar { grid-template-columns:repeat(4,1fr); } }
+.es-slot {
+  position:relative; aspect-ratio:5/6; border-radius:10px; cursor:pointer;
+  border:2px dashed var(--border); background:var(--surface-2, var(--surface));
+  display:flex; align-items:center; justify-content:center; padding:0;
+}
+.es-slot:hover { border-color:var(--blue-600); }
+.es-slot.dolu { border-style:solid; padding:0; }
+.es-slot img { width:100%; height:100%; object-fit:contain; border-radius:8px; }
+/* Yuva etiketi: hangi slotun ne olduğu boşken de anlaşılsın. */
+.es-slot .es-tag {
+  position:absolute; top:3px; left:3px; font-size:.55rem; font-weight:900;
+  padding:2px 5px; border-radius:5px; letter-spacing:.4px; pointer-events:none;
+}
+.es-slot .es-tag.ev { background:#7c3aed; color:#fff; }
+.es-slot .es-tag.kh { background:#d4a017; color:#1a1200; }
+.es-slot .es-bos { font-size:1.4rem; opacity:.35; }
+/* Seçici penceredeki kart ızgarası. */
+.es-sec { display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-top:12px; }
+@media (max-width:640px){ .es-sec { grid-template-columns:repeat(4,1fr); } }
+.es-sec button { border:1px solid var(--border); background:none; border-radius:9px; padding:3px; cursor:pointer; }
+.es-sec button:hover { border-color:var(--blue-600); }
+.es-sec img { width:100%; display:block; border-radius:6px; }
+.es-sec .ad { font-size:.6rem; text-align:center; margin-top:2px; opacity:.8; line-height:1.2; }
+/* Sonuç çubuğu: iki tarafın payı tek çubukta. */
+.es-cubuk { display:flex; height:34px; border-radius:10px; overflow:hidden; margin:14px 0 8px; }
+.es-cubuk > div { display:flex; align-items:center; justify-content:center; font-weight:900; font-size:.9rem; color:#fff; }
+.es-cubuk .sen { background:var(--blue-600); }
+.es-cubuk .rakip { background:#64748b; }
+
+/* renderCard'ın ürettiği `.cr-card` GENİŞLİK TAŞIMIYOR — yalnızca
+   aspect-ratio: 5/6. Kullanıldığı her yerde genişliği dışarıdan gelir.
+   `.es-slot` bir flex kutusu olduğu için kart içeriğine göre büzüldü ve
+   ÖLÇÜLDÜ: 154×185 piksellik yuvanın içinde kart 4×5 piksele düştü.
+   Görsel yükleniyordu (src doğru, complete=true) ama görünmüyordu —
+   kullanıcı "seçince görsel yüklenmiyor" diye bildirdi. */
+.es-slot .cr-card { width:100%; height:100%; border:0; border-radius:8px; }
+.es-sec .cr-card  { width:100%; }
+/* Yuva dolduğunda kesikli çerçeve kalkıyor, kartın kendi çerçevesi kalıyor. */
+.es-slot.dolu { border-color:transparent; }
+
+/* ---------- SON GÜNCELLEMELER (ana sayfa + guncellemeler.html) ---------- */
+.hb-liste { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+@media (max-width:900px){ .hb-liste { grid-template-columns:1fr; } }
+.hb-kart {
+  border:1px solid var(--border); border-radius:14px; padding:16px;
+  background:var(--surface); display:flex; flex-direction:column; gap:8px;
+}
+.hb-kart:hover { border-color:var(--blue-600); }
+.hb-ust { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.hb-baslik { margin:0; font-size:1.02rem; font-weight:800; line-height:1.35; }
+.hb-metin { margin:0; font-size:.86rem; line-height:1.55; }
+/* Güncellemeler sayfasında tek sütun, metin uzun olabiliyor. */
+.hb-liste.tek { grid-template-columns:1fr; }
+/* Haber metni: satır sonları korunuyor (denge duyuruları liste hâlinde). */
+.hb-metin { white-space:normal; }
+.hb-devam { font-size:.8rem; font-weight:800; color:var(--blue-600); text-decoration:none; }
+.hb-devam:hover { text-decoration:underline; }
+/* Güncellemeler sayfasında tam metin — uzun listeler okunaklı kalsın. */
+.hb-liste.tek .hb-metin { font-size:.88rem; line-height:1.7; }
+/* Haber kaynağı: alıntı yapılan yere görünür atıf. */
+.hb-kaynak { font-size:.74rem; opacity:.7; text-decoration:none; margin-top:auto; }
+.hb-kaynak:hover { opacity:1; text-decoration:underline; }
+/* Denge yönü okları. Renk TEK BAŞINA taşıyıcı değil: okun yönü ve
+   yanındaki "zayıflatıldı (nerf)" yazısı aynı bilgiyi veriyor, yani
+   renk körü okuyucu da anlıyor. */
+.hb-ok { font-weight:900; }
+.hb-ok.kirmizi { color:#ef4444; }
+.hb-ok.yesil   { color:#22c55e; }
+.hb-ok.turuncu { color:#f59e0b; }
+
+/* ============================================================
+   REKLAM YUVALARI
+   ------------------------------------------------------------
+   Yuva BOŞKEN hiç yer kaplamıyor: min-height verilseydi, hesap
+   onaylanana kadar (ve dolmayan her birimde) sayfanın ortasında
+   boş bir dikdörtgen dururdu.
+
+   Yükseklik yalnızca `dolu` sınıfı eklenince oluşuyor; onu da
+   reklam.js, Google'ın yazdığı data-ad-status="filled" değerini
+   görünce ekliyor.
+
+   Genişlik container ile aynı: reklam içeriğin dışına taşmasın,
+   telefonda yatay kaydırma açmasın.
+   ============================================================ */
+.reklam-yuva {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+  overflow: hidden;
+}
+.reklam-yuva.dolu { margin: 28px auto; }
+.reklam-yuva ins { display: block; width: 100%; }
+
+/* Reklamın içerikle karışmaması için ince bir ayraç — hem okuyucu
+   için dürüst, hem AdSense'in "reklamlar içerikten ayırt edilebilir
+   olmalı" kuralına uygun. */
+.reklam-yuva.dolu::before {
+  content: "reklam";
+  display: block;
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+  opacity: .55;
+  margin-bottom: 6px;
+}
+
+/* ---------- SERBEST MOD ŞERİDİ ----------
+   Tokmakçılar tablosu kapalıyken oyunlar açık kalabiliyor. O pencerede
+   oyuncu skor görüyor ama puan hiçbir haftaya yazılmıyor; bunu ekranda
+   söylemezsek kullanıcı hakkını boşuna harcadığını sonradan anlar.
+   Şerit oyun çubuğunun altında, oyunun içinde duruyor — sayfanın en
+   üstündeki uyarı oyun açılınca gizleniyor. */
+.serbest-serit{
+  display:flex; gap:10px; align-items:flex-start;
+  margin:12px 0 0; padding:11px 14px;
+  border:1px solid rgba(245,158,11,.38);
+  border-left:3px solid #f59e0b;
+  border-radius:10px;
+  background:rgba(245,158,11,.09);
+  color:var(--text);
+  font-size:.86rem; line-height:1.5;
+}
+.serbest-serit > span:first-child{ font-size:1rem; line-height:1.35; }
+.serbest-serit b{ color:#f59e0b; }
+
+/* ---------- SAYFA AÇIKLAMA BLOKLARI ----------
+   Veri sayfalarının altındaki özgün metin. Ölçüldü: bu bloklar
+   eklenmeden önce sayfa başına gerçek paragraf metni 17–162 kelimeydi
+   ve AdSense siteyi "düşük değere sahip içerik" ile reddetti.
+
+   Tasarım kararı: blok sayfanın ASIL işini gölgelemesin. Veri yukarıda,
+   açıklama aşağıda; yazı boyu gövdeden bir tık küçük, satır aralığı
+   geniş — okunacak metin, taranacak tablo değil. */
+.section.aciklama{ padding-top:0; }
+.aciklama-kutu{
+  max-width:74ch;                     /* uzun satır okunmuyor */
+  border-top:1px solid var(--line, rgba(255,255,255,.12));
+  padding-top:26px;
+}
+.aciklama-kutu h2{
+  font-size:1.35rem; line-height:1.3;
+  margin:0 0 14px; text-wrap:balance;
+}
+.aciklama-kutu h3{
+  font-size:1rem; line-height:1.35;
+  margin:22px 0 8px;
+  color:var(--accent, #6ea8fe);
+}
+.aciklama-kutu p{
+  margin:0 0 12px;
+  font-size:.92rem; line-height:1.72;
+  color:var(--muted, #b9c2d0);
+}
+.aciklama-kutu b{ color:var(--text, #eaf0fb); font-weight:600; }
+.aciklama-kutu i{ font-style:italic; }
+.aciklama-kutu a{ color:var(--accent, #6ea8fe); text-decoration:underline; }
+.aciklama-kutu a:hover{ text-decoration:none; }
+@media (max-width:640px){
+  .aciklama-kutu h2{ font-size:1.2rem; }
+  .aciklama-kutu p{ font-size:.9rem; }
+}
+
+/* API rozetinin "daha bitmedi" hâli — hata değil, bekleme. */
+.api-status.bekliyor .led{ background:#94a3b8; box-shadow:none; animation:none; }

@@ -8,11 +8,21 @@
 # ---------------------------------------------------------------
 
 # API anahtarı. Railway'de zaten Variables ekranından giriliyor.
-server/.env
-server/.env.eski
+# .env VE HER TÜREVİ. Eskiden yalnızca "server/.env" ve
+# "server/.env.eski" adıyla eleniyordu; yedek alırken oluşan
+# "server/.env.yedek-20260818-161140" hiçbir kalıba uymuyordu ve
+# railway up onu KABA YÜKLÜYORDU. Dışarıdan okunamıyor (sunucu
+# /server altını 404 veriyor, bkz. t_guvenlik) ama eski bir jetonu
+# taşıyan dosyanın dağıtımda durmasının hiçbir gereği yok.
+# Ada göre değil KALIBA göre eliyoruz ki bir daha atlanmasın.
 .env
+.env.*
 *.env
+*.env.*
+server/.env
+server/.env.*
 !*.env.example
+!.env.example
 
 # Yerel hesaplar (parola özetleri), puan tablosu, mesajlar, oyuncu indeksi.
 # Sunucudaki veri kalıcı diskte (/data) duruyor; buranın oraya karışması

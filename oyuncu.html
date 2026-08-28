@@ -49,9 +49,54 @@ try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribut
   </div>
 </section>
 
+
+<!-- REKLAM · alt bilgiden önce -->
+
+<!-- ÖZGÜN İÇERİK — sayfanın verisini nasıl okuyacağını anlatır.
+     Doldurma metin değil: rakamlar sunucudaki ölçümlerden geliyor. -->
+<section class="section aciklama">
+  <div class="container">
+    <div class="aciklama-kutu">
+      <h2>Profilde neye bakmalı?</h2>
+      <p>Arama kutusuna <b>#etiket</b> yapıştırırsanız doğrudan o profile
+   gidilir; isim yazarsanız eşleşen oyuncular listelenir. İsim aramaları
+   oyunda benzersiz olmadığı için birden çok sonuç dönebilir — kesin sonuç
+   istiyorsanız etiket kullanın. Etiketi oyun içinde profilinizin üst
+   kısmında bulabilirsiniz.</p>
+      <h3>Güncel deste satırı</h3>
+      <p>Profildeki güncel deste, oyuncunun en son kullandığı sekiz kartı
+   gösterir; hangi yuvaların <b>evrim</b> hangilerinin <b>kahraman</b>
+   olduğu da işaretlenir. Bu ayrım göründüğünden önemli: iki oyuncu aynı
+   sekiz kartı oynuyor olabilir ama evrim yuvalarını farklı doldurdukları
+   için maçları tamamen farklı geçer.</p>
+      <h3>Kule hasarı nasıl hesaplanıyor?</h3>
+      <p>Bu sayıyı vermek göründüğünden zor, çünkü oyunun verisi kulelerin
+   <i>kalan</i> canını veriyor, azami canını vermiyor. Hasar ise
+   azamiden kalanı çıkarmayı gerektiriyor.</p>
+      <p>Kitaptaki temel can değerlerini seviye çarpanlarıyla çarpmayı denedik;
+   tutmadı — gözlenen değerler hiçbir çarpanla çıkmıyordu. Uydurma bir
+   formülle devam etmek yerine 60 oyuncunun 930 maçını ölçtük. Çıkan
+   sonuç: kule canı <b>oyun moduna</b> bağlı. Nihai Kademe'de sabit
+   (seviye fark etmiyor, çünkü mod seviyeleri eşitliyor), Kupa Yolu'nda
+   kral seviyesine göre değişiyor, Kaos modunda ise bütün kule canları
+   ikiye katlanıyor. Bunu fark etmeden yazılan ilk hesap eksi hasar
+   üretiyordu. Sunucu artık tabloyu gözleyerek öğreniyor, elle yazılmış
+   bir listeye güvenmiyor.</p>
+      <h3>Savaş günlüğünü okurken</h3>
+      <p>Son maçlar listesi yalnızca kazanma-kaybetme değil, her maçın madalyon
+   değişimini de gösterir. Arka arkaya kayıplardan sonra düşen madalyon
+   miktarı, sıralamada nerede durduğunuza göre değişir; bu yüzden aynı
+   sonuç herkese aynı puanı kaybettirmez.</p>
+    </div>
+  </div>
+</section>
+
+<div class="reklam-yuva" data-reklam="icerik3"></div>
+
 <div id="app-footer"></div>
 <script src="assets/js/data.js"></script>
 <script src="assets/js/app.js"></script>
+<script src="assets/js/reklam.js"></script>
 <script>
 mountChrome("");
 document.querySelector(".search-go[onclick^='runSearch']").innerHTML = ICONS.search;
@@ -270,6 +315,28 @@ function paintPlayer(p, savaslar){
       </div>
     </div>
 
+    <!-- DESTE ÖNERİSİ.
+
+         Meta desteler en çok kazanan destelerdir ama oyuncunun o kartları
+         yüksek seviyede olmayabilir; 16. seviye bir kartla oynanan deste
+         ile aynı destenin 9. seviye hâli aynı deste değil. Bu bölüm
+         oyuncunun KENDİ seviyelerine göre metaya yakın bir deste kuruyor.
+
+         İSTEK ÜZERİNE yükleniyor, profille birlikte değil: her profil
+         açılışında meta hesabı yaptırmak, öneriyi hiç istemeyen
+         ziyaretçiye de bedel ödetirdi. -->
+    <div class="card" id="oneriCard" style="margin-top:20px">
+      <div class="card-head"><span class="dot">✨</span>
+        <h3 data-i18n="profile.suggest">Sana Özel Deste</h3>
+        <button class="btn btn-gold" id="oneriBtn" style="margin-left:auto;font-size:.85rem;padding:8px 14px"
+                onclick="desteOner(${jsArg(p.tag)},this)" data-i18n="profile.suggestBtn">Deste Öner</button>
+      </div>
+      <div id="oneriBody">
+        <p class="muted" style="font-size:.84rem;margin:0" data-i18n="profile.suggestHint">
+          Kart seviyelerine bakıp metaya yakın, senin güçlü kartlarından kurulu bir deste önerir.</p>
+      </div>
+    </div>
+
     <!-- Kart koleksiyonu — KAPALI başlıyor.
          120+ kart her zaman açık durunca profilin geri kalanına inmek
          uzun bir kaydırma gerektiriyordu; başlığa tıklayınca açılıyor. -->
@@ -287,7 +354,17 @@ function paintPlayer(p, savaslar){
     <!-- Battle log: filled in by loadBattles() once the profile is on screen -->
     <div class="card" id="battleCard" style="margin-top:20px">
       <div class="card-head"><span class="dot">⚔️</span><h3 data-i18n="profile.battles">Son Savaşlar</h3>
-        <span class="muted" id="blCount" style="margin-left:auto;font-size:.82rem"></span></div>
+        <!-- DESTELER SEKMESİ.
+
+             Ayrı bir sayfaya gidiyor, profilin içinde açılmıyor: liste
+             uzun olabiliyor ve kendi adresi olunca paylaşılabiliyor,
+             tarayıcının geri tuşu da beklendiği gibi çalışıyor.
+
+             Savaş günlüğünün yanına konuldu çünkü ikisi AYNI VERİDEN
+             besleniyor — kullanıcı "son savaşlar" ile "desteler"
+             arasındaki bağı burada kuruyor. -->
+        <a class="btn btn-ghost" id="dsLink" style="margin-left:auto;font-size:.82rem;padding:6px 12px">🃏 Desteler</a>
+        <span class="muted" id="blCount" style="margin-left:10px;font-size:.82rem"></span></div>
       <div id="battleLog">${spinnerBox("Savaş geçmişi yükleniyor…")}</div>
     </div>`;
   applyLang(LANG);
@@ -354,6 +431,12 @@ function battleRow(b){
       <div class="flex center gap-12 wrap" style="margin-bottom:8px">
         <span class="result-pill ${cls}">${label}</span>
         <b>${b.crowns} 👑</b>
+        <!-- Kule hasarı: bu maçta RAKİBİN kulelerine vurulan toplam hasar.
+             API kulelerin yalnızca kalan canını veriyor; azami can sunucuda
+             gözlemle öğreniliyor (server/kule.js). Öğrenilmemiş bir mod ya
+             da 2v2 ise alan hiç gelmiyor ve burada da yazılmıyor —
+             tahmini sayı basmıyoruz. -->
+        ${b.kuleHasari!=null?`<span class="badge" title="Bu maçta rakibin kulelerine vurduğun toplam hasar">🏰 ${nf(b.kuleHasari)} hasar</span>`:""}
         <span class="badge ${b.madalyonlu?"gold":""}" title="${esc(battleTypeHint(b))}">${esc(battleTypeName(b))}</span>
         ${ligEtiketi}
         ${b.rank?`<span class="rank-chip" title="Maç oynandığındaki dünya sırası">#${nf(b.rank)}</span>`:""}
@@ -401,7 +484,7 @@ function toggleCollection(){
 
 /* Liste ARTIK dışarıdan geliyor: profil ekranı da aynı savaş günlüğüne
    ihtiyaç duyuyor (deste yuvaları için), iki kez çekmenin anlamı yok. */
-function paintBattles(list){
+function paintBattles(list, etiket){
   const box = document.getElementById("battleLog");
   if (!box) return;
   if (!box.isConnected) return;                     // another profile loaded meanwhile
@@ -423,6 +506,31 @@ function paintBattles(list){
   if (madalyonlu) parcalar.push(`${madalyonlu} tanesi Nihai Kademe`);
   if (ligMaci) parcalar.push(`${ligMaci} tanesi lig maçı`);
   document.getElementById("blCount").textContent = parcalar.join(" · ");
+
+  /* Desteler bağlantısının adresi BURADA kuruluyor: etiket ancak profil
+     yüklendiğinde kesin biliniyor. Adres olmadan bağlantı basılırsa
+     tıklayan kişi boş sayfaya gider.
+
+     5+ maç oynanmış deste yoksa bağlantı hiç gösterilmiyor — dolu
+     görünen ama boş açılan bir sekme, olmayan sekmeden kötü. */
+  const dsl = document.getElementById("dsLink");
+  if (dsl){
+    const say = new Map();
+    for (const b of list){
+      const k = (b.myDeck || []);
+      if (k.length !== 8) continue;
+      const a = [...k].sort().join("|");
+      say.set(a, (say.get(a) || 0) + 1);
+    }
+    const bes = [...say.values()].filter((v) => v >= 5).length;
+    if (bes){
+      dsl.href = "desteler.html?tag=" + encodeURIComponent(etiket || "");
+      dsl.textContent = `🃏 Desteler (${bes})`;
+      dsl.style.display = "";
+    } else {
+      dsl.style.display = "none";
+    }
+  }
 }
 const RES = document.getElementById("results");
 const PROF = document.getElementById("profile");
@@ -442,7 +550,7 @@ async function runSearch(input){
   }
   if (looksLikeTag(q)) return openProfile(normTag(q));
 
-  RES.innerHTML = spinnerBox(`“${q}” aranıyor…`);
+  RES.innerHTML = spinnerBox(`“${esc(q)}” aranıyor…`);
   const r = await HypnoAPI.playersSearch(q);
   paintApiStatus();
 
@@ -464,7 +572,7 @@ async function runSearch(input){
 
   if (!r.items.length){
     RES.innerHTML = notice(
-      `<span>🔍</span><span><b>“${q}”</b> için sonuç yok.<br>
+      `<span>🔍</span><span><b>“${esc(q)}”</b> için sonuç yok.<br>
        Clash Royale API'sinde <b>isimle oyuncu arama ucu yok</b>; bu liste, API'nin isim verdiği
        iki yerden kuruluyor: <b>Nihai Kademe sıralamaları</b> ve <b>klan kadroları</b>
        (${nfTR(r.indexed)} oyuncu). Hiçbir sıralamada olmayan ve indekslenmiş bir klanda da
@@ -475,7 +583,7 @@ async function runSearch(input){
   const shown = r.items.length, total = r.total || shown;
   RES.innerHTML = `<div class="res-list">
       <div class="res-head">
-        <b>“${q}” için ${nfTR(total)} oyuncu</b>
+        <b>“${esc(q)}” için ${nfTR(total)} oyuncu</b>
         ${total > shown ? `<span class="muted">— ilk ${shown} tanesi</span>` : ""}
         <span class="muted" style="margin-left:auto">Kaynak: sıralamalar + klan kadroları · ${nfTR(r.indexed)} oyuncu</span>
       </div>
@@ -483,6 +591,107 @@ async function runSearch(input){
     </div>
     <p class="muted" style="font-size:.78rem;margin-top:10px">
       Aradığınız oyuncu listede yoksa indekste değildir; <b>etiketiyle</b> (#…) doğrudan arayabilirsiniz.${buyuyor}</p>`;
+}
+
+/* Sunucudan kişiye özel deste öner ve çiz.
+
+   Kararın tamamı sunucuda (server/oneri.js): kart seviyeleri nadirliğe
+   göre farklı ölçeklerde geliyor ve o normalizasyon tek yerde durmalı.
+   Burada yalnızca çizim var. */
+async function desteOner(tag, btn){
+  const TR = (typeof LANG === "undefined" || LANG === "tr");
+  const kutu = document.getElementById("oneriBody");
+  if (btn) { btn.disabled = true; btn.textContent = TR ? "Hazırlanıyor…" : "Working…"; }
+  if (kutu) kutu.innerHTML = spinnerBox(TR ? "Kartların inceleniyor…" : "Reading your cards…");
+
+  let r;
+  try {
+    /* Ağ hatası burada YUTULMUYOR ama çökmüyor da: yarışma ekranındaki
+       donma tam olarak korumasız bir fetch yüzündendi. */
+    const y = await fetch(API_BASE + "/oneri/" + encodeURIComponent(String(tag).replace("#","")));
+    r = await y.json().catch(() => ({}));
+    if (!y.ok) throw new Error(r.message || ("Sunucu " + y.status));
+  } catch (e) {
+    const m = esc(e.message || (TR ? "Öneri alınamadı." : "Could not build a suggestion."));
+    if (kutu) kutu.innerHTML = notice(`<span>⚠️</span><span>${m}</span>`);
+    if (btn) { btn.disabled = false; btn.textContent = TR ? "Tekrar dene" : "Try again"; }
+    return;
+  }
+
+  /* Eski sunucu tek deste döndürüyordu; yenisi liste. İkisini de kabul
+     ediyoruz ki tarayıcıda önbellekte duran eski sayfa da çalışsın. */
+  const liste = Array.isArray(r.oneriler) && r.oneriler.length ? r.oneriler : (r.kartlar ? [r] : []);
+  if (!liste.length) {
+    if (kutu) kutu.innerHTML = notice(`<span>⚠️</span><span>${TR ? "Öneri çıkarılamadı." : "No suggestion could be built."}</span>`);
+    if (btn) { btn.disabled = false; btn.textContent = TR ? "Tekrar dene" : "Try again"; }
+    return;
+  }
+
+  const govde = liste.map((o, i) => {
+    /* renderCard evrim ve kahraman yuvalarını opts ile alıyor. Önce bunu
+       geçmiyordum ve önerilen destede evrimler sıradan kartmış gibi
+       görünüyordu — kullanıcı bildirdi. */
+    const kartlar = o.kartlar.map((c) => {
+      const k = registerApiCard(c);
+      return renderCard(k, { level: c.seviye, evo: !!c.evo, heroSlot: !!c.hero });
+    }).join("");
+
+    const degisen = o.kartlar.filter((c) => c.degisti);
+    const not = degisen.length
+      ? (TR
+          ? "Metadan <b>" + degisen.length + "</b> kart değişti: " +
+            degisen.map((c) => "<b>" + esc(c.nameTR) + "</b> (sv " + c.seviye + ") ← " + esc(c.yerine || "")).join(" · ")
+          : "<b>" + degisen.length + "</b> card(s) swapped: " +
+            degisen.map((c) => "<b>" + esc(c.nameTR) + "</b> (lv " + c.seviye + ") ← " + esc(c.yerine || "")).join(" · "))
+      : (TR ? "Bu meta desteyi olduğu gibi oynayabilirsin — kartların zaten güçlü."
+            : "You can run this meta deck as-is — your cards are already strong.");
+
+    const eksik = o.eksik && o.eksik.length
+      ? `<p class="on-not muted">${TR ? "Elinde olmayan" : "Missing"}: <b>${o.eksik.map(esc).join(", ")}</b></p>`
+      : "";
+
+    const bag = copyDeckLink(o.kartlar.map((c) => registerApiCard(c)),
+                             { evo: o.kartlar.filter((c) => c.evo).map((c) => registerApiCard(c)),
+                               hero: o.kartlar.filter((c) => c.hero).map((c) => registerApiCard(c)) });
+
+    return `<div class="on-deste">
+      <div class="on-ust">
+        <span class="on-sira">${i + 1}</span>
+        <span class="badge gold">💧 ${o.ortalamaIksir}</span>
+        <span class="badge">📊 ${TR ? "Ort. sv" : "Avg lv"} ${o.ortalamaSeviye}</span>
+        ${o.temel && o.temel.winrate != null ? `<span class="badge">🏆 %${o.temel.winrate}</span>` : ""}
+        ${o.evrimSayisi ? `<span class="badge">⚡ ${o.evrimSayisi} ${TR ? "evrim" : "evo"}</span>` : ""}
+        ${o.kahramanVar ? `<span class="badge gold">👑 ${TR ? "Kahraman" : "Hero"}</span>` : ""}
+        <span class="badge">🔀 ${o.degisimSayisi}</span>
+      </div>
+      <div class="on-kartlar mini-cards">${kartlar}</div>
+      <p class="on-not muted">${not}</p>
+      ${eksik}
+      ${bag ? `<div class="on-alt"><button class="btn btn-gold" style="font-size:.8rem;padding:7px 12px" onclick="openDeck(${jsArg(bag)},this)">${ICONS.copy}<span>${TR ? "Kopyala" : "Copy"}</span></button></div>` : ""}
+    </div>`;
+  }).join("");
+
+  const kahramanNotu = liste.some((o) => o.kahramanVar)
+    ? (TR
+        ? "Kahraman yuvası meta desteden geliyor: Clash Royale profilde hangi kahramanların açık olduğunu <b>söylemiyor</b>, o yüzden bunu doğrulayamıyoruz."
+        : "The hero slot comes from the meta deck: Clash Royale does not expose which heroes you own, so we cannot verify it.")
+    : "";
+
+  openModal(`<button class="btn btn-ghost icon-btn modal-close" onclick="closeModal()" aria-label="${TR ? "Kapat" : "Close"}">${ICONS.close || "✕"}</button>
+     <h3>✨ ${TR ? "Sana Özel Desteler" : "Decks For You"}</h3>
+     <p class="muted" style="font-size:.82rem;margin:8px 0 0">
+       ${TR ? "Kart seviyelerine göre sıralandı — en üstteki, senin kartlarınla en güçlü oynayacağın deste. Evrimler senin <b>açtığın</b> evrimlerden seçildi."
+            : "Ranked by your card levels — the top one is what you can field strongest. Evolutions are picked from the ones you have <b>unlocked</b>."}</p>
+     <div class="on-liste">${govde}</div>
+     ${kahramanNotu ? `<p class="on-not muted" style="margin-top:14px">${kahramanNotu}</p>` : ""}`);
+
+  /* İÇ İÇE ŞABLON KAÇMIŞTI: ${liste.length} düz bir dize içinde
+     kalınca metin olarak basılıyordu — ekranda gerçekten
+     "${liste.length} deste hazırlandı" yazdı. Dizeyi birleştirerek
+     kuruyoruz; iç içe şablon okunaklı da değildi. */
+  if (kutu) kutu.innerHTML = `<p class="muted" style="font-size:.84rem;margin:0">` +
+    (TR ? liste.length + " deste hazırlandı." : liste.length + " decks ready.") + "</p>";
+  if (btn) { btn.disabled = false; btn.textContent = TR ? "Yeniden öner" : "Suggest again"; }
 }
 
 async function openProfile(tag){
@@ -519,7 +728,7 @@ async function openProfile(tag){
   }
   paintPlayer(p, savaslar);
   paintFavBtn();                  // kalp dolu mu boş mu
-  paintBattles(savaslar);
+  paintBattles(savaslar, p.tag || tag);
 }
 
 (function(){

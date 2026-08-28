@@ -21,6 +21,9 @@
    sorusunu cevaplayamıyor. Bilerek böyle.
    ============================================================ */
 const crypto = require("crypto");
+/* Ziyaretçinin GERÇEK adresi. Cloudflare arkasında req.ip Cloudflare'in
+   kenar sunucusunu gösteriyor — ölçüldü, bkz. gercekip.js. */
+const { gercekIp } = require("./gercekip");
 
 /* Son bu kadar süre içinde istek atan "şu an sitede" sayılıyor.
    5 dakika: bir sayfayı okuyup öbürüne geçen biri arada kaybolmasın,
@@ -33,7 +36,7 @@ const AKTIF = 60e3;
 /* Süreç başına rastgele. Diske yazılmıyor, yeniden başlayınca değişiyor. */
 const TUZ = crypto.randomBytes(16);
 const kimlik = (req) => {
-  const ip = req.ip || req.socket?.remoteAddress || "?";
+  const ip = gercekIp(req);
   const ua = req.headers["user-agent"] || "";
   return crypto.createHash("sha256").update(TUZ).update(ip).update(ua).digest("hex").slice(0, 16);
 };

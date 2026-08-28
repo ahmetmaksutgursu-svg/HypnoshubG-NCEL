@@ -46,16 +46,53 @@ try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribut
 <section class="section">
   <div class="container">
     <div class="flex between center wrap gap-12" style="margin-bottom:16px">
-      <span class="api-status" data-api-status><span class="led"></span>Veri alınamadı</span>
+      <span class="api-status" data-api-status><span class="led"></span>Veri yükleniyor…</span>
       <button class="btn btn-ghost" onclick="loadLive()"><span data-i18n="live.refresh">Yenile</span></button>
     </div>
     <div id="liveFeed"></div>
   </div>
 </section>
 
+
+<!-- REKLAM · alt bilgiden önce -->
+
+<!-- ÖZGÜN İÇERİK — sayfanın verisini nasıl okuyacağını anlatır.
+     Doldurma metin değil: rakamlar sunucudaki ölçümlerden geliyor. -->
+<section class="section aciklama">
+  <div class="container">
+    <div class="aciklama-kutu">
+      <h2>Son maçlar akışı ne gösteriyor?</h2>
+      <p>Bu akış, Nihai Kademe'nin en üst sıralarındaki oyuncuların yeni bitmiş
+   sıralamalı maçlarını gösteriyor. Her kartta iki tarafın oyuncuları,
+   klanları ve maçın madalyon değişimi yer alıyor; isme tıklayarak o
+   oyuncunun profiline geçebilirsiniz.</p>
+      <h3>Neden metayı buradan okumamalı</h3>
+      <p>Akışta gördüğünüz desteler <i>son birkaç maçtan</i> ibaret. Bir destenin
+   arka arkaya üç kez geçmesi onun güçlü olduğunu değil, o sırada birkaç
+   kişinin onu oynadığını gösterir. İstatistik çıkarmak için tek doğru yer
+   yüzlerce maçtan hesaplanan <a href="meta.html">meta listesi</a>; buradaki
+   akış "şu an sahada ne dönüyor" sorusunun cevabı, bir örneklem değil.</p>
+      <h3>Madalyon değişimini okumak</h3>
+      <p>Her satırdaki madalyon değişimi maçın oynandığı andaki duruma göre
+   hesaplanır; aynı sonuç iki oyuncuya aynı miktarı kazandırmaz ya da
+   kaybettirmez. Üst sıralarda kazançlar küçülür ve kayıplar ağırlaşır —
+   yukarıda kalmanın maliyeti budur.</p>
+      <h3>Veri ne sıklıkla yenileniyor?</h3>
+      <p>Liste her açılışta ve <b>Yenile</b> düğmesine bastığınızda tazeleniyor.
+   Oyunun kendi verisi de anlık değil, maç bittikten kısa bir süre sonra
+   yayına giriyor; yani en yeni satır bile birkaç dakika gecikmeli
+   olabilir. Bu gecikme bizim tarafımızda değil, kaynağın yayınlama
+   ritminde.</p>
+    </div>
+  </div>
+</section>
+
+<div class="reklam-yuva" data-reklam="icerik3"></div>
+
 <div id="app-footer"></div>
 <script src="assets/js/data.js"></script>
 <script src="assets/js/app.js"></script>
+<script src="assets/js/reklam.js"></script>
 <script>
 mountChrome("canli.html");
 
@@ -89,10 +126,19 @@ function side(pl, right){
       ? `<span class="mledger"><b>${nfTR(pl.before)}</b><span class="arw">→</span><b>${nfTR(pl.after)}</b>${polMedal(14)}</span>`
       : `<span class="mledger"><b>${nfTR(pl.before)}</b>${polMedal(14)}</span>`;
   const defter = ledger ? `<div class="pdelta">${ledger}${polDelta(pl.change, 14)}</div>` : "";
+  /* Kule hasarı: bu oyuncunun KARŞI TARAFIN kulelerine vurduğu toplam
+     hasar. API kulelerin yalnızca kalan canını veriyor; azami can
+     sunucuda gözlemle öğreniliyor (server/kule.js). Öğrenilmemiş bir mod
+     ya da 2v2 ise alan hiç gelmiyor ve burada da yazılmıyor — tahmini
+     sayı basmıyoruz. */
+  const hasar = pl.kuleHasari != null
+    ? `<div class="pkule" title="Bu maçta rakibin kulelerine vurduğu toplam hasar">🏰 ${nfTR(pl.kuleHasari)} hasar</div>`
+    : "";
   return `<div class="match-side ${right?'right':''}">
     <div class="pn">${right?"":rank}${name}${right?rank:""}</div>
     <div class="pc">${clan}</div>
     ${defter}
+    ${hasar}
     <!-- Kartlar 4+4: sekizi yan yana dizmek gözü yoruyordu (kullanıcı
          bildirimi). Iki satır hem büyük hem oyunun kendi düzenine yakın. -->
     <div class="decks">${deckIcons(pl.deck, pl.evo||[], "iki-sira", pl.hero||[])}${deckCopyBtn(pl.deck, { evo: pl.evo||[], hero: pl.hero||[] })}</div>

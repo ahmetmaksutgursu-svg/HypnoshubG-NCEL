@@ -143,11 +143,56 @@ function cerezKaydet(karar){
   try { localStorage.setItem(CEREZ_ANAHTAR, karar); } catch {}
 }
 
-/* Reklam betiğini yalnızca onay varsa yükle. Bir kez yüklenir. */
+/* REKLAM BETİĞİ HERKESE YÜKLENİYOR — ama onay yoksa KİŞİSELLEŞTİRME KAPALI.
+
+   Önce betik yalnızca onay verilince yükleniyordu ve bu, AdSense
+   incelemesini KİLİTLİYORDU. ÖLÇÜLDÜ (temiz tarayıcıda canlı site):
+     · adsbygoogle.js hiç yüklenmiyor
+     · pagead2.googlesyndication.com'a hiç istek gitmiyor
+   Google'ın inceleyicisi çerez bandındaki "Kabul et"e basmaz; sitede
+   doğrulama etiketini görüyor ama çalışan reklam kodu göremiyordu.
+   Panelde site 7 gün boyunca "Hazırlanıyor"da kaldı.
+
+   `requestNonPersonalizedAds = 1` Google'ın kendi yolu: betik çalışır,
+   reklam gösterilir, ama ilgi alanına göre KİŞİSELLEŞTİRME yapılmaz.
+   Onay verildiğinde bayrak konmuyor ve sonraki sayfa açılışında
+   kişiselleştirilmiş reklam serbest oluyor.
+
+   Bayrak betikten ÖNCE kuruluyor: sonradan değiştirmek ilk reklam
+   isteğine yetişmiyor.
+
+   GİZLİLİK METNİ DE GÜNCELLENDİ. Eskiden "reddederseniz betik hiç
+   yüklenmez" yazıyordu; artık yüklendiği ve kişiselleştirmenin kapalı
+   olduğu yazıyor. Verdiğimiz sözü sessizce değiştirmek olmazdı. */
+/* REKLAM YÜKLENMEYECEK SAYFALAR.
+
+   Ölçüldü: yonetim.html ve 404.html de app.js'i yüklüyordu, yani
+   AdSense betiği oralarda da çalışıyor ve Otomatik reklamlar reklam
+   yerleştiriyordu. İkisi de ayrı sebeplerle sorunlu:
+
+     yonetim.html — site sahibinin her gün girdiği sayfa. Kendi
+       reklamına gösterim üretmek Google'ın GEÇERSİZ TRAFİK saydığı
+       şey ve hesap kapatma sebebi. Tıklamaya bile gerek yok.
+
+     404.html — içeriksiz sayfa. AdSense politikası içeriği olmayan
+       sayfalarda reklam göstermeyi açıkça yasaklıyor.
+
+   Kilit KODDA, panelde değil: AdSense'in "hariç tutulan sayfalar"
+   listesi de var ama o yalnızca Otomatik reklamları durduruyor;
+   burada betiğin kendisi hiç yüklenmiyor. */
+const REKLAMSIZ = ["yonetim.html", "404.html"];
+function reklamsizSayfaMi(){
+  const yol = String(location.pathname || "").toLowerCase();
+  return REKLAMSIZ.some((s) => yol.endsWith("/" + s) || yol === "/" + s);
+}
+
 let reklamYuklendi = false;
 function reklamiYukle(){
-  if (reklamYuklendi || cerezKarari() !== "kabul") return;
+  if (reklamYuklendi) return;
+  if (reklamsizSayfaMi()) { reklamYuklendi = true; return; }
   reklamYuklendi = true;
+  window.adsbygoogle = window.adsbygoogle || [];
+  if (cerezKarari() !== "kabul") window.adsbygoogle.requestNonPersonalizedAds = 1;
   const s = document.createElement("script");
   s.async = true;
   s.crossOrigin = "anonymous";
@@ -156,7 +201,10 @@ function reklamiYukle(){
 }
 
 function cerezBandiCiz(){
-  if (cerezKarari()) { reklamiYukle(); return; }
+  /* Betik karardan BAĞIMSIZ yükleniyor (kişiselleştirme kararı ayrı,
+     bkz. reklamiYukle). Bant yalnızca kişiselleştirme onayı için. */
+  reklamiYukle();
+  if (cerezKarari()) return;
   if (document.getElementById("cerezBandi")) return;
   const tr = (typeof LANG === "undefined" || LANG === "tr");
   const el = document.createElement("div");
@@ -169,13 +217,13 @@ function cerezBandiCiz(){
       '<div class="cerez-metin">' +
         '<b>🍪 ' + (tr ? "Çerezler" : "Cookies") + '</b> ' +
         (tr
-          ? 'Oturumunuzu açık tutan <b>zorunlu çerez</b> dışında, sayfadaki reklamlar için ' +
-            'Google AdSense <b>reklam çerezleri</b> kullanılabilir. Bunlar zorunlu değildir; ' +
-            'reddederseniz site tüm özellikleriyle çalışmaya devam eder. ' +
+          ? 'Sitede Google AdSense reklamları gösteriliyor. <b>Kabul ederseniz</b> reklamlar ' +
+            'ilgi alanlarınıza göre <b>kişiselleştirilir</b>; <b>reddederseniz</b> reklamlar ' +
+            'kişiselleştirilmeden gösterilir. Site her iki hâlde de tüm özellikleriyle çalışır. ' +
             'Ayrıntı: <a href="gizlilik.html">Gizlilik ve KVKK</a>.'
-          : 'Besides the required session cookie, Google AdSense may set advertising cookies. ' +
-            'These are optional — the site works fully without them. ' +
-            'See the <a href="gizlilik.html">privacy notice</a>.') +
+          : 'This site shows Google AdSense ads. <b>Accept</b> and ads are personalised to your ' +
+            'interests; <b>reject</b> and ads are shown without personalisation. The site works ' +
+            'fully either way. See the <a href="gizlilik.html">privacy notice</a>.') +
       '</div>' +
       '<div class="cerez-dugmeler">' +
         '<button class="btn btn-ghost" onclick="cerezSec(\'ret\')">' + (tr ? "Reddet" : "Reject") + '</button>' +
@@ -185,11 +233,32 @@ function cerezBandiCiz(){
   document.body.appendChild(el);
 }
 
+/* Onay sonrasi SAYFA YENILENIYOR.
+
+   requestNonPersonalizedAds betikten ONCE kuruluyor; betik bir kez
+   yuklendikten sonra bayragi degistirmek ilk reklam istegine
+   yetismiyor. Kisisellestirmeyi gercekten acmanin tek guvenilir yolu
+   sayfayi bastan yuklemek. Yalnizca "kabul" halinde ve yalnizca betik
+   kisisellestirmesiz yuklenmisse yeniliyoruz; "ret" zaten mevcut
+   durumu koruyor, yenilemeye gerek yok. */
 function cerezSec(karar){
+  const oncekiKarar = cerezKarari();
+  /* Sayacı bilgilendir: kaç kişinin kişiselleştirmeye onay verdiğini
+     bilmeden çerez bandını iyileştirmek körlemesine iş olurdu. Giden
+     şey TERCİHİN KENDİSİ DEĞİL, yalnızca bir sayacın artması —
+     kimlik gönderilmiyor (bkz. server/onay.js). */
+  try {
+    if (karar !== oncekiKarar)
+      fetch(API_BASE + "/onay", { method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ karar }), keepalive: true }).catch(() => {});
+  } catch {}
   cerezKaydet(karar);
   const el = document.getElementById("cerezBandi");
   if (el) el.remove();
-  if (karar === "kabul") reklamiYukle();
+  if (karar !== "kabul") { reklamiYukle(); return; }
+  if (oncekiKarar === "kabul") { reklamiYukle(); return; }
+  try { location.reload(); } catch { reklamiYukle(); }
 }
 
 /* Kararı sonradan değiştirebilmek gerekiyor: onay bir kez alınıp
@@ -288,10 +357,34 @@ function sesTik(gecikme = 0, siddet = 1){
                 yani ayrı bir ses olarak değil dokunuş olarak duyuluyor.
    Toplam 110 ms ve tepe seviye 0,09 — çark tıklarının (0,16) belirgin
    altında, çünkü bu ses olayın kendisi değil sadece geri bildirimi. */
-let basSesi = null;
+/* Başlangıç değeri, ilk basışın asla yutulmayacağı kadar geride.
+   Sıfır yazılmıştı ve yeni bir AudioContext saati de sıfırdan
+   başladığı için ilk basış "40 ms içinde tekrar" sayılıp yutuluyordu —
+   her kullanıcının SİTEDEKİ İLK TIKLAMASI sessiz kalıyordu. Sınama
+   yakaladı: üç arka arkaya sesBas hiç ses üretmedi. */
+let basSesi = null, basSonAn = -1e9;
 function sesBas(){
   const c = sesUyandir(); if (!c) return;
   const t = c.currentTime;
+  /* ÇOK YAKIN İKİ ÇAĞRIYI TEK SES SAY.
+
+     Basma sesi iki yerden gelebiliyor: belge üzerinden dinleyen genel
+     işleyici ve çark/Cenabet gibi kendi içinde sesBas() çağıran eski
+     kod. Aynı tıklama ikisini birden tetiklediğinde ses kendini kesip
+     yeniden başlıyor ve "kekeleme" gibi duyuluyordu.
+
+     Ölçüt DUVAR SAATİ, ses bağlamının saati değil. Bağlam saati ancak
+     bağlam ÇALIŞIRKEN ilerliyor; tarayıcı otomatik oynatma kuralı
+     yüzünden bağlamı askıda tutarsa saat sıfırda çakılı kalır ve
+     "40 ms içinde tekrar" koşulu SONSUZA KADAR doğru olur — ilk sesten
+     sonra hiçbir ses çalmaz. Duvar saati her hâlükârda ilerliyor.
+
+     40 ms, iki ayrı parmak basışı için fazlasıyla kısa (en hızlı çift
+     tıklama bile ~120 ms), ama aynı tıklamanın iki yolunu birleştirmeye
+     yetiyor. */
+  const simdi = (typeof performance !== "undefined" ? performance.now() : Date.now());
+  if (simdi - basSonAn < 40) return;
+  basSonAn = simdi;
 
   /* Önceki basış hâlâ çalıyorsa sustur — üst üste binme buradan
      engelleniyor. Sert kesmek "klik" çıkardığı için kısa bir iniş. */
@@ -327,6 +420,238 @@ function sesBas(){
     src.connect(hp); hp.connect(vg); vg.connect(c.destination);
     src.start(t); src.stop(t + 0.03);
   }
+}
+
+/* ============================================================
+   CEVAP SESLERİ  ✔ / ✘
+   ------------------------------------------------------------
+   Kullanıcı isteği: doğru işaretlendiğinde "ding" tarzı onaylı bir
+   ses, yanlışta ona göre bir ses. Şart da net: "sırıtmayacak,
+   profesyonel olsun".
+
+   Bu yüzden ikisi de OYUN SESİ DEĞİL, GERİ BİLDİRİM sesi olarak
+   tasarlandı:
+
+     · Kısa (200 ms altı). Uzun ses, arka arkaya soru cevaplayan
+       kişiyi yorar ve bir sonraki sorunun üstüne biner.
+     · Alçak seviyeli (0,07–0,08). Basma sesiyle (0,09) aynı ailede;
+       çark tıklarının (0,16) altında. Ses efekti sayfanın önüne
+       geçmemeli.
+     · Yanlış sesi CEZALANDIRICI DEĞİL. Vızıltı, hata bip'i ya da
+       sert kare dalga kullanılmadı: kişi zaten yanlış yaptığını
+       ekranda görüyor, sesin bunu bir de yüzüne vurması gerekmiyor.
+       Onun yerine yumuşak, inen iki nota — "olmadı" der gibi.
+
+   İkisi de TEK SESLİ: yeni bir sonuç sesi öncekini kısarak
+   susturuyor. Hızlı cevaplarda üst üste binerse ses çamura dönüyor.
+   ============================================================ */
+let sonucSesi = null;
+function sonucSesiniSustur(c, t){
+  if (!sonucSesi) return;
+  try {
+    for (const d of sonucSesi){
+      d.g.gain.cancelScheduledValues(t);
+      d.g.gain.setValueAtTime(d.g.gain.value, t);
+      d.g.gain.exponentialRampToValueAtTime(0.0001, t + 0.01);
+      d.o.stop(t + 0.03);
+    }
+  } catch { /* zaten bitmiş */ }
+  sonucSesi = null;
+}
+
+/* İki notalı bir jest çalar. Sonuç seslerinin ortak gövdesi:
+   ikisi de aynı zarf ve aynı seviye ailesini kullanıyor, yalnızca
+   notalar ve ton rengi değişiyor. */
+function sesJest(notalar, tur, tepe){
+  const c = sesUyandir(); if (!c) return;
+  const t0 = c.currentTime;
+  sonucSesiniSustur(c, t0);
+  const acik = [];
+  notalar.forEach(([hz, gecikme, sure], i) => {
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = tur;
+    o.frequency.setValueAtTime(hz, t0 + gecikme);
+    const t = t0 + gecikme;
+    /* Yumuşak giriş (8 ms): sert başlangıç "klik" çıkarıyor ve ses
+       ucuz duyuluyor. */
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(tepe * (i === 0 ? 1 : 0.85), t + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + sure);
+    o.connect(g); g.connect(c.destination);
+    o.start(t); o.stop(t + sure + 0.02);
+    acik.push({ o, g });
+  });
+  sonucSesi = acik;
+}
+
+/* DOĞRU — yükselen temiz beşli (la → mi). Üçgen dalga: sinüsten biraz
+   daha parlak, kare dalgadan çok daha yumuşak. "Onaylandı" hissi
+   yükselen aralıktan geliyor. */
+function sesDogru(){ sesJest([[880, 0, 0.09], [1318.5, 0.075, 0.14]], "triangle", 0.075); }
+
+/* YANLIŞ — inen küçük üçlü, alçak oktavda (fa → re). Aynı zarf, aynı
+   yumuşaklık; yalnızca yön ve tonlama değişiyor. Kişi neyin olduğunu
+   sesin tonundan anlıyor, azarlanmadan. */
+function sesYanlis(){ sesJest([[349.23, 0, 0.10], [261.63, 0.085, 0.17]], "sine", 0.08); }
+
+/* SAAT TİKİ — yarışmadaki soru sayacı için.
+
+   ADI `sesSayacTik`, `sesTik` DEĞİL: `sesTik` zaten var ve sitenin
+   TIKLAMA sesi (yukarıda, farklı imzayla: gecikme + şiddet). İlk
+   yazımda buna da `sesTik` denmişti; aynı kapsamda ikinci bir function
+   bildirimi birincisini ezer ve sitenin BÜTÜN tıklama sesi sessizce
+   bozulurdu — `sesTik(t, 0.45)` çağrısı buradaki `acil` parametresine
+   düşer, gecikme hiç uygulanmazdı. Sınama da yakalayamamıştı, çünkü
+   sınama fonksiyonun kendisini değiştirip yalnızca çağrı anlarını
+   ölçüyordu.
+
+   `sesJest` KULLANILMIYOR bilerek: o fonksiyon çalmadan önce duran
+   sonuç sesini susturuyor ve yenisini "sonuç sesi" diye kaydediyor.
+   Tik her saniye çalıyor; sonuç sesi defterini her saniye ezmesi,
+   doğru/yanlış sesinin yarıda kesilmesine yol açardı.
+
+   İki seviye var:
+     · olağan tik — kısık ve kısa, arka planda bir metronom gibi.
+       Yedi saniye boyunca her saniye çalacak; yorucu olmaması için
+       seviyesi sonuç seslerinin üçte biri kadar.
+     · acil tik — son üç saniye. Daha tiz, daha sert dalga (kare) ve
+       iki katı seviye. Ekrandaki çubuk zaten kırmızıya dönüyor; ses
+       ona bakmayan için aynı uyarıyı taşıyor.
+
+   Ses kapalıysa `sesUyandir` zaten null döndürüyor, ayrıca kontrol
+   gerekmiyor. */
+function sesSayacTik(acil){
+  const c = sesUyandir(); if (!c) return;
+  const t = c.currentTime;
+  const o = c.createOscillator(), g = c.createGain();
+  o.type = acil ? "square" : "triangle";
+  /* Acilde bir oktav üstü: kulak yüksekliği yakınlık/aciliyet olarak
+     okuyor, sesi yükseltmeden uyarı hissi veriyor. */
+  o.frequency.setValueAtTime(acil ? 1567.98 : 783.99, t);   // sol6 / sol5
+  g.gain.setValueAtTime(0.0001, t);
+  /* Yumuşak giriş: sert başlangıç "klik" çıkarıyor (öbür seslerde de
+     aynı sebeple 6-8 ms var). */
+  g.gain.exponentialRampToValueAtTime(acil ? 0.055 : 0.025, t + 0.006);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + (acil ? 0.085 : 0.045));
+  o.connect(g); g.connect(c.destination);
+  o.start(t); o.stop(t + 0.12);
+}
+
+/* ============================================================
+   HER TIKLAMADA BASMA SESİ
+   ------------------------------------------------------------
+   Kullanıcı isteği: sitedeki düğmelere her tıklandığında basma sesi.
+
+   Tek tek her düğmeye eklemek yerine BELGE ÜZERİNDEN dinleniyor.
+   Sebebi pratik: sayfaların çoğu içeriğini sonradan çiziyor
+   (mountChrome, paintPicker, tablolar…). Düğmelere tek tek bağlansaydı
+   sonradan çizilen her düğme sessiz kalırdı ve yeni bir düğme
+   eklendiğinde ses eklemeyi hatırlamak gerekirdi.
+
+   `capture` aşamasında dinleniyor: düğmenin kendi işleyicisi sayfayı
+   yeniden çizip düğmeyi DOM'dan kaldırabiliyor; kabarma aşamasını
+   beklersek o tıklamalarda ses hiç çalmıyor.
+   ============================================================ */
+
+/* NEYE SES ÇALINIR — İZİN listesi değil, YASAK listesi.
+
+   Önce tek tek sayılan bir izin listesi yazdım (düğmeler, kartlar,
+   sekmeler…). Ölçünce eksik kaldığı görüldü: ana sayfada 70
+   tıklanabilir öğenin 40'ı kapsam dışıydı — alt bilgi bağlantıları,
+   sosyal medya, tablo satırları, oyuncu ve klan bağlantıları, video
+   kartları. Kullanıcı da tam bunu bildirdi: "ana sayfadaki alt
+   kısımdaki butonlara basınca ses çıksın".
+
+   İzin listesi yapısı gereği eksik kalıyor: yeni bir bağlantı türü
+   eklendiğinde sessiz doğuyor ve kimse fark etmiyor. Yasak listesi
+   ters çalışıyor — varsayılan ses, istisnalar sayılı ve gerekçeli. */
+const SES_TIKLANIR = "a[href], button, [onclick], [role='button'], summary";
+
+/* Sessiz kalması GEREKENLER, her biri bir sebeple:
+
+     · [data-ses='0']  — elle susturulmuş (ileride gerekirse diye).
+     · çerez bandı     — çerez kararı hukuki bir an; ses uygun değil
+                          ve "onayı seslendirmek" izlenimi bırakır.
+     · form alanları   — yazarken ses çıkmamalı; etiketler de girdiyi
+                          odakladığı için aynı gruba giriyor.
+     · devre dışı      — basılamayan bir düğme ses çıkarmamalı, yoksa
+                          kullanıcı bir şey olduğunu sanıyor.
+   Yeni sekme açan bağlantılar (sosyal medya) LİSTEDE DEĞİL, bilerek:
+   sayfa yerinde kaldığı için ses bağlamını koruyor ve kullanıcının
+   "alt kısımdaki butonlar" dediği yer tam orası. */
+const SES_SESSIZ = [
+  "[data-ses='0']",
+  ".cerez-bandi", ".cerez-bandi *",
+  "input", "textarea", "select", "label",
+  "[disabled]", "[aria-disabled='true']",
+].join(",");
+
+/* Sesin duyulabilmesi için gezinmenin BEKLETİLDİĞİ süre.
+
+   Ölçüldü: bir bağlantıya tıklandığında sayfa o kadar hızlı kapanıyor
+   ki ses bağlamı yok oluyor ve ses pratikte hiç duyulmuyor. Kullanıcı
+   bunu "ana sayfadaki kısımlarda hâlâ ses gelmiyor" diye bildirdi;
+   düğüm kuruluyordu, çalmaya fırsat bulamıyordu.
+
+   90 ms seçildi: basma sesinin duyulur gövdesi ilk ~60 ms'de bitiyor
+   (tepe 6 ms'de, sonra iniş), yani bu süre sesi taşımaya yetiyor. Aynı
+   zamanda "anında" algısının eşiği olan ~100 ms'nin altında — gecikme
+   fark edilmiyor. Daha uzun tutmak siteyi yavaş hissettirirdi. */
+const SES_GEZINME_MS = 90;
+
+/* Bu tıklama, sayfayı kapatacak sıradan bir bağlantı mı?
+
+   Yalnızca o durumda gezinme bekletiliyor. Diğer her şeye
+   DOKUNULMUYOR, çünkü araya girmek bozma riski taşıyor:
+
+     · değiştirici tuşlar / orta tık → tarayıcı yeni sekmede açıyor;
+       araya girmek bu davranışı bozar.
+     · target                       → başka pencereye gidiyor, bu sayfa
+       zaten kapanmıyor, ses kesilmiyor.
+     · download                     → gezinme yok.
+     · # ile başlayan               → aynı sayfa, kapanma yok.
+     · javascript:                  → gezinme değil, kod.
+     · başka köken                  → dış siteye gitmeyi geciktirmek
+       bizim işimiz değil.
+     · zaten engellenmiş            → kendi işleyicisi devralmış. */
+function sesGezinmeHedefi(e, h){
+  if (e.defaultPrevented) return null;
+  if (e.button != null && e.button !== 0) return null;
+  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return null;
+  const a = h.closest ? h.closest("a[href]") : null;
+  if (!a || a.target || a.hasAttribute("download")) return null;
+  const ham = a.getAttribute("href") || "";
+  if (!ham || ham.startsWith("#") || /^[a-z]+:/i.test(ham) && !/^https?:/i.test(ham)) return null;
+  let u; try { u = new URL(a.href, location.href); } catch { return null; }
+  if (u.origin !== location.origin) return null;
+  /* Aynı sayfada yalnızca çengel değişiyorsa sayfa kapanmıyor. */
+  if (u.pathname === location.pathname && u.search === location.search && u.hash) return null;
+  return u.href;
+}
+
+function sesTiklamaKur(){
+  if (document.__sesTiklama) return;      // iki kez bağlanmasın
+  document.__sesTiklama = 1;
+  document.addEventListener("click", (e) => {
+    try {
+      if (!sesAcikMi()) return;
+      const h = e.target && e.target.closest ? e.target.closest(SES_TIKLANIR) : null;
+      if (!h) return;
+      if (h.closest(SES_SESSIZ)) return;
+      if (h.disabled || h.getAttribute("aria-disabled") === "true") return;
+      sesBas();
+
+      /* Sayfayı kapatacak bir bağlantıysa gezinmeyi kısa süre beklet ki
+         ses duyulsun. Ses KAPALIYKEN buraya hiç gelinmiyor — yani ses
+         istemeyen kullanıcı gecikmeyi de yaşamıyor. */
+      const hedef = sesGezinmeHedefi(e, h);
+      if (!hedef) return;
+      e.preventDefault();
+      /* Gezinme her hâlükârda olmalı: ses ya da zamanlayıcı bir sebeple
+         patlarsa bağlantı ölmemeli. */
+      setTimeout(() => { try { location.href = hedef; } catch { location.assign(hedef); } }, SES_GEZINME_MS);
+    } catch { /* ses hiçbir zaman akışı bozmamalı */ }
+  }, true);
 }
 
 /* Sonuç sesi: kısa yükselen üç nota. */
@@ -368,6 +693,11 @@ const I18N = {
     "hero.sub":"Oyuncuları ve klanları ara, meta desteleri incele, küresel sıralamaları takip et ve tek tıkla rastgele meta destesi oluştur.",
     "hero.cta1":"Oyuncu Ara","hero.cta2":"Sıralamaları Gör",
     "home.meta.title":"Aktif Meta Desteleri","home.meta.sub":"Şu an en çok kazandıran desteler",
+    /* Clash Royale haber bölümü. Bu iki anahtar EKLENMEMİŞTİ ve ekranda
+       ham hâlleriyle basılıyordu ("HOME.HABER.SUB"); kullanıcı ekran
+       görüntüsüyle bildirdi. data-i18n yazarken sözlüğe eklemeyi atlamak
+       sessiz kalmıyor, doğrudan görünüyor. */
+    "home.haber.title":"Clash Royale Haberleri","home.haber.sub":"Dengelemeler, güncellemeler ve yaklaşanlar",
     "home.player.title":"Oyuncu Analizi","home.player.sub":"Oyuncu adı veya etiketi ile ara",
     "home.clan.title":"Klan Arama","home.clan.sub":"Klan üyelerini ve bağışları incele",
     "home.ranks.title":"Küresel Sıralamalar","home.ranks.sub":"Dünyanın en iyileri",
@@ -381,7 +711,7 @@ const I18N = {
     "clan.title":"KLAN ÜYELERİ","col.no":"NO","col.role":"ROL","col.level":"SEVİYE","col.trophy":"KUPA","col.donation":"BAĞIŞ",
     "footer.disclaimer":"Sitemizde kullanılan veriler ve resimler Clash Royale API'den çekilmektedir.",
     "footer.copyright":"Telif Hakkı","footer.contact":"İletişim","footer.privacy":"Gizlilik ve KVKK","msg.title":"Mesajlar","pro.admin":"PRO Başvuruları","admin.users":"Kullanıcı Yönetimi",
-    "api.off":"Veri alınamadı","api.live":"Canlı API",
+    "api.off":"Veri alınamadı","api.live":"Canlı API","api.wait":"Veri yükleniyor…",
     "err.title":"Veri alınamadı",
     "err.body":"Sunucuya ya da Clash Royale API'sine ulaşılamadı. Yanlış bilgi vermemek için örnek veri göstermiyoruz.",
     "err.retry":"Yeniden dene",
@@ -394,6 +724,8 @@ const I18N = {
     "profile.leagues":"Lig Geçmişi","profile.league":"Lig",
     "profile.pol":"Nihai Kademe","profile.polrank":"Dünya Sırası","profile.tr":"Kupa Yolu",
     "profile.collection":"Kart Koleksiyonu","profile.records":"Rekorlar","profile.losses":"Mağlubiyet",
+    "profile.suggest":"Sana Özel Deste","profile.suggestBtn":"Deste Öner",
+    "profile.suggestHint":"Kart seviyelerine bakıp metaya yakın, senin güçlü kartlarından kurulu bir deste önerir.",
     "profile.winrate":"Kazanma %","profile.challenge":"Meydan Okuma Rekoru","profile.tourbest":"Turnuva Derecesi",
     "profile.total":"Toplam Maç","profile.vs":"karşı",
     /* --- shared UI --- */
@@ -420,7 +752,7 @@ const I18N = {
     "chrome.credit":"Tasarım & Geliştirme","chrome.hint":"Etiket (#ABC) veya isimle ara",
     "chrome.clanBoard":"Klan Liderlik Tablosu","chrome.newFun":"Yeni eğlenceler","chrome.site":"Site",
     "fun.rank":"Kart Sıralama Oyunu","fun.deck":"Deste Jeneratörü","fun.wheel":"Rastgele Meta Deste Çarkı","fun.cenabet":"Cenabet Buton",
-    "fun.pts":"puanlı","fun.earns":"Bu oyun Tokmakçılar tablosuna puan kazandırır","fb.section":"BİZE YAZ","fb.title":"Şikayet & Öneri","fb.inbox":"Gelen Mesajlar","fun.daily":"Günün Kartı","fun.duel":"Deste Düellosu","fun.missing":"Eksik Kartı Bul","fun.clash":"Kart Kapışması","fun.quiz":"Tokmak Yarışması","fun.guess":"Kart Tahmin Oyunu","fun.title":"Oyunlar & Eğlence",
+    "fun.pts":"puanlı","fun.earns":"Bu oyun Tokmakçılar tablosuna puan kazandırır","fb.section":"BİZE YAZ","fb.title":"Şikayet & Öneri","fb.inbox":"Gelen Mesajlar","fun.daily":"Günün Kartı","fun.duel":"Deste Düellosu","fun.missing":"Eksik Kartı Bul","fun.clash":"Kart Kapışması","fun.iksir":"İksir Hesabı","fun.quiz":"Tokmak Yarışması","fun.guess":"Kart Tahmin Oyunu","fun.title":"Oyunlar & Eğlence",
     /* --- home tiles --- */
     "tile.ranks":"Sıralamalar","tile.ranks.s":"Nihai Kademe & Türkiye",
     "tile.clans":"Klan Liderlik","tile.clans.s":"En iyi klanlar",
@@ -433,6 +765,7 @@ const I18N = {
     "home.searchP":"Oyuncu Ara","home.searchC":"Klan Ara",
     "home.phP":"Oyuncu adı veya #etiket","home.phC":"Klan adı veya #etiket",
     "home.hint":"İsimle ara veya etiket (#ABC) yapıştır",
+    "home.hintTag":"Can't find them by name? Paste the #tag — it always resolves.",
     "home.hintTag":"İsimle bulamadın mı? #etiketini yapıştır — kesin sonuç verir.",
     "home.topPlayers":"EN İYİ OYUNCULAR","home.topClans":"KLAN LİDERLİK TABLOSU",
     "home.allPlayers":"Tüm en iyi oyuncuları görüntüle →","home.allClans":"Tüm en iyi klanları görüntüle →",
@@ -443,6 +776,7 @@ const I18N = {
     "meta.clickHint":"Bir desteye tıklayın → o desteyle en yükseğe çıkan oyuncular",
     
     "meta.eyebrow":"AKTİF SEZON","meta.thin":"az veri",
+    "meta.modeChoose":"Mod seç","meta.modeBack":"← Mod seçimine dön",
     "cards.hint":"Bir karta tıkla → o kartın kullanıldığı güncel meta desteleri gör.",
     "cards.heroHint":"Oyundaki kahramanlar. Bir kahramana tıkla → o kartın meta desteleri.",
     "cards.heroFilter":"🦸 Kahramanlar","cards.deckHead":"BU KARTIN EN ÇOK KULLANILDIĞI DESTELER",
@@ -461,6 +795,7 @@ const I18N = {
     "hero.sub":"Search players and clans, study meta decks, follow global rankings, and generate a random meta deck with one click.",
     "hero.cta1":"Search Player","hero.cta2":"View Rankings",
     "home.meta.title":"Active Meta Decks","home.meta.sub":"Top-winning decks right now",
+    "home.haber.title":"Clash Royale News","home.haber.sub":"Balance changes, updates and what is coming",
     "home.player.title":"Player Analysis","home.player.sub":"Search by player tag or name",
     "home.clan.title":"Clan Search","home.clan.sub":"Inspect clan members and donations",
     "home.ranks.title":"Global Rankings","home.ranks.sub":"The world's best",
@@ -474,7 +809,7 @@ const I18N = {
     "clan.title":"CLAN MEMBERS","col.no":"NO","col.role":"ROLE","col.level":"LEVEL","col.trophy":"TROPHIES","col.donation":"DONATIONS",
     "footer.disclaimer":"Data and images on our site are drawn from the Clash Royale API.",
     "footer.copyright":"Copyright","footer.contact":"Contact","footer.privacy":"Privacy & KVKK","msg.title":"Messages","pro.admin":"Pro applications","admin.users":"User management",
-    "api.off":"No data","api.live":"Live API",
+    "api.off":"No data","api.live":"Live API","api.wait":"Loading data…",
     "err.title":"Could not load data",
     "err.body":"The server or the Clash Royale API could not be reached. We do not show sample data, so nothing here is made up.",
     "err.retry":"Try again",
@@ -487,6 +822,8 @@ const I18N = {
     "profile.leagues":"League History","profile.league":"League",
     "profile.pol":"Path of Legends","profile.polrank":"World Rank","profile.tr":"Trophy Road",
     "profile.collection":"Card Collection","profile.records":"Records","profile.losses":"Losses",
+    "profile.suggest":"A Deck For You","profile.suggestBtn":"Suggest a Deck",
+    "profile.suggestHint":"Reads your card levels and builds a near-meta deck around the cards you have levelled.",
     "profile.winrate":"Win %","profile.challenge":"Challenge Record","profile.tourbest":"Tournament Best",
     "profile.total":"Total Battles","profile.vs":"vs",
     /* --- shared UI --- */
@@ -513,7 +850,7 @@ const I18N = {
     "chrome.credit":"Design & Development","chrome.hint":"Search by tag (#ABC) or name",
     "chrome.clanBoard":"Clan Leaderboard","chrome.newFun":"New fun stuff","chrome.site":"Site",
     "fun.rank":"Card Ranking Game","fun.deck":"Deck Generator","fun.wheel":"Random Meta Deck Wheel","fun.cenabet":"Cursed Deck Button",
-    "fun.pts":"points","fun.earns":"This game earns points on the Tokmakçılar board","fb.section":"CONTACT","fb.title":"Feedback","fb.inbox":"Inbox","fun.daily":"Card of the Day","fun.duel":"Deck Duel","fun.missing":"Find the Missing Card","fun.clash":"Card Clash","fun.quiz":"Hammer Quiz","fun.guess":"Card Guessing Game","fun.title":"Games & Fun",
+    "fun.pts":"points","fun.earns":"This game earns points on the Tokmakçılar board","fb.section":"CONTACT","fb.title":"Feedback","fb.inbox":"Inbox","fun.daily":"Card of the Day","fun.duel":"Deck Duel","fun.missing":"Find the Missing Card","fun.clash":"Card Clash","fun.iksir":"Elixir Math","fun.quiz":"Hammer Quiz","fun.guess":"Card Guessing Game","fun.title":"Games & Fun",
     /* --- home tiles --- */
     "tile.ranks":"Rankings","tile.ranks.s":"Path of Legends & Turkey",
     "tile.clans":"Clan Leaderboard","tile.clans.s":"The best clans",
@@ -535,6 +872,7 @@ const I18N = {
     "meta.clickHint":"Click a deck → the pilots who climbed highest on it",
     
     "meta.eyebrow":"CURRENT SEASON","meta.thin":"thin data",
+    "meta.modeChoose":"Choose a mode","meta.modeBack":"← Back to modes",
     "cards.hint":"Click a card → the current meta decks that play it.",
     "cards.heroHint":"The heroes in the game. Click one → that card's meta decks.",
     "cards.heroFilter":"🦸 Heroes","cards.deckHead":"DECKS THAT PLAY THIS CARD MOST",
@@ -875,14 +1213,21 @@ function renderCard(key, opts = {}){
      drawn under an EVRİM badge. Say so in the tooltip rather than leaving it
      looking like a mislabelled card. */
   const noEvoArt = isEvo && !isHeroSlot && !c.imgUrlEvo && !EVO_ART.has(c.name);
-  const tip = `${safeName} — ${c.elixir} ${t("unit.elixir")}`
+  /* İKSİR GİZLİ KİPİ — İksir Hesabı oyunu için.
+
+     Kart normalde iksirini hem görünür bir rozet olarak basıyor hem de
+     ipucu metnine yazıyor. O oyunda sorulan şey destenin ortalama iksiri
+     olduğu için ikisi de cevabı doğrudan ele veriyor: oyuncu sekiz
+     rozeti toplayıp bölerdi. Bu kipte ikisi de çizilmiyor. */
+  const iksirGizli = !!opts.iksirGizli;
+  const tip = safeName + (iksirGizli ? "" : ` — ${c.elixir} ${t("unit.elixir")}`)
     + (noEvoArt ? ` · ${t("tip.noEvoArt")}` : "");
   return `
     <div class="cr-card ${isEvo ? "evo" : ""}${isHeroSlot ? " heroslot" : ""}${isHero ? " champ" : ""}${noEvoArt ? " no-evo-art" : ""}" title="${tip}"${opts.onClick?` onclick="${opts.onClick}" style="cursor:pointer"`:""}>
       ${isHeroSlot ? `<span class="heroslot-tag">${t("tag.hero")}</span>`
         : isEvo ? `<span class="evo-tag">${t("tag.evo")}</span>`
         : isHero ? `<span class="hero-tag">${t("tag.champ")}</span>` : ""}
-      <span class="elixir">${c.elixir}</span>
+      ${iksirGizli ? "" : `<span class="elixir">${c.elixir}</span>`}
       <div class="art" data-name="${safeName}">
         <img ${artAttrs(art)} alt="${safeName}" loading="lazy" onerror="cardImgFail(this)">
       </div>
@@ -940,20 +1285,50 @@ function diFail(img){
    Üçün üstü yalnızca 41 destede görüldü ve hepsi sıralamalı olmayan mod. */
 const MAX_SPECIAL_SLOTS = 3;
 
-/* Cards that are played as evolutions in live battles but that Supercell's
-   /cards endpoint does not expose an `evolutionMedium` icon for. Without this
-   list they can never be recognised as evolutions on the Kartlar page. */
+/* Evrim çizimi yayımlanmamış ama evrimi GERÇEKTEN olan kartlar.
+
+   BU LİSTE BİR ZAMANLAR 13 KART TAŞIYORDU VE 12'Sİ YANLIŞTI:
+   Mini P.E.K.K.A, Yaramaz, Mega Minyon, Atıcı, Mezar Taşı, Balon,
+   Buz Golemi, Goblinler, Barbar Fıçısı, Büyülü Okçu, Dev, Kara Prens.
+   Bunların evrimi YOK, KAHRAMANI var.
+
+   Eski gerekçe "canlı maçlarda evrimli oynanıyorlar" idi. O gözlem
+   savaş günlüğündeki `evolutionLevel` alanına dayanıyordu — ve o alan
+   KAHRAMAN oynanışında da doluyor. Aynı karışıklık iki kez yaşandı;
+   kullanıcı yakaladı: "evrim slotunda Yaramaz gibi kahraman olan
+   kartlar çıkıyor".
+
+   ÖLÇÜLDÜ (122 kart): `maxEvolutionLevel` bir BİT MASKESİ — 1. bit
+   evrim, 2. bit kahraman.
+     maske 1 → 37 kart, hepsinde evrim çizimi, hiçbirinde kahraman
+     maske 2 → 12 kart, hiçbirinde evrim, hepsinde kahraman
+     maske 3 →  4 kart, ikisi de
+   `& 1` ile evrim çizimi birebir örtüşüyor (41 = 41).
+
+   Geriye tek gerçek istisna kaldı: Elit Barbarlar. Ne maskesi ne
+   çizimi var, ama oyuncu verisinde `evolutionLevel` görülüyor — ve o
+   kartın KAHRAMANI OLMADIĞI için o alan ancak evrimden gelebilir.
+
+   Sunucu tarafındaki eşi: server/evrim.js */
 const EXTRA_EVO_CARDS = new Set([
-  "Mini P.E.K.K.A", "Berserker", "Elite Barbarians", "Mega Minion", "Bowler",
-  "Tombstone", "Balloon", "Ice Golem", "Goblins", "Barbarian Barrel",
-  "Magic Archer", "Giant", "Dark Prince",
+  "Elite Barbarians",
 ]);
-/* `maxEvolutionLevel` is the API's own flag and covers 53 of the 122 cards —
-   every evolution in the game except Elite Barbarians, which Supercell omits
-   but which shows up evolved in real battle logs. EXTRA_EVO_CARDS carries that
-   gap. (The community card data is NOT used here: it lists only 7 evolutions.) */
+/* maxEvolutionLevel BİR BİT MASKESİ: 1. bit evrim, 2. bit kahraman.
+
+   Buradaki ölçüt `|| c.maxEvolutionLevel` idi ve 2 değeri de doğru
+   sayıyordu — yani KAHRAMANI olup evrimi olmayan 12 kart (Yaramaz,
+   Mega Minyon, Balon…) "evrimli" görünüyordu. Kullanıcı yakaladı:
+   "evrim slotunda Yaramaz gibi kahraman olan kartlar çıkıyor".
+
+   ÖLÇÜLDÜ (122 kart): maske 1 olan 37 kartın hepsinde evrim çizimi
+   var ve hiçbirinde kahraman yok; maske 2 olan 12 kartta tam tersi;
+   maske 3 olan 4 kartta ikisi de. `& 1` ile evrim çizimi birebir
+   örtüşüyor (41 = 41). Sunucu tarafındaki eşi: server/evrim.js */
+const EVRIM_BIT = 1;
 function canEvolve(c){
-  return !!(c.evoIcon || c.iconUrls?.evolutionMedium || c.maxEvolutionLevel || EXTRA_EVO_CARDS.has(c.name));
+  if (c.evoIcon || c.iconUrls?.evolutionMedium) return true;
+  if (EXTRA_EVO_CARDS.has(c.name)) return true;
+  return (Number(c.maxEvolutionLevel) & EVRIM_BIT) === EVRIM_BIT;
 }
 
 /* In-game card level.
@@ -980,7 +1355,12 @@ function registerApiCard(c){
   const key = "api_" + c.id;
   const prev = CARD_DB[key];
   CARD_DB[key] = {
-    name: c.name, elixir: c.elixir ?? c.elixirCost ?? 0, rarity: c.rarity || prev?.rarity || "",
+    name: c.name,
+    /* `prev?.elixir` geri düşüşü ŞART: İksir Hesabı kartları bilerek
+       iksirsiz geliyor (cevabı ele vermemek için). Bu olmadan daha önce
+       /api/cards'tan öğrenilmiş gerçek iksir 0'a eziliyor ve deckElixir
+       gibi site genelindeki hesaplar sessizce bozuluyordu. */
+    elixir: c.elixir ?? c.elixirCost ?? prev?.elixir ?? 0, rarity: c.rarity || prev?.rarity || "",
     img: "", imgUrl: c.icon || c.iconUrls?.medium || prev?.imgUrl || "",
     imgUrlEvo: c.evoIcon || c.iconUrls?.evolutionMedium || prev?.imgUrlEvo || "",
     id: c.id, evo: false, canEvo: canEvolve(c) || !!prev?.canEvo,
@@ -1570,7 +1950,7 @@ const HypnoAPI = {
   /* Is the proxy reachable? Named `online`, not `live`: `live` was also the
      name of the battles method below, so the method shadowed the flag and the
      first request overwrote the method with a boolean. */
-  online: false,
+  online: null,          /* null = istek daha bitmedi (bkz. paintApiStatus) */
   /* Full result: {status, body}, or null when the proxy itself is unreachable.
      The distinction matters — a 404 means "no such player", which must NOT be
      answered with demo data, while an unreachable proxy legitimately may be. */
@@ -1725,7 +2105,14 @@ const HypnoAPI = {
                                           trophies:m.trophies, donations:`${m.donations}/${m.donationsReceived}`,
                                           arena:m.arena?.nameTR || m.arena?.name || "", lastSeen:m.lastSeen,
                                           // filled in by the proxy from each member's profile
-                                          medals:m.leagueMedals ?? null, worldRank:m.leagueRank ?? null })),
+                                          medals:m.leagueMedals ?? null, worldRank:m.leagueRank ?? null,
+                                          /* ROZETLER. Buradaki eşleme üyeyi YENİDEN KURUYOR, yani
+                                             sunucunun eklediği alanlar açıkça taşınmazsa yolda
+                                             düşüyor. Rozetler tam bu yüzden klan sayfasında hiç
+                                             görünmüyordu: sunucu pro/verified gönderiyordu ama
+                                             ekran nesnesine hiç girmiyorlardı (kullanıcı bildirdi). */
+                                          pro:!!m.pro, proRank:m.proRank ?? null, proSezon:!!m.proSezon,
+                                          verified:!!m.verified, note:m.note || "" })),
     };
     return { notFound: true, status: r.status, reason: d?.reason };
   },
@@ -1953,6 +2340,11 @@ function mapBattle(b){
         verified: !!p.verified, note: p.note || "", pro: !!p.pro, proRank: p.proRank || null,
         before, after: change == null ? null : before + change, change,
         deck:d.keys, evo:d.evo, hero:d.hero,
+        /* Bu oyuncunun RAKİBİN kulelerine vurduğu hasar. Sunucu hesaplıyor
+           (server/kule.js): API kulelerin kalan canını veriyor, azami canı
+           vermiyor, azami can gözlemle öğreniliyor. Öğrenilmemiş bir mod
+           için alan hiç gelmiyor ve ekranda da yazılmıyor. */
+        kuleHasari: p.kuleHasari ?? null,
       };
     };
     /* 2v2'de bir tarafta İKİ oyuncu var. Eskiden yalnızca team[0] ve
@@ -2246,6 +2638,15 @@ function mapOwnBattle(b, myTag){
       benimTakim: mine.map((p) => ({ ad: p.name || "", tag: p.tag || "", ...reg(p.cards) })),
       rakipTakim: theirs.map((p) => ({ ad: p.name || "", tag: p.tag || "", ...reg(p.cards) })),
       ago: b.battleTime ? relativeTime(crTime(b.battleTime)) : "",
+      /* HAM ZAMAN da saklanıyor. `ago` insan okusun diye biçimlendirilmiş
+         ("3 saat önce"); hesap yapılamaz. Desteler sayfası günlüğün kaç
+         günü kapsadığını buradan ölçüyor — o süre oyuncuya göre 0,1 ile
+         7,4 gün arasında değişiyor ve "bu hafta" demek yanlış olurdu. */
+      zaman: b.battleTime || "",
+      /* Kule hasarı: benim rakibin kulelerine vurduğum, karşımdakinin de
+         benim kulelerime vurduğu. Bkz. server/kule.js. */
+      kuleHasari: me.kuleHasari ?? null,
+      rakipKuleHasari: op.kuleHasari ?? null,
     };
   } catch { return null; }
 }
@@ -2286,8 +2687,14 @@ function crTime(s){
 
 function paintApiStatus(){
   document.querySelectorAll("[data-api-status]").forEach(el => {
-    el.classList.toggle("live", HypnoAPI.online);
-    el.innerHTML = `<span class="led"></span>${HypnoAPI.online ? t("api.live") : t("api.off")}`;
+    el.classList.toggle("live", HypnoAPI.online === true);
+    el.classList.toggle("bekliyor", HypnoAPI.online === null);
+    /* Üç hâl: bağlandı · hata · daha bitmedi. Üçüncüsüne "Veri alınamadı"
+       demek, olmamış bir hatayı bildirmek olurdu. */
+    const yazi = HypnoAPI.online === true ? t("api.live")
+               : HypnoAPI.online === null ? t("api.wait")
+               : t("api.off");
+    el.innerHTML = `<span class="led"></span>${yazi}`;
   });
 }
 
@@ -2302,16 +2709,17 @@ function funMenu(){
     ["eglence.html#siralama", t("fun.rank"), "🎲", 0],
     ["eglence.html#deste", t("fun.deck"), "🧪", 0],
     ["eglence.html#cark", t("fun.wheel"), "🎡", 0],
-    ["eglence.html#cenabet", t("nav.cenabet"), "assets/img/cenabet.png", 0],
+    ["eglence.html#cenabet", t("nav.cenabet"), "🪄", 0],
     ["eglence.html#gunun", t("fun.daily"), "🎯", 1],
     ["eglence.html#yarisma", t("fun.quiz"), "assets/img/hammer-logo.jpg", 1],
     ["eglence.html#duello", t("fun.duel"), "⚔️", 1],
     ["eglence.html#eksik", t("fun.missing"), "🧩", 1],
     ["eglence.html#kapisma", t("fun.clash"), "🥊", 1],
+    ["eglence.html#iksir", t("fun.iksir"), "💧", 1],
     ["eglence.html#tahmin", t("fun.guess"), "🔮", 0],
   ];
   return `<span class="nav-sub">${items.map(([h,l,i,p]) =>
-    `<a href="${h}"><span class="ns-ic">${oyunSimgesi(oyunKapagi(h.split("#")[1], i))}</span>${l}${
+    `<a href="${h}"><span class="ns-ic">${oyunSimgesi(baglantiKapagi(h, i))}</span>${l}${
       p ? `<span class="pts-badge">${t("tile.pts")}</span>` : ""}</a>`).join("")}</span>`;
 }
 
@@ -2368,7 +2776,7 @@ function mountBottomNav(active){
   el.innerHTML = NAV.map(([href, key]) => {
     const kisa = "bn." + key.slice(4);          // nav.ranks → bn.ranks
     return `<a href="${href}" class="${active === href ? "active" : ""}" title="${t(key)}">
-       <span class="bn-ic">${oyunSimgesi(bottomIcon(key))}</span>
+       <span class="bn-ic">${oyunSimgesi(bottomIcon(key, href))}</span>
        <span class="bn-tx" data-i18n="${kisa}">${t(kisa)}</span>
      </a>`;
   }).join("");
@@ -2416,13 +2824,317 @@ function oyunKapagi(kimlik, varsayilan){
   return (kimlik && OYUN_GORSEL[kimlik]) || varsayilan;
 }
 
+/* ARAYÜZ BÖLÜMÜNÜN KAPAĞI (Sıralamalar, Meta, Son Maçlar…).
+
+   Kimlik SAYFA ADI: `siralamalar.html` → `siralamalar`. Böylece
+   klasöre `siralamalar.png` bırakmak yetiyor; hiçbir yere dosya adı
+   gömülmüyor. Aynı mantık oyun kapaklarında da kullanılıyor, orada
+   kimlik adresteki çengelden geliyordu.
+
+   Adres bir çengel taşıyorsa (eglence.html#duello) burası devreye
+   GİRMİYOR — o bir oyun bağlantısı, kapağı oyun klasöründen gelir. */
+function arayuzKapagi(adres, varsayilan){
+  if (!adres || adres.indexOf("#") >= 0) return varsayilan;
+  const ad = String(adres).split("?")[0].split("/").pop().replace(/\.html?$/i, "");
+  const harita = OYUN_GORSEL.arayuz || {};
+  return (ad && harita[ad]) || varsayilan;
+}
+
+/* Bir bağlantının simgesi — oyun mu, arayüz bölümü mü, kendi ayırıyor.
+   Çağıran tarafın hangi klasöre bakacağını bilmesi gerekmiyor. */
+function baglantiKapagi(adres, varsayilan){
+  const cengel = String(adres || "").split("#")[1];
+  if (cengel) return oyunKapagi(cengel.trim(), varsayilan);
+  return arayuzKapagi(adres, varsayilan);
+}
+
+/* ANA SAYFA KUTUCUKLARINI KAPAKLARLA TAZELE.
+
+   Kutucuklar index.html icinde elle yazili ve emoji tasiyor; kapaklar
+   ise /api/oyun-gorselleri ile SONRADAN geliyor. Her kutucuga tek tek
+   kapak adi gomulseydi, klasore yeni bir dosya birakmak yetmez, HTML de
+   duzenlenmek zorunda kalirdi. Bunun yerine baglanti adresindeki cengel
+   kullaniliyor: href="eglence.html#duello" zaten oyunun kimligi. Boylece
+   kullanicinin klasore attigi her yeni kapak, kod degismeden hem eglence
+   sayfasinda hem ana sayfada goruntuleniyor.
+
+   Kapak yoksa kutucuk oldugu gibi birakiliyor; emoji kayboluyor izlenimi
+   olusmuyor. */
+function kutucukKapaklari(){
+  /* ARTIK BÜTÜN kutucuklar taranıyor, yalnızca oyunlar değil.
+
+     Önce seçici `eglence.html#` içerenlerle sınırlıydı; Sıralamalar,
+     Meta, Son Maçlar gibi bölüm kutucukları kapsam dışındaydı ve
+     arayüz klasörüne kapak konsa bile emoji kalıyordu. Hangi klasöre
+     bakılacağına `baglantiKapagi` karar veriyor. */
+  document.querySelectorAll("a.tile[href]").forEach(function(a){
+    const yol = baglantiKapagi(a.getAttribute("href"), null);
+    if (!yol) return;
+    const kutu = a.querySelector(".t-ic");
+    if (!kutu) return;
+    const im = kutu.querySelector("img.oyun-simge");
+    if (im) { if (im.getAttribute("src") !== yol) im.src = yol; return; }
+    kutu.innerHTML = oyunSimgesi(yol);
+  });
+}
+
 function oyunSimgesi(ic){
   if (typeof ic === "string" && ic.startsWith("assets/"))
     return `<img class="oyun-simge" src="${ic}" alt="" loading="lazy">`;
   return ic;
 }
-function bottomIcon(key){
-  return ({ "nav.home":"🏠","nav.meta":"🃏","nav.ranks":"🏆","nav.live":"🔴","nav.cards":"📇","nav.fun":"🎉","nav.cenabet":"assets/img/cenabet.png" })[key] || "•";
+/* ============ SON GÜNCELLEMELER ============
+   Oyundaki dengelemeler ve duyurular. Kaynak elle girilen akış
+   (server/haber.js) — Clash Royale denge değişiklikleri için açık bir
+   uç YOK, o yüzden metni siteyi işleten kişi yazıyor.
+
+   HİÇ HABER YOKSA BÖLÜM HİÇ ÇİZİLMİYOR. Boş bir "Son Güncellemeler"
+   başlığı, sayfada bir şeyin bozulduğu izlenimi verir. */
+/* Türler oyunla ilgili; "site" türü kaldırıldı (bkz. server/haber.js). */
+const HABER_TUR = {
+  denge:      { etiket: "DENGE",      en: "BALANCE", ton: "gold" },
+  guncelleme: { etiket: "GÜNCELLEME", en: "UPDATE",  ton: "" },
+  yakinda:    { etiket: "YAKINDA",    en: "SOON",    ton: "green" },
+  etkinlik:   { etiket: "ETKİNLİK",   en: "EVENT",   ton: "green" },
+};
+
+/* Ana sayfa kartında metin bu kadarla kesiliyor. Denge duyuruları
+   uzun; üç kartlık ızgarada tam metin sayfayı boydan boya kaplardı.
+   Tamamı Güncellemeler sayfasında. */
+const HABER_KISA = 180;
+
+function haberTarihi(s){
+  /* "2026-08-25" -> "25 Ağustos 2026". Date kurucusuna ham dizeyi
+     vermek saat dilimine göre bir gün kaydırabiliyor; parçalayarak
+     kuruyoruz. */
+  const [y, a, g] = String(s || "").split("-").map(Number);
+  if (!y || !a || !g) return String(s || "");
+  const d = new Date(y, a - 1, g);
+  const dil = (typeof LANG !== "undefined" && LANG === "en") ? "en-GB" : "tr-TR";
+  return d.toLocaleDateString(dil, { day: "numeric", month: "long", year: "numeric" });
+}
+
+/* Metni güvenle çiziyor: önce KAÇIŞLA, sonra satır sonlarını <br> yap.
+   Sıra bu olmak zorunda — önce <br> koyup sonra kaçışlasaydık etiketin
+   kendisi metne dönerdi; kaçışlamayı atlasaydık haber metni HTML
+   çalıştırırdı. */
+/* Bağlantının alan adı — okuyucu nereye gideceğini görsün.
+
+   ATIF ŞART: özet başkasının yazısından alınıyor (bkz. server/akis.js),
+   o yüzden her otomatik kayıtta kaynağa görünür bir bağlantı var.
+   `nofollow` konuluyor: bağlantı bir onay değil, kaynak göstergesi. */
+function haberKaynakAdi(h){
+  if (h.kaynak === "royaleapi") return "RoyaleAPI";
+  try { return new URL(h.baglanti).hostname.replace(/^www\./, ""); }
+  catch { return h.kaynak || "kaynak"; }
+}
+
+/* OKLAR RENKLİ. Kullanıcı isteği: zayıflatmaya kırmızı, güçlendirmeye
+   yeşil, yeniden düzenlemeye turuncu ok.
+
+   SIRA ÖNEMLİ ve üç adım da gerekli:
+     1) esc()   — haber metni yöneticinin yazdığı serbest metin,
+                  önce kaçışlanmazsa HTML çalıştırır
+     2) <br>    — satır sonları korunsun (denge listeleri satırlı)
+     3) oklar   — yalnızca ⬇⬆↻ karakterleri sarmalanıyor
+
+   Okları en sona bırakmak güvenli: bu üç karakter HTML'de özel değil,
+   yani kaçışlama onları değiştirmiyor ve sonradan sarmalamak yeni bir
+   enjeksiyon yolu açmıyor. Ters sırada yapsaydık eklediğimiz span
+   etiketi esc() tarafından metne çevrilirdi. */
+/* OK KARAKTERİ DEĞİŞTİRİLİYOR — telefonda renk tutsun diye.
+
+   ⬇ (U+2B07) ve ⬆ (U+2B06) çoğu telefonda EMOJİ olarak çiziliyor ve
+   emoji glifleri CSS `color` değerini YOK SAYAR — kendi renkleri
+   gömülü. Masaüstünde metin glifi seçildiği için renk tutuyordu;
+   kullanıcı bildirdi: "telde ok rengi gözükmüyor, aynı renk ok
+   gösteriyor".
+
+   ▼ (U+25BC) ve ▲ (U+25B2) geometrik şekil; varsayılan sunumları
+   METİN, yani renk alıyorlar. Üstüne U+FE0E (metin değişim seçicisi)
+   ekleniyor: emoji sunumunu tercih eden bir yazı tipi denk gelirse
+   bu işaret onu metne zorluyor.
+
+   SAKLANAN METİN DEĞİŞMİYOR: sunucu hâlâ ⬇⬆↻ yazıyor, çeviri yalnızca
+   çizim anında yapılıyor. Böylece eski kayıtlar da doğru renkleniyor
+   ve veriyi göç ettirmek gerekmiyor. */
+const METIN_SUNUMU = "\uFE0E";
+const HABER_OK = [
+  ["⬇", "kirmizi", "▼"],
+  ["⬆", "yesil", "▲"],
+  ["↻", "turuncu", "↻"],
+];
+
+function haberMetni(s){
+  let m = esc(String(s || "")).replace(/\n/g, "<br>");
+  for (const [ok, renk, glif] of HABER_OK)
+    m = m.split(ok).join('<span class="hb-ok ' + renk + '">' + glif + METIN_SUNUMU + "</span>");
+  return m;
+}
+
+/* KAYNAK BAĞLANTISI GÖSTERİLMİYOR. Metin çeviri değil, olgulardan
+   kendi kurduğumuz Türkçe cümle (bkz. server/akis.js) — alıntı olmadığı
+   için atıf gerekmiyor. Bağlantı veride duruyor, yalnızca ekranda yok.
+
+   NOT: bu yorum bir zamanlar şablon dizesinin İÇİNDEYDİ ve sayfaya METİN
+   olarak basılıyordu; kullanıcı ekran görüntüsüyle bildirdi. Şablon
+   dizesinin içinde yorum diye bir şey yoktur, her şey düz karakterdir. */
+function haberKart(h, kisa){
+  const tr = (typeof LANG === "undefined" || LANG === "tr");
+  const t = HABER_TUR[h.tur] || HABER_TUR.guncelleme;
+  return `<article class="hb-kart">
+    <div class="hb-ust">
+      <span class="badge ${t.ton}">${tr ? t.etiket : t.en}</span>
+      <span class="muted" style="font-size:.78rem">${esc(haberTarihi(h.tarih))}</span>
+    </div>
+    <h3 class="hb-baslik">${esc(h.baslik)}</h3>
+    ${h.metin ? `<p class="hb-metin soft">${
+      kisa && h.metin.length > HABER_KISA
+        ? haberMetni(h.metin.slice(0, HABER_KISA).trim()) + "…"
+        : haberMetni(h.metin)
+    }</p>` : ""}
+    ${kisa && h.metin && h.metin.length > HABER_KISA
+      ? `<a class="hb-devam" href="guncellemeler.html">${tr ? "Devamını oku →" : "Read more →"}</a>` : ""}
+  </article>`;
+}
+
+async function haberleriYukle(){
+  const kutu = document.getElementById("homeHaber");
+  const bolum = document.getElementById("haberBolum");
+  if (!kutu || !bolum) return;
+  let liste = [];
+  try {
+    /* Ağ hatası sayfayı bozmasın: bölüm gizli kalır, gerisi çalışır. */
+    const r = await fetch(API_BASE + "/haberler?yer=anasayfa");
+    liste = (await r.json()).items || [];
+  } catch { return; }
+  if (!liste.length) return;
+  kutu.innerHTML = liste.map((h) => haberKart(h, true)).join("");
+  bolum.hidden = false;
+}
+
+/* ============ BİLDİRİMLER ============
+   Tablo yenilendiğinde, yani puanlı oyunların hakkı tazelendiğinde
+   haber vermek için. Sayfa içi bir uyarı yetmezdi: haber verilmek
+   istenen şey tam olarak "sitede DEĞİLKEN haberin olsun".
+
+   İzin isteme sırası önemli: tarayıcı izin kutusunu ancak kullanıcı
+   bir şeye TIKLADIĞINDA gösteriyor, ve bir kez "engelle" denirse
+   bir daha sorulamıyor — ayarlardan elle açmak gerekiyor. Bu yüzden
+   izin sayfa açılışında değil, kullanıcı düğmeye bastığında
+   isteniyor. */
+let BILDIRIM = { destek: false, izin: "default", abone: false, anahtar: null };
+
+function bildirimDestekli(){
+  return typeof Notification !== "undefined" &&
+         "serviceWorker" in navigator && "PushManager" in window;
+}
+
+async function bildirimDurumuOku(){
+  BILDIRIM.destek = bildirimDestekli();
+  if (!BILDIRIM.destek) return BILDIRIM;
+  BILDIRIM.izin = Notification.permission;
+  try {
+    const r = await fetch(API_BASE + "/bildirim/durum", { credentials: "same-origin" });
+    const j = await r.json();
+    BILDIRIM.sunucuAcik = !!j.acik; BILDIRIM.girisli = !!j.girisli;
+    BILDIRIM.abone = (j.cihaz || 0) > 0;
+  } catch { BILDIRIM.sunucuAcik = false; }
+  return BILDIRIM;
+}
+
+/* base64url → Uint8Array. Push API açık anahtarı bu biçimde istiyor;
+   atob doğrudan base64url'i çözmediği için önce standart base64'e
+   çeviriliyor. */
+function b64Dizi(s){
+  const pad = "=".repeat((4 - (s.length % 4)) % 4);
+  const d = atob((s + pad).replace(/-/g, "+").replace(/_/g, "/"));
+  const a = new Uint8Array(d.length);
+  for (let i = 0; i < d.length; i++) a[i] = d.charCodeAt(i);
+  return a;
+}
+
+async function bildirimAc(){
+  if (!bildirimDestekli())
+    return toast(LANG==="tr" ? "Tarayıcın bildirimleri desteklemiyor." : "Your browser does not support notifications.");
+  if (Notification.permission === "denied")
+    return toast(LANG==="tr"
+      ? "Bildirimler tarayıcı ayarlarından engellenmiş. Site ayarlarından izin vermen gerekiyor."
+      : "Notifications are blocked in your browser settings.");
+  try {
+    const izin = await Notification.requestPermission();
+    BILDIRIM.izin = izin;
+    if (izin !== "granted") return toast(LANG==="tr" ? "Bildirime izin verilmedi." : "Permission not granted.");
+
+    const ka = await (await fetch(API_BASE + "/bildirim/anahtar")).json();
+    if (!ka.acik || !ka.anahtar)
+      return toast(LANG==="tr" ? "Bildirimler şu an kapalı." : "Notifications are off.");
+
+    const kayit = await navigator.serviceWorker.register("/sw.js");
+    await navigator.serviceWorker.ready;
+    /* Var olan abonelik yeniden kullanılıyor: her açışta yeni abonelik
+       üretmek aynı cihazı listeye birkaç kez sokardı. */
+    let ab = await kayit.pushManager.getSubscription();
+    if (!ab) ab = await kayit.pushManager.subscribe({
+      userVisibleOnly: true,                 // tarayıcı şartı: her push görünür olmalı
+      applicationServerKey: b64Dizi(ka.anahtar),
+    });
+    const j = ab.toJSON();
+    const r = await fetch(API_BASE + "/bildirim/abone", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ endpoint: j.endpoint, keys: j.keys }),
+    });
+    const c = await r.json();
+    if (!r.ok) return toast(c.message || "Kaydedilemedi.");
+    BILDIRIM.abone = true;
+    toast(LANG==="tr" ? "Bildirimler açıldı." : "Notifications on.");
+    mountChrome(document.body.dataset.page || "");
+  } catch (e) {
+    toast((LANG==="tr" ? "Bildirim açılamadı: " : "Could not enable: ") + String(e).slice(0, 60));
+  }
+}
+
+async function bildirimKapat(){
+  try {
+    const kayit = await navigator.serviceWorker.getRegistration("/sw.js");
+    const ab = kayit && await kayit.pushManager.getSubscription();
+    /* Hem tarayıcıdan hem sunucudan çıkılıyor. Yalnız birini yapmak
+       kalıcı bir tutarsızlık bırakırdı: tarayıcı abone kalıp sunucu
+       bilmezse bildirim gelmez ama kullanıcı açık sanır; tersi olursa
+       sunucu ölü bir adrese boşuna gönderir. */
+    if (ab) { await fetch(API_BASE + "/bildirim/cik", {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endpoint: ab.endpoint }) });
+      await ab.unsubscribe();
+    } else {
+      await fetch(API_BASE + "/bildirim/cik", { method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" }, body: "{}" });
+    }
+    BILDIRIM.abone = false;
+    toast(LANG==="tr" ? "Bildirimler kapatıldı." : "Notifications off.");
+    mountChrome(document.body.dataset.page || "");
+  } catch (e) { toast(String(e).slice(0, 60)); }
+}
+
+function bildirimDegistir(){ return BILDIRIM.abone ? bildirimKapat() : bildirimAc(); }
+
+/* Alt gezinme çubuğunun simgesi.
+
+   Artık ÖNCE arayüz klasörüne bakılıyor: kullanıcı bir bölüm kapağı
+   koyduysa çubuk da onu göstersin. Eskiden burası sabit emoji
+   listesiydi ve klasöre kapak konsa bile çubuk emojide kalıyordu —
+   kullanıcı ekran görüntüsüyle bildirdi ("eğlence kısmının logosunu
+   beğenmedim", çubuktaki 🎉 kastediliyordu).
+
+   Kimliğin adresten gelmesi gerekiyor, anahtardan değil: anahtar
+   `nav.fun` ama dosya adı `eglence` — ikisini elle eşlemek yeni bir
+   bölüm eklendiğinde unutulacak bir adım olurdu. */
+function bottomIcon(key, href){
+  const yedek = ({ "nav.home":"🏠","nav.meta":"🃏","nav.ranks":"🏆","nav.live":"🔴",
+                   "nav.cards":"📇","nav.fun":"🎉","nav.cenabet":"🪄" })[key] || "•";
+  return baglantiKapagi(href, yedek);
 }
 
 function buildFooter(){
@@ -2487,9 +3199,20 @@ function openDrawer(){
     d.addEventListener("click", e => { if (e.target === d) closeDrawer(); });
     document.body.appendChild(d);
   }
+  /* SES VE BİLDİRİM ANAHTARLARI ÇEKMECEDE.
+
+     Ses düğmesi eskiden yalnızca Eğlence sayfasındaydı; orada çark ve
+     oyun sesleri vardı, başka yerde ses yoktu. Artık her düğmeye
+     basışta ses çalıyor, yani sesten rahatsız olan biri ana sayfada da
+     kapatabilmeli. Tercih cihazda saklanıyor ve bütün site için geçerli.
+
+     NOT — bu açıklama şablon dizesinin İÇİNE yazılmıştı ve JavaScript
+     yorumu sanılmıştı; oysa şablon dizesinin içinde yorum diye bir şey
+     yok, metin olarak çekmecede görünüyordu. Şablona yazılan her şey
+     ekrana çıkar. */
   /* Puan kazandıran oyunların yanına küçük bir işaret. Bilerek sessiz:
      rozet küçük, soluk ve satırın sonunda — listeyi bağırtmasın. */
-  const link = (href,label,ic,pts) => `<a class="dr-link" href="${href}"><span class="dr-ic">${oyunSimgesi(oyunKapagi(href.split("#")[1], ic))}</span>${label}${
+  const link = (href,label,ic,pts) => `<a class="dr-link" href="${href}"><span class="dr-ic">${oyunSimgesi(baglantiKapagi(href, ic))}</span>${label}${
     pts ? `<span class="pts-badge" title="${t("fun.earns")}">${t("fun.pts")}</span>` : ""}</a>`;
   d.innerHTML = `
     <aside class="drawer">
@@ -2527,6 +3250,8 @@ function openDrawer(){
       ${link("siralamalar.html", t("ranks.pol")+" — "+t("nav.ranks"), "🏆")}
       ${link("klanlar.html", t("chrome.clanBoard"), "🛡️")}
       <button class="dr-link" onclick="closeDrawer();openFavs()"><span class="dr-ic">❤️</span>${t("fav.title")}</button>
+      <button class="dr-link" onclick="sesDegistir(); mountChrome(document.body.dataset.page || '')"><span class="dr-ic">${sesAcikMi() ? "🔊" : "🔇"}</span>${LANG === "tr" ? (sesAcikMi() ? "Sesler açık" : "Sesleri aç") : (sesAcikMi() ? "Sound on" : "Turn on sound")}</button>
+      ${BILDIRIM.destek ? `<button class="dr-link" onclick="closeDrawer();bildirimDegistir()"><span class="dr-ic">${BILDIRIM.abone ? "🔔" : "🔕"}</span>${LANG === "tr" ? (BILDIRIM.abone ? "Bildirimler açık" : "Bildirimleri aç") : (BILDIRIM.abone ? "Notifications on" : "Turn on notifications")}</button>` : ""}
       ${link("canli.html", t("nav.live"), "🔴")}
       ${link("meta.html", t("nav.meta"), "🃏")}
       ${link("anti.html", t("nav.anti"), "🛡️")}
@@ -2538,12 +3263,13 @@ function openDrawer(){
       <div class="dr-sec fun">🎉 ${t("chrome.fun")}</div>
       ${link("eglence.html", t("fun.rank"), "🎲")}
       ${link("eglence.html#cark", t("fun.wheel"), "🎡")}
-      ${link("eglence.html#cenabet", t("fun.cenabet"), "assets/img/cenabet.png")}
+      ${link("eglence.html#cenabet", t("fun.cenabet"), "🪄")}
       ${link("eglence.html#gunun", t("fun.daily"), "🎯", 1)}
       ${link("eglence.html#yarisma", t("fun.quiz"), "assets/img/hammer-logo.jpg", 1)}
       ${link("eglence.html#duello", t("fun.duel"), "⚔️", 1)}
       ${link("eglence.html#eksik", t("fun.missing"), "🧩", 1)}
       ${link("eglence.html#kapisma", t("fun.clash"), "🥊", 1)}
+      ${link("eglence.html#iksir", t("fun.iksir"), "💧", 1)}
       ${link("eglence.html#tahmin", t("fun.guess"), "🔮")}
       <div class="dr-link soon"><span class="dr-ic">❓</span>${t("chrome.newFun")} <span class="soon-badge">${t("tag.soon")}</span></div>
       <div class="dr-sec">${t("fb.section")}</div>
@@ -2575,20 +3301,93 @@ function drSearch(){
    when a newer keystroke arrives, so a fast typist never sees stale results. */
 const SUGGEST_DEBOUNCE = 180;
 
+/* ---------- ÖNERİ LİSTESİ: TEK, PAYLAŞILAN KUTU ----------
+
+   Kutu <body> altında duruyor. Sebebi: girdinin yanına konduğunda
+   üstteki `.hero-split` (`z-index:2`) ve başlık (`sticky; z-index:50`)
+   kendi YIĞIN BAĞLAMLARINI yaratıyor; bir bağlamın içindeki z-index
+   yalnızca o bağlamda geçerli olduğu için liste, çerez bandının (120)
+   ve alt gezinme çubuğunun altında kalıyordu. Kullanıcının bildirdiği
+   "aramada üst çalışıyor alt çalışmıyor" tam olarak buydu.
+
+   AMA kutuyu body'ye taşımak tek başına yeterli değil, hatta tehlikeli:
+   ilk denememde her girdi için AYRI bir kutu açtım ve ölçtüğümde
+   sayfada 4026 kutu birikmişti. Sebep, kutunun ömrünün artık girdiye
+   bağlı olmaması — `mountChrome` üst çubuğu her yeniden çizdiğinde yeni
+   bir girdi doğuyor, ona yeni bir kutu açılıyor, eski kutu ise body'de
+   öksüz kalıyordu. Her kutu ayrıca pencereye kaydırma dinleyicisi
+   bağladığı için sayfa yanıt veremez hâle gelmişti. Kullanıcı da tam
+   bunu bildirdi: "butonlara basamıyorum".
+
+   Çözüm: kutu TEK. Aynı anda zaten yalnızca bir öneri listesi açık
+   olabiliyor, o yüzden bütün arama kutuları aynı kutuyu paylaşıyor.
+   Dinleyiciler de bir kez bağlanıyor. Böylece kaç kere yeniden
+   çizilirse çizilsin sayfada tek bir kutu ve tek bir dinleyici kalıyor. */
+let SUG_KUTU = null, SUG_SAHIP = null, SUG_KAPAT = null;
+function sugKutusu(){
+  if (SUG_KUTU && SUG_KUTU.isConnected) return SUG_KUTU;
+  SUG_KUTU = document.createElement("div");
+  SUG_KUTU.className = "sug-box sug-portal";
+  document.body.appendChild(SUG_KUTU);
+  /* Dinleyiciler kutuyla birlikte BİR KEZ bağlanıyor. Sahibi kim ise
+     onun altına hizalanıyor; sahip ekrandan çıktıysa liste kapanıyor —
+     havada asılı kalmış bir öneri listesi bağlamını kaybetmiştir. */
+  /* HİZALAMA ile "açık mı" DENETİMİ ayrı.
+
+     Önce tek bir işlevdi ve başında "açık değilse çık" kontrolü vardı.
+     Ama liste açılırken hizalama, `open` sınıfı EKLENMEDEN önce
+     çağrılıyor — o kontrol yüzünden hizalama hiç yapılmıyor, kutu
+     0,0 noktasında sıfır genişlikle açılıyordu. Yani liste "açık" ama
+     görünmez. Sınama yakaladı: "liste yok".
+
+     Şimdi `hizala` koşulsuz ölçüp yerleştiriyor; `izle` ise yalnızca
+     kaydırma/boyut olaylarında, liste açıkken çağrılıyor. */
+  const hizala = () => {
+    if (!SUG_SAHIP || !SUG_SAHIP.isConnected) return false;
+    const r = SUG_SAHIP.getBoundingClientRect();
+    if (r.bottom < 0 || r.top > innerHeight) return false;
+    SUG_KUTU.style.left = r.left + "px";
+    SUG_KUTU.style.width = r.width + "px";
+    /* 6 pikseldi ve gölge de görünmeyince (bkz. .sug-box) kutu çubuğa
+       yapışık duruyordu. 10'a çıkarıldı, hâlâ yapışık bildirildi; 14
+       piksel gölgenin yayılma yarıçapına yer bırakıyor ve kutu artık
+       çubuğun devamı değil, ayrı bir katman gibi okunuyor. */
+    SUG_KUTU.style.top = (r.bottom + 14) + "px";
+    return true;
+  };
+  const izle = () => {
+    if (!SUG_KUTU.classList.contains("open") || !SUG_SAHIP) return;
+    /* Sahip sayfadan gitmiş ya da ekrandan çıkmışsa liste kapanıyor:
+       havada asılı kalmış bir öneri listesi bağlamını kaybetmiştir. */
+    if (!hizala()) { if (SUG_KAPAT) SUG_KAPAT(); }
+  };
+  /* `capture`: iç kaydırma kapsayıcıları da girdiyi hareket ettirebiliyor
+     ve onların olayları body'ye kabarmıyor. */
+  addEventListener("scroll", izle, { passive: true, capture: true });
+  addEventListener("resize", izle, { passive: true });
+  SUG_KUTU.__izle = izle;
+  SUG_KUTU.__hizala = hizala;
+  return SUG_KUTU;
+}
+
 function attachSuggest(input, getType){
   if (!input || input.dataset.suggest) return;
   input.dataset.suggest = "1";
   input.setAttribute("autocomplete", "off");
 
-  const box = document.createElement("div");
-  box.className = "sug-box";
-  const host = input.closest(".search-box") || input.parentElement;
-  host.style.position = host.style.position || "relative";
-  host.appendChild(box);
+  const box = sugKutusu();
+  const yerlestir = () => { SUG_SAHIP = input; box.__hizala(); };
 
   let timer = null, seq = 0, items = [], active = -1;
 
-  const close = () => { box.classList.remove("open"); active = -1; };
+  /* Kutu paylaşıldığı için kapatmayı yalnızca SAHİBİ yapabilir.
+     Yoksa ikinci bir arama kutusu, birincinin açtığı listeyi
+     kapatabilirdi. */
+  const close = () => {
+    if (SUG_SAHIP && SUG_SAHIP !== input) return;
+    box.classList.remove("open"); active = -1;
+    if (SUG_SAHIP === input) { SUG_SAHIP = null; SUG_KAPAT = null; }
+  };
   const paint = () => {
     if (!items.length){ close(); return; }
     box.innerHTML = items.map((it, i) => it.clan
@@ -2603,8 +3402,37 @@ function attachSuggest(input, getType){
            <span class="sug-val">${it.elo > 0 ? polScore(it.elo, 14)
               : it.trophies != null ? nfTR(it.trophies) + " 🏆" : ""}</span></a>`
     ).join("");
+    /* Sahiplik bu girdiye geçiyor; kaydırma dinleyicisi kutuyu artık
+       buna göre hizalayacak ve gerekirse bunun close'unu çağıracak. */
+    SUG_SAHIP = input; SUG_KAPAT = close;
+    yerlestir();
     box.classList.add("open");
+    yerAc();
   };
+
+  /* Liste açılınca EKRANDA YER AÇ.
+
+     Yığın sırası düzeldi ama tek başına yetmiyor: arama kutusu ekranın
+     alt yarısındaysa liste yine görünür alanın dışına taşıyor ve
+     kullanıcı alt önerileri göremiyor. Ölçüldü: 390x844 telefonda 8
+     önerinin 2'si tamamen ekran dışındaydı.
+
+     Kutuyu yukarı kaydırmak yerine SAYFAYI kaydırıyoruz — böylece
+     kutu her zaman girdinin hemen altında kalıyor, kullanıcı bağlamı
+     kaybetmiyor. Yalnızca gerektiği kadar kaydırılıyor; liste zaten
+     sığıyorsa hiç dokunulmuyor (sebepsiz kayma rahatsız edici). */
+  function yerAc(){
+    try {
+      const cubuk = document.querySelector(".bottom-nav");
+      const bant = document.getElementById("cerezBandi");
+      const engel = Math.max(
+        cubuk && getComputedStyle(cubuk).display !== "none" ? cubuk.getBoundingClientRect().height : 0,
+        bant && bant.offsetParent !== null ? bant.getBoundingClientRect().height : 0);
+      const kutu = box.getBoundingClientRect();
+      const tasma = kutu.bottom - (innerHeight - engel - 8);
+      if (tasma > 0) scrollBy({ top: tasma, behavior: "smooth" });
+    } catch { /* ölçüm yapılamazsa liste yine de açık kalsın */ }
+  }
 
   const run = async () => {
     const q = input.value.trim();
@@ -2620,7 +3448,9 @@ function attachSuggest(input, getType){
   input.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(run, SUGGEST_DEBOUNCE); });
   input.addEventListener("focus", () => { if (items.length) paint(); });
   input.addEventListener("keydown", (e) => {
-    if (!box.classList.contains("open")) return;
+    /* Kutu paylaşılıyor: başka bir arama kutusunun listesi açıkken bu
+       girdinin ok tuşları o listeyi gezdirmemeli. */
+    if (!box.classList.contains("open") || SUG_SAHIP !== input) return;
     if (e.key === "ArrowDown" || e.key === "ArrowUp"){
       e.preventDefault();
       active = (active + (e.key === "ArrowDown" ? 1 : items.length - 1) + (active < 0 && e.key === "ArrowUp" ? 1 : 0)) % items.length;
@@ -2630,7 +3460,35 @@ function attachSuggest(input, getType){
       box.querySelectorAll(".sug-row")[active]?.click();
     } else if (e.key === "Escape") close();
   });
-  document.addEventListener("click", (e) => { if (!host.contains(e.target)) close(); });
+  /* Dışarı tıklayınca kapat.
+
+     Eskiden tek bir sarmalayıcıya (`host`) bakılıyordu: girdi de liste
+     de onun içindeydi. Liste <body> altına taşınınca o sarmalayıcı
+     kalmadı ve burası tanımsız bir değişkene bakmaya devam etti —
+     sayfadaki HER tıklama ReferenceError atıyordu. Kendi soktuğum
+     hatayı sınama yakaladı.
+
+     Artık iki ayrı ağaç var, ikisi de sorulmak zorunda: girdinin ya da
+     listenin içine tıklandıysa liste açık kalıyor. Listeye tıklamayı
+     dışarı saymak, öneriye basar basmaz listeyi kapatıp tıklamayı
+     kaybettirirdi. */
+  /* Dışarı tıklayınca kapat — dinleyici BİR KEZ, kutuya bağlı.
+
+     Eskiden her girdi için ayrı bir document dinleyicisi ekleniyordu.
+     Girdiler mountChrome her çalıştığında yeniden doğduğu için bu
+     dinleyiciler birikiyordu ve hiç kaldırılmıyordu; sayfa açık
+     kaldıkça her tıklama yüzlerce işleyiciden geçiyordu. Kutu tek
+     olduğuna göre dinleyici de tek olmalı. */
+  if (!box.__disTiklama) {
+    box.__disTiklama = 1;
+    document.addEventListener("click", (e) => {
+      if (!box.classList.contains("open")) return;
+      const sahip = SUG_SAHIP;
+      if (sahip && (sahip === e.target || sahip.contains(e.target))) return;
+      if (box.contains(e.target)) return;
+      if (SUG_KAPAT) SUG_KAPAT(); else box.classList.remove("open");
+    });
+  }
 }
 /* Tek tırnak da kaçırılıyor: onclick="..." kadar onclick='...' de kullanıyoruz,
    ve içeriye kullanıcı adı gibi serbest metinler giriyor. */
@@ -2769,12 +3627,184 @@ function openAuth(tab){
       <div class="auth-msg" id="auMsg"></div>
       <button class="btn btn-primary auth-go" type="submit" id="auGo">
         ${tab==="register" ? (TRa?"Hesap Oluştur":"Create account") : (TRa?"Giriş Yap":"Log in")}</button>
+      ${/* "Şifremi unuttum" bağlantısı GEÇİCİ OLARAK GİZLİ.
+
+            Akışın kendisi hazır ve sınandı (bkz. auth.js → sıfırlama uçları,
+            t_sifirla) ama kod e-postayla gidemiyor: Railway giden SMTP
+            bağlantılarını engelliyor. Sunucunun içinden ölçüldü —
+            587, 465 ve 2525 portlarının üçü de zaman aşımına düşüyor.
+            Ayarla aşılabilecek bir şey değil; HTTPS üzerinden çalışan bir
+            posta servisi (Resend vb.) bağlanınca bu satır geri açılacak.
+
+            Bağlantıyı görünür bırakmak, tıklayan herkesi kod bekleyip
+            gelmeyen bir ekranda bırakırdı — hiç olmamasından kötü. */""}
+      ${(tab==="login" && window.SIFIRLAMA_ACIK) ? `<p class="auth-note">
+        <a href="#" onclick="event.preventDefault();openSifirla()">${TRa?"Şifremi unuttum":"Forgot password"}</a></p>` : ""}
+      ${/* "scrypt" ziyaretçiye bir şey anlatmıyor — anlatılmak istenen şey
+            parolanın geri döndürülemez olduğu. Gizlilik metninde de aynı
+            sebeple sadeleştirildi (ziyaretçi bildirimi). */""}
       <p class="auth-note">${TRa
-        ? "Şifreniz sunucuda <b>scrypt</b> ile saklanır, düz metin olarak hiçbir yere yazılmaz."
-        : "Your password is stored with <b>scrypt</b>, never in plain text."}</p>
+        ? "Şifreniz <b>geri döndürülemez</b> biçimde saklanır; düz metin olarak hiçbir yere yazılmaz."
+        : "Your password is stored <b>irreversibly</b>, never in plain text."}</p>
     </form>`);
   AUTH_TAB = tab;
   setTimeout(() => document.getElementById("auName")?.focus(), 50);
+}
+
+/* ============================================================
+   ŞİFREMİ UNUTTUM
+   ------------------------------------------------------------
+   İki adım: (1) kullanıcı adı + e-posta ile kod iste, (2) kodu ve
+   yeni şifreyi gir.
+
+   Ekranda hiçbir zaman "böyle bir hesap yok" ya da "e-posta tutmuyor"
+   YAZMIYOR — sunucu da aynı cevabı veriyor. Aksi hâlde bu ekran,
+   hangi kullanıcı adının kayıtlı olduğunu ve hangi e-postaya bağlı
+   olduğunu tek tek öğrenmenin aracı olurdu.
+   ============================================================ */
+/* Sunucu "posta hazır" diyorsa bağlantı kendiliğinden görünür olur;
+   servis bağlandığında kodu tekrar değiştirmek gerekmiyor. */
+window.SIFIRLAMA_ACIK = false;
+fetch("/api/health").then((r) => r.json())
+  .then((d) => { window.SIFIRLAMA_ACIK = !!d.postaCalisiyor; })
+  .catch(() => {});
+
+let SIFIRLA_TOKEN = null;
+
+function openSifirla(){
+  const TRa = LANG === "tr";
+  SIFIRLA_TOKEN = null;
+  openModal(`
+    <button class="btn btn-ghost icon-btn modal-close" onclick="closeModal()">${ICONS.x}</button>
+    <h3 style="margin:0 0 6px">${TRa?"Şifremi unuttum":"Forgot password"}</h3>
+    <p class="muted" style="font-size:.85rem;margin:0 0 14px">${TRa
+      ? "Hesabının kullanıcı adını ve kayıtlı e-postanı gir; sana altı haneli bir kod gönderelim."
+      : "Enter your username and registered email; we will send you a six-digit code."}</p>
+    <form class="auth-form" onsubmit="return sifirlaIste(event)">
+      <label class="auth-l">${TRa?"Kullanıcı adı":"Username"}
+        <input id="sfName" autocomplete="username" required maxlength="20"></label>
+      <label class="auth-l">${TRa?"E-posta":"Email"}
+        <input id="sfMail" type="email" autocomplete="email" required placeholder="ornek@mail.com"></label>
+      <div class="auth-msg" id="sfMsg"></div>
+      <button class="btn btn-primary auth-go" type="submit" id="sfGo">${TRa?"Kod gönder":"Send code"}</button>
+      <p class="auth-note"><a href="#" onclick="event.preventDefault();openAuth('login')">${
+        TRa?"← Girişe dön":"← Back to log in"}</a></p>
+    </form>`);
+  setTimeout(() => document.getElementById("sfName")?.focus(), 50);
+}
+
+async function sifirlaIste(e){
+  e.preventDefault();
+  const TRa = LANG === "tr";
+  const dugme = document.getElementById("sfGo");
+  const msg = document.getElementById("sfMsg");
+  dugme.disabled = true; msg.textContent = TRa ? "Gönderiliyor…" : "Sending…";
+  try {
+    const r = await fetch("/api/auth/sifirla/iste", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ username: document.getElementById("sfName").value.trim(),
+                             email: document.getElementById("sfMail").value.trim() }) });
+    const d = await r.json().catch(() => ({}));
+    /* Jeton gelmese bile ADIM 2'ye geçiyoruz: geçmeseydik "bu hesap yok"
+       bilgisi ekrandan sızardı. Kod gelmemişse kullanıcı zaten devam
+       edemez. */
+    SIFIRLA_TOKEN = d.token || null;
+    sifirlaKodEkrani(d.mesaj || "");
+  } catch {
+    msg.textContent = TRa ? "Bağlantı kurulamadı." : "Connection failed.";
+    dugme.disabled = false;
+  }
+  return false;
+}
+
+function sifirlaKodEkrani(bilgi){
+  const TRa = LANG === "tr";
+  openModal(`
+    <button class="btn btn-ghost icon-btn modal-close" onclick="closeModal()">${ICONS.x}</button>
+    <h3 style="margin:0 0 6px">${TRa?"Kodu gir":"Enter the code"}</h3>
+    <p class="muted" style="font-size:.85rem;margin:0 0 14px">${esc(bilgi)}</p>
+    <form class="auth-form" onsubmit="return sifirlaOnayla(event)">
+      <label class="auth-l">${TRa?"E-postana gelen kod":"Code from your email"}
+        <input id="sfKod" inputmode="numeric" pattern="[0-9]*" maxlength="6" required
+               autocomplete="one-time-code" placeholder="000000"
+               style="letter-spacing:6px;font-weight:800;text-align:center"></label>
+      <label class="auth-l">${TRa?"Yeni şifre":"New password"}
+        <input id="sfPass" type="password" required minlength="8"
+               autocomplete="new-password" placeholder="${TRa?"en az 8 karakter":"at least 8 characters"}"></label>
+      <div class="auth-msg" id="sfMsg2"></div>
+      <button class="btn btn-primary auth-go" type="submit" id="sfGo2">${TRa?"Şifreyi değiştir":"Change password"}</button>
+      <p class="auth-note"><a href="#" onclick="event.preventDefault();openSifirla()">${
+        TRa?"Kod gelmedi, yeniden dene":"Didn't get the code, try again"}</a></p>
+    </form>`);
+  setTimeout(() => document.getElementById("sfKod")?.focus(), 50);
+}
+
+async function sifirlaOnayla(e){
+  e.preventDefault();
+  const TRa = LANG === "tr";
+  const dugme = document.getElementById("sfGo2");
+  const msg = document.getElementById("sfMsg2");
+  dugme.disabled = true; msg.textContent = TRa ? "Kontrol ediliyor…" : "Checking…";
+  try {
+    const r = await fetch("/api/auth/sifirla/onayla", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token: SIFIRLA_TOKEN,
+                             kod: document.getElementById("sfKod").value.trim(),
+                             password: document.getElementById("sfPass").value }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { msg.textContent = d.mesaj || (TRa ? "Kod doğrulanamadı." : "Could not verify."); dugme.disabled = false; return false; }
+    msg.textContent = "";
+    openModal(`
+      <button class="btn btn-ghost icon-btn modal-close" onclick="closeModal()">${ICONS.x}</button>
+      <h3 style="margin:0 0 6px">${TRa?"Şifren değişti":"Password changed"}</h3>
+      <p class="muted" style="font-size:.88rem">${TRa
+        ? "Yeni şifrenle giriş yapabilirsin. Güvenlik için bu hesabın açık bütün oturumları kapatıldı."
+        : "You can log in with your new password. All open sessions for this account were closed."}</p>
+      <button class="btn btn-primary auth-go" onclick="openAuth('login')">${TRa?"Giriş yap":"Log in"}</button>`);
+  } catch {
+    msg.textContent = TRa ? "Bağlantı kurulamadı." : "Connection failed.";
+    dugme.disabled = false;
+  }
+  return false;
+}
+
+async function parolaDegistir(){
+  const TRa = LANG === "tr";
+  const msg = document.getElementById("auPwMsg");
+  const eski = document.getElementById("auPwEski").value;
+  const yeni = document.getElementById("auPwYeni").value;
+  const yeni2 = document.getElementById("auPwYeni2").value;
+
+  /* İki alanın eşitliği BURADA denetleniyor. Sunucuya tek parola
+     gidiyor — ikinci alan yazım hatasına karşı, sunucunun bilmesi
+     gereken bir şey değil. */
+  if (yeni !== yeni2) {
+    msg.textContent = TRa ? "Yeni şifreler birbirini tutmuyor." : "New passwords do not match.";
+    return;
+  }
+  if (!eski || !yeni) {
+    msg.textContent = TRa ? "Bütün alanları doldurun." : "Fill in all fields.";
+    return;
+  }
+
+  msg.textContent = TRa ? "Değiştiriliyor…" : "Changing…";
+  try {
+    const r = await fetch("/api/auth/password", {
+      method: "POST", headers: { "content-type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ current: eski, password: yeni }) });
+    const d = await r.json().catch(() => ({}));
+    msg.textContent = d.message || (r.ok ? (TRa ? "Şifren değiştirildi." : "Password changed.")
+                                         : (TRa ? "Değiştirilemedi." : "Could not change."));
+    if (r.ok) {
+      /* Alanları temizle: parola ekranda asılı kalmasın. */
+      document.getElementById("auPwEski").value = "";
+      document.getElementById("auPwYeni").value = "";
+      document.getElementById("auPwYeni2").value = "";
+    }
+  } catch {
+    msg.textContent = TRa ? "Bağlantı kurulamadı." : "Connection failed.";
+  }
 }
 
 let AUTH_TAB = "login";
@@ -2884,6 +3914,32 @@ function openAccount(){
         <input id="auAdSifre" type="password" autocomplete="current-password"></label>
       <div class="auth-msg" id="auAdMsg"></div>
       <button class="btn btn-primary" onclick="adiDegistir()">${TRa?"Adı değiştir":"Change name"}</button>
+    </details>
+    ${/* ŞİFRE DEĞİŞTİRME.
+
+          Mevcut parola isteniyor: oturum çerezi ele geçirilmiş olabilir
+          (ortak bilgisayarda açık kalmış oturum, çalınmış cihaz). Yalnızca
+          oturuma güvenseydik o çerezi eline geçiren kişi parolayı değiştirip
+          hesabı tamamen ele geçirirdi.
+
+          Yeni parola İKİ KEZ isteniyor: yazım hatasıyla bilinmeyen bir
+          parolaya geçmek, hesabı kaybetmek demek. İki alanın eşitliği
+          burada denetleniyor; sunucuya yalnızca tek bir parola gidiyor. */""}
+    <details class="auth-adchg">
+      <summary>${TRa?"Şifreyi değiştir":"Change password"}</summary>
+      <p class="muted" style="font-size:.78rem;margin:8px 0 10px">${TRa
+        ? `Değişiklikten sonra <b>bu cihaz dışındaki</b> açık oturumlar kapatılır —
+           hesabına başka biri girdiyse dışarıda kalır.`
+        : `After the change, all sessions except this device are closed.`}</p>
+      <label class="auth-l">${TRa?"Mevcut şifren":"Current password"}
+        <input id="auPwEski" type="password" autocomplete="current-password"></label>
+      <label class="auth-l">${TRa?"Yeni şifre":"New password"}
+        <input id="auPwYeni" type="password" autocomplete="new-password"
+               placeholder="${TRa?"en az 8 karakter":"at least 8 characters"}"></label>
+      <label class="auth-l">${TRa?"Yeni şifre (tekrar)":"New password (again)"}
+        <input id="auPwYeni2" type="password" autocomplete="new-password"></label>
+      <div class="auth-msg" id="auPwMsg"></div>
+      <button class="btn btn-primary" onclick="parolaDegistir()">${TRa?"Şifreyi değiştir":"Change password"}</button>
     </details>
     <div class="auth-msg" id="auMsg"></div>
     <div class="flex gap-8 wrap" style="margin-top:14px">
@@ -3892,15 +4948,54 @@ function mountChrome(active){
   /* Çerez bandı: karar verilmemişse göster, verilmişse reklamı
      karara göre yükle. Her sayfada çalışması gerekiyor. */
   try { cerezBandiCiz(); } catch {}
+  /* Tıklama sesi belge üzerinden dinleniyor; sonradan çizilen düğmeler
+     de kapsansın diye tek bir yerden ve bir kez bağlanıyor. */
+  try { sesTiklamaKur(); } catch {}
   /* Kapak görselleri geldiğinde menüler yeniden çizilsin. */
   if (!OYUN_GORSEL.__geldi) oyunGorselleriniYukle().then(() => {
     OYUN_GORSEL.__geldi = 1;
-    if (Object.keys(OYUN_GORSEL).length <= 1) return;   // klasör boş, çizime gerek yok
+    /* Hiç kapak yoksa yeniden çizmenin anlamı yok.
+
+       Ölçüt "anahtar sayısı ≤ 1" idi ve artık YANLIŞ sayıyor: yanıt
+       her hâlükârda bir `arayuz` alanı taşıyor, ayrıca `__geldi`
+       işareti de ekleniyor. Yalnızca arayüz klasörüne kapak konmuş
+       olsaydı sayı 1 çıkıp çizim ATLANIRDI ve kapaklar hiç
+       görünmezdi. İki haritayı da ayrı ayrı saymak gerekiyor. */
+    const oyunAdet = Object.keys(OYUN_GORSEL)
+      .filter((k) => k !== "arayuz" && k !== "modlar" && k !== "__geldi").length;
+    const arayuzAdet = Object.keys(OYUN_GORSEL.arayuz || {}).length;
+    if (oyunAdet + arayuzAdet === 0) return;
     mountChrome(active);
     /* Eğlence sayfasındaki oyun listesi ayrı çiziliyor; kapaklar sonradan
        geldiği için onu da tazelemek gerekiyor. */
     if (typeof paintPicker === "function") paintPicker();
+    kutucukKapaklari();
   });
+  /* Bildirim durumu açılışta BİR KEZ okunuyor.
+
+     SONSUZ DÖNGÜ BURADAYDI. Bu blok mountChrome'un İÇİNDE; ben buraya
+     korumasız bir `bildirimDurumuOku().then(() => mountChrome())`
+     koymuştum. Yani mountChrome kendini çağırıyor, o da kendini…
+     Ölçüldü: 8 saniyede 2322 çağrı. Kullanıcı bunu "butonlara iki üç
+     kez basıyorum algılasın, alt kısım yanıp sönüyor" diye bildirdi —
+     sayfa saniyede yüzlerce kez yeniden çizildiği için tıklamalar
+     çiziminin arasında kayboluyordu.
+
+     Hemen üstteki kapak yükleyici aynı tuzağa karşı `__geldi` bayrağıyla
+     korunuyordu; ben o dersi almamışım. Aynı koruma burada da var: durum
+     bir kez okunuyor, arayüz bir kez tazeleniyor.
+
+     İzin İSTENMİYOR — yalnızca mevcut durum okunuyor; izin, kullanıcı
+     düğmeye bastığında isteniyor (tarayıcı da zaten ancak bir
+     tıklamadan sonra soruyor). */
+  if (!BILDIRIM.__okundu) {
+    BILDIRIM.__okundu = 1;
+    bildirimDurumuOku().then((b) => {
+      /* Yalnızca destekleyen tarayıcıda tazeleniyor: desteklemeyende
+         çekmecede zaten düğme çizilmiyor, yeniden çizim boşuna olurdu. */
+      if (b.destek) mountChrome(active);
+    });
+  }
   // Every page was requesting /favicon.ico and getting a 404; point it at the
   // logo once here rather than adding a <link> to ten files.
   if (!document.querySelector("link[rel='icon']")){

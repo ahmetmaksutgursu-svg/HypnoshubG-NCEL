@@ -40,7 +40,7 @@ try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribut
   <div class="container">
     <p class="eyebrow" id="boardEyebrow">EN İYİ KLANLAR — KLAN SKORUNA GÖRE</p>
     <h1>KLAN LİDERLİK TABLOSU</h1>
-    <p><span class="api-status" data-api-status style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2);color:#eaf0fb"><span class="led"></span>Veri alınamadı</span></p>
+    <p><span class="api-status" data-api-status style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2);color:#eaf0fb"><span class="led"></span>Veri yükleniyor…</span></p>
   </div>
 </section>
 
@@ -72,9 +72,45 @@ try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribut
   </div>
 </section>
 
+
+<!-- REKLAM · alt bilgiden önce -->
+
+<!-- ÖZGÜN İÇERİK — sayfanın verisini nasıl okuyacağını anlatır.
+     Doldurma metin değil: rakamlar sunucudaki ölçümlerden geliyor. -->
+<section class="section aciklama">
+  <div class="container">
+    <div class="aciklama-kutu">
+      <h2>Klan skoru ile savaş kupası aynı şey değil</h2>
+      <p>Bu sayfada iki bağımsız merdiven var ve sekmeler arasında geçiş
+   yaptığınızda gördüğünüz liste tamamen değişir. Karıştırılmaları çok
+   yaygın, oysa bambaşka şeyleri ölçüyorlar.</p>
+      <h3>Klan skoru</h3>
+      <p>Klan skoru büyük ölçüde <b>üyelerin bireysel gücünü</b> yansıtır. Güçlü
+   oyuncuları toplayan bir klan, hiç birlikte iş yapmasa bile bu listede
+   yükselir. Yani yüksek klan skoru "burada iyi oyuncular var" demektir —
+   "bu klan iyi çalışıyor" demek zorunda değildir.</p>
+      <h3>Klan savaşı kupası</h3>
+      <p>Savaş kupası ise klanın <b>birlikte</b> ne yaptığını ölçer: savaşlara
+   kaç üyenin katıldığı, günlerin nasıl kullanıldığı, kararların ne kadar
+   isabetli olduğu. Aktif ve düzenli bir klan, üyelerinin bireysel
+   kupaları çok yüksek olmasa bile bu listede yukarı çıkabilir.</p>
+      <h3>Klan ararken hangisine bakmalı?</h3>
+      <p>Aradığınız şey <i>rekabet</i> ise savaş kupası sıralaması daha
+   anlamlıdır — orada üst sıradaki klanlar düzenli oynayan klanlardır.
+   Aradığınız şey <i>güçlü oyuncularla aynı yerde olmak</i> ise klan skoru
+   listesi daha doğrudur. Bir klana katılmadan önce üye sayısına da bakın:
+   dolu bir klanda yer açılmasını beklemek gerekir ve yeni gelenin savaş
+   günlerine girmesi zaman alabilir.</p>
+    </div>
+  </div>
+</section>
+
+<div class="reklam-yuva" data-reklam="icerik3"></div>
+
 <div id="app-footer"></div>
 <script src="assets/js/data.js"></script>
 <script src="assets/js/app.js"></script>
+<script src="assets/js/reklam.js"></script>
 <script>
 mountChrome("");
 document.getElementById("clanSearchBtn").innerHTML = ICONS.search;

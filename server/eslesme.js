@@ -593,6 +593,19 @@ function durum() {
 const CIFT_TAVAN = Math.max(5000, sayi(process.env.ESLESME_CIFT, 60000));
 const ANALIZ_KADEME = [8, 7, 6, 5];
 
+/* EŞLEŞME HESABI İÇİN AYRI EŞİK.
+
+   Kullanıcı isteği: "en az 30 maçta kimin kazandığından yola
+   çıkarak". Genel MIN_ORNEK (40) meta ekranlarında kullanılıyor ve
+   onu düşürmek oradaki sayıları da gevşetirdi; bu yüzden hesap
+   kendi eşiğiyle çalışıyor.
+
+   30 ile 40 arasındaki fark güven payına yansıyor: 30 maçta %95
+   payı ±18 puan, 40 maçta ±15. İkisi de geniş, o yüzden pay yanıtta
+   AYRICA veriliyor — sayıyı payı olmadan göstermek okuyucuyu
+   yanıltır. */
+const ANALIZ_MIN = Math.max(10, sayi(process.env.ANALIZ_MIN, 30));
+
 function desteNo(anahtar) {
   let no = db.desteNo.get(anahtar);
   if (no == null) { no = db.desteDizin.length; db.desteDizin.push(anahtar); db.desteNo.set(anahtar, no); }
@@ -677,7 +690,10 @@ function kosulSecIdler(idler) {
 /* ---------- MAÇ ANALİZİ ----------
    A ve B: 8'er kart kimliği. Dönen sonuçta `katman` hangi kademeden
    geldiğini söylüyor; ekranda bunu yazmak zorundayız. */
-function analiz(A, B) {
+/* sadeceDeste: arketip yedeğine DÜŞME. Kullanıcı isteği — beş kart
+   ve üzeri eşleşen deste yoksa "bulunamadı" densin, benzer bir
+   arketiple tahmin yürütülmesin. */
+function analiz(A, B, { sadeceDeste = false } = {}) {
   const a = [...A].sort((x, y) => x - y), b = [...B].sort((x, y) => x - y);
   if (a.length !== 8 || b.length !== 8) return { hata: "deste-8-kart" };
 
@@ -696,7 +712,7 @@ function analiz(A, B) {
       if (kA.has(y) && kB.has(x)) { mac += n; gal += n - w; }
     }
     denenen.push({ esik, mac });
-    if (mac >= MIN_ORNEK) {
+    if (mac >= ANALIZ_MIN) {
       const ga = guvenAraligi(gal, mac);
       return { kaynak: "deste", katman: esik, mac, oran: gal / mac,
                alt: ga.alt, ust: ga.ust, pay: ga.pay, denenen };
@@ -705,6 +721,10 @@ function analiz(A, B) {
 
   /* Deste düzeyinde örneklem yoksa arketip tablosuna düşülüyor: senin
      desten hangi meta destesine benziyor, rakibin kazanma koşulu ne. */
+  if (sadeceDeste)
+    return { kaynak: "yok", mac: denenen.length ? Math.max(...denenen.map((d) => d.mac)) : 0,
+             denenen, esik: ANALIZ_MIN };
+
   const liste = metaListesi();
   const metaA = metaEsle(a, liste);
   const kocB = kosulSecIdler(b);
@@ -740,4 +760,4 @@ function ozet(adet = 25) {
 yukle();
 
 module.exports = { basla, durum, ozet, analiz, kosulSec, metaListesi, metaEsle,
-                   KATMAN1, KATMAN2, MIN_ORNEK, ORTUSME, ANALIZ_KADEME };
+                   KATMAN1, KATMAN2, MIN_ORNEK, ANALIZ_MIN, ORTUSME, ANALIZ_KADEME };

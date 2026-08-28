@@ -78,9 +78,14 @@ try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribut
   </div>
 </section>
 
+
+<!-- REKLAM · alt bilgiden önce -->
+<div class="reklam-yuva" data-reklam="icerik3"></div>
+
 <div id="app-footer"></div>
 <script src="assets/js/data.js"></script>
 <script src="assets/js/app.js"></script>
+<script src="assets/js/reklam.js"></script>
 <script>
 mountChrome("");
 document.querySelector(".search-go[onclick^='runSearch']").innerHTML = ICONS.search;
@@ -127,7 +132,7 @@ function paintMembers(){
   document.getElementById("memberBody").innerHTML = rows.map(m=>`
     <tr>
       <td class="rank">${m.no}</td>
-      <td><a class="player-link" href="oyuncu.html?tag=${encodeURIComponent(m.tag)}">${esc(m.name)}</a> <span class="tag">${esc(m.tag)}</span>
+      <td><a class="player-link" href="oyuncu.html?tag=${encodeURIComponent(m.tag)}">${esc(m.name)}</a>${verifyTick(m)} <span class="tag">${esc(m.tag)}</span>
           ${/* Tek başına "Spirit Square" yazınca ne olduğu anlaşılmıyordu —
                 bu, oyuncunun bulunduğu arena. Adı da Türkçeleştirildi. */""}
           ${m.arena ? `<div class="muted" style="font-size:.74rem" title="${LANG==="tr"?"Oyuncunun bulunduğu arena":"The player's current arena"}">Arena: ${esc(m.arena)}</div>` : ""}</td>
@@ -160,7 +165,7 @@ async function runSearch(input){
     return;
   }
 
-  RES.innerHTML = spinnerBox(`“${q}” aranıyor…`);
+  RES.innerHTML = spinnerBox(`“${esc(q)}” aranıyor…`);
   const r = await HypnoAPI.clansSearch(q);
   paintApiStatus();
   if (r === null){
@@ -168,11 +173,11 @@ async function runSearch(input){
     return;
   }
   if (!r.items.length){
-    RES.innerHTML = notice(`<span>🔍</span><span><b>“${q}”</b> adıyla eşleşen klan bulunamadı.</span>`);
+    RES.innerHTML = notice(`<span>🔍</span><span><b>“${esc(q)}”</b> adıyla eşleşen klan bulunamadı.</span>`);
     return;
   }
   RES.innerHTML = `<div class="res-list">
-    <div class="res-head"><b>“${q}” için ${r.items.length} klan</b>
+    <div class="res-head"><b>“${esc(q)}” için ${r.items.length} klan</b>
       <span class="muted" style="margin-left:auto">Clash Royale API klan araması</span></div>
     ${r.items.map(clanResultRow).join("")}
   </div>`;

@@ -1,0 +1,24 @@
+google.com, pub-2829452879673360, DIRECT, f08c47fec0942fa0
+
+# ads.txt — HYPNOSHUB (hypnoshub.pro)
+#
+# KAYIT SATIRI EN ÜSTTE, açıklamalar altında. Google'ın ayrıştırıcısı
+# yorumlarla sorun yaşamıyor ama bazı reklam alıcıları dosyanın yalnızca
+# ilk birkaç kilobaytını okuyor; kaydı başa almak bedelsiz bir güvence.
+#
+# Bu dosya "bu sitenin reklam alanını satmaya kim yetkili" sorusunun
+# cevabı. IAB'nin standardı; reklam alıcıları dosyayı okuyup burada
+# yazmayan bir satıcıdan gelen teklifi sahte sayıyor.
+#
+# Dosya YOKSA Google "Bulunamadı" diyor ve gelir düşebiliyor: bazı
+# alıcılar, sahibi doğrulanmamış envanteri hiç almıyor. Onayı engellemez
+# ama parayı etkiler, o yüzden onay beklerken de durması gerekir.
+#
+# Satırın anlamı:
+#   google.com           → satıcı sistem
+#   pub-2829452879673360 → AdSense yayıncı kimliğimiz. Sitedeki doğrulama
+#                          etiketinde "ca-pub-…" yazıyor; ads.txt'te bu
+#                          önek KULLANILMAZ, biçim böyle doğru.
+#   DIRECT               → doğrudan bizim hesabımız (aracı yok)
+#   f08c47fec0942fa0     → Google'ın TAG kimliği; bütün AdSense
+#                          yayıncılarında aynı, gizli bir değer değil

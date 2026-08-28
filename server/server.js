@@ -14,6 +14,10 @@
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
+/* Kalkan EN ÜSTTE yükleniyor: cr() sarmalayıcısı bu dosyanın epey
+   başında (~190. satır) kuruluyor, diğer modüller ise çok aşağıda. */
+const kalkan = require("./kalkan");
+const onay = require("./onay");
 // .env her zaman bu klasörden okunur — sunucu hangi dizinden başlatılırsa başlatılsın.
 require("dotenv").config({ path: path.join(__dirname, ".env") });
 
@@ -59,8 +63,35 @@ const app = express();
    adresleri kabul etmek olurdu ve o zaman istemci kendi
    X-Forwarded-For başlığını uydurup sınırı atlayabilirdi.
    Railway'de trafik tek kenar vekilinden geldiği için doğru sayı 1.
+
+   CLOUDFLARE AÇILIRSA BU SAYI 2 OLMALI.
+   Zincir "ziyaretçi → Cloudflare → Railway" olur ve Railway,
+   Cloudflare'in adresini X-Forwarded-For'a ekler. Ölçüldü:
+
+     XFF: "203.0.113.9, 172.68.1.1"   (ziyaretçi, Cloudflare)
+       trust=1 → 172.68.1.1   ← CLOUDFLARE'İN adresi, ziyaretçinin değil
+       trust=2 → 203.0.113.9  ← doğru
+
+   Turuncu bulut açılıp bu sayı 1'de kalırsa BÜTÜN ziyaretçiler
+   avuç içi kadar Cloudflare adresi olarak görünür — yukarıda
+   anlatılan yayın günü olayının birebir aynısı. Üstelik yarışmadaki
+   bot koruması IP başına 3 GÜN yasak veriyor; masum kullanıcılar
+   toplu hâlde yasaklanırdı.
+
+   Ters yönü de tehlikeli, o da ölçüldü: Cloudflare KAPALIYKEN sayı 2
+   olursa istemcinin uydurduğu X-Forwarded-For kabul ediliyor
+   (deneyde "1.2.3.4" olduğu gibi geçti) — hız sınırı ve yasaklar
+   atlatılabilir hâle gelir.
+
+   Bu yüzden sayı sabit değil: turuncu bulut açıldığı GÜN Railway
+   Variables'ta TRUST_PROXY=2 yapılır, ikisi birlikte çevrilir.
+   Varsayılan 1 — bugünkü kurulum (yalnızca Railway) için doğru olan.
    ============================================================ */
-app.set("trust proxy", 1);
+const TRUST_PROXY = (() => {
+  const ham = parseInt(process.env.TRUST_PROXY, 10);
+  return Number.isFinite(ham) && ham >= 0 ? ham : 1;
+})();
+app.set("trust proxy", TRUST_PROXY);
 const PORT = process.env.PORT || 8787;
 const TOKEN = process.env.CR_API_TOKEN;
 /* Clash Royale API adresi.
@@ -100,14 +131,48 @@ if (!TOKEN) {
    · Referrer-Policy: başka siteye geçerken tam adres sızmasın (oyuncu
      etiketi arama adreslerinde geçiyor).
 
-   İçerik Güvenlik Politikası (CSP) BİLEREK eklenmedi: sayfalar satır içi
-   script kullanıyor, katı bir CSP siteyi anında bozar. Doğru yapılması
-   ayrı ve dikkatli bir iş.
+   İçerik Güvenlik Politikası (CSP) — KISMİ.
+
+   `script-src` hâlâ eklenmiyor ve sebebi değişmedi: sayfalar satır içi
+   olay işleyicileri kullanıyor (onclick="openGame('duello')" gibi
+   yüzlerce yer). Katı bir script-src bunları öldürür; 'unsafe-inline'
+   ile yazılan bir script-src ise KORUMA SAĞLAMAZ, yalnızca korunuyormuş
+   görüntüsü verir. İkisi de yanlış olacağı için o kısım dürüstçe boş
+   bırakıldı — düzgün yapılması satır içi işleyicilerin tamamının
+   ayıklanmasını gerektiriyor, ayrı ve büyük bir iş.
+
+   Ama CSP'nin script'ten BAĞIMSIZ çalışan kısımları var ve onlar satır
+   içi kodu hiç ilgilendirmiyor. Eklendiler:
+
+     · base-uri 'self'     — sayfaya <base href="kotusite"> sokulmasını
+       engelliyor. Bu, tek başına küçük görünen ama ciddi bir kaldıraç:
+       bir saldırgan <base> yerleştirebilirse sayfadaki BÜTÜN göreli
+       adresler (script, form, istek) kendi sunucusuna yönelir.
+     · object-src 'none'   — eklenti tabanlı (<object>, <embed>) saldırı
+       yollarını tamamen kapatıyor. Sitede hiç kullanılmıyor.
+     · form-action 'self'  — enjekte edilmiş bir formun parolayı başka
+       bir sunucuya göndermesini engelliyor.
+     · frame-ancestors 'self' — X-Frame-Options'ın modern karşılığı;
+       eski başlık dursun diye ikisi birden veriliyor.
+
+   Bunların hiçbiri satır içi script'i etkilemediği için siteyi bozma
+   riski yok; ölçüldü (bkz. t_gorunum, 130 denetim).
    ============================================================ */
 const GUVENLIK_BASLIKLARI = true;
+/* Sunucunun ne olduğunu söylemeye gerek yok. Express sürümüne özel bir
+   açık çıktığında, tarayıp "Express" yazan siteleri toplayan otomatik
+   araçların listesine girmemek küçük ama bedava bir kazanç. */
+app.disable("x-powered-by");
+const CSP = [
+  "base-uri 'self'",
+  "object-src 'none'",
+  "form-action 'self'",
+  "frame-ancestors 'self'",
+].join("; ");
 app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("Content-Security-Policy", CSP);
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   /* Kullanılmayan güçlü tarayıcı özellikleri kapalı olsun. */
   res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=(), payment=()");
@@ -126,13 +191,17 @@ app.use((req, res, next) => {
 });
 
 /* --- Helper: call the Clash Royale API --- */
-async function cr(path) {
+/* HAM çağrı. Doğrudan KULLANILMIYOR — aşağıdaki `cr` kalkanla
+   sarmalanmış hâli. Kulüp sayfasının içindeki ~50 çağrı da bu
+   sarmalayıcıdan geçiyor, yani genel bütçe gerçek maliyeti görüyor. */
+async function crHam(path) {
   const res = await fetch(CR_BASE + path, {
     headers: { Authorization: `Bearer ${TOKEN}`, Accept: "application/json" },
   });
   const body = await res.json().catch(() => ({}));
   return { status: res.status, body };
 }
+const cr = kalkan.olc(crHam);
 
 // Clash Royale tags start with '#', which must be encoded as %23.
 const normTag = (t) => "%23" + decodeURIComponent(String(t)).replace(/^#/, "").toUpperCase();
@@ -653,12 +722,196 @@ function looksLikeTag(s) {
    yazıyordu (API 3 derken arayüz 2 gösteriyordu), /api/auth/me için de
    aynı risk vardı — ortak bilgisayarda önceki kişinin adı görünebilirdi.
    Sıralama/kart gibi herkese aynı olan uçlar bunun dışında. */
-app.use(["/api/auth", "/api/games", "/api/quiz", "/api/feedback", "/api/board", "/api/messages", "/api/pro"], (req, res, next) => {
+/* `/api/admin` ve `/api/bildirim` SONRADAN eklendi. İkisi de bu dosyada
+   değil, ayrı modüllerde kaydediliyor (auth.js, bildirim.js) ve listeye hiç
+   girmemişlerdi — ölçüldü, ikisi de Cache-Control başlığı OLMADAN yanıt
+   veriyordu. `/api/admin` yönetici ekranının verisini (kullanıcı listesi,
+   e-postalar, mesajlar) döndürüyor; `/api/bildirim/durum` ise kişiye özel
+   (`girisli`, `cihaz`). Yukarıda anlatılan olayın aynısının bu uçlarda
+   yaşanmaması için kapsama alındılar. Kenar önbelleği (Cloudflare) devreye
+   girdiğinde bu başlık daha da kritik. */
+app.use(["/api/auth", "/api/admin", "/api/bildirim", "/api/games", "/api/quiz",
+         "/api/feedback", "/api/board", "/api/messages", "/api/pro"], (req, res, next) => {
   res.set("Cache-Control", "no-store");
   next();
 });
 
-app.get("/api/health", (req, res) => res.json({ ok: true, hasToken: !!TOKEN }));
+/* Sağlık ucu ayrıca VEKİL ZİNCİRİNİ bildiriyor.
+
+   Neden: `req.ip` yanlış okunursa hiçbir hata çıkmaz — site çalışmaya
+   devam eder, ama bütün ziyaretçiler tek adres gibi görünür ve hız
+   sınırları herkesi keser, bot yasakları masum kullanıcıları vurur.
+   Yayın gününde tam bu yaşandı. Cloudflare devreye girince zincir bir
+   adım uzuyor ve TRUST_PROXY buna göre ayarlanmazsa aynı hata döner.
+
+   Cloudflare gerçek ziyaretçiyi `CF-Connecting-IP` başlığında bildiriyor.
+   Bizim okuduğumuz adres ona eşitse zincir doğrudur. IP'nin KENDİSİ
+   yazılmıyor — yalnızca eşleşip eşleşmediği. Böylece kimsenin adresi
+   açığa çıkmadan ayarın doğruluğu dışarıdan denetlenebiliyor. */
+/* Sağlık ucu ayrıca ZİYARETÇİ ADRESİNİN doğru okunduğunu bildiriyor.
+
+   Neden gerekli: adres yanlış okunursa hiçbir hata çıkmaz — site
+   çalışır ama bütün ziyaretçiler tek kişi gibi görünür ve hız
+   sınırları herkesi keser. Sessizce bozulabilecek türden bir ayar,
+   o yüzden dışarıdan denetlenebilir olması önemli.
+
+   ADRES YAZILMIYOR — yalnızca Cloudflare'in bildirdiği ziyaretçiyle
+   bizim okuduğumuzun aynı olup olmadığı. */
+app.get("/api/health", (req, res) => {
+  const cf = String(req.headers["cf-connecting-ip"] || "").replace(/^::ffff:/, "");
+  const vekil = !cf ? "cloudflare-yok"          // yerel ya da doğrudan Railway
+    : (cf === gercekIp(req) ? "dogru" : "YANLIS");
+  /* Posta ayarı TANIMLI mı — şifre değil, yalnızca var/yok. Parola
+     sıfırlama buna bağlı ve sessizce kapanabilir: değişken silinirse
+     akış çalışmaya devam eder ama kod hiç gitmez, kullanıcı da sebebini
+     anlamaz. Dışarıdan denetlenebilir olması bu yüzden. */
+  res.json({ ok: true, hasToken: !!TOKEN, vekil, trustProxy: TRUST_PROXY,
+             /* Kaynak doğrulaması KURULU mu — anahtarın kendisi değil,
+                yalnızca var/yok. Kurulu değilken CF-Connecting-IP
+                sahtelenebiliyor ve bütün IP sınırları etkisiz kalıyor
+                (ölçüldü: 150/150 istek geçti), o yüzden dışarıdan
+                denetlenebilir olması gerekiyor. */
+             kaynakKorumasi: require("./gercekip").korumaAcik(),
+             posta: require("./mail").hazirMi(),
+             /* GERÇEKTEN gönderebiliyor muyuz? `posta` yalnızca ayarın
+                tanımlı olduğunu söylüyor; Railway giden SMTP'yi engellediği
+                için ayar tanımlı olsa da gönderim yapılamıyor. Arayüzdeki
+                "Şifremi unuttum" bağlantısı buna bakıyor. */
+             postaCalisiyor: require("./mail").calisiyorMu(),
+             /* Kalkanın o anki yükü. Saldırı sırasında dışarıdan
+                bakıp "bütçe doldu mu, kaç çağrı engellendi" diye
+                görebilmek için; sayılar kimlik değil, yalnızca yük. */
+             kalkan: kalkan.durum(),
+             /* Çerez onay oranı — reklam gelirinin doğrudan çarpanı.
+                Kimlik yok, yalnızca iki sayaç (bkz. onay.js). */
+             onay: onay.durum() });
+});
+
+/* Yedek durumu — YÖNETİCİYE ÖZEL. Yedeklerin gerçekten alındığı
+   panelden görülebilsin; "alınıyordur" varsaymak kaybın en yaygın
+   sebebi. */
+/* HABERLER — herkese açık okuma.
+
+   `?yer=anasayfa` öne çıkanları önde tutup ilk üçü veriyor;
+   parametresiz çağrı tam listeyi. Önbellek KISA: yönetici bir haber
+   eklediğinde ziyaretçinin onu dakikalarca görmemesi anlamsız. */
+app.get("/api/haberler", (req, res) => {
+  res.set("Cache-Control", "public, max-age=60");
+  const yer = String(req.query.yer || "");
+  if (yer === "anasayfa") return res.json({ items: haber.anasayfa() });
+  const tur = String(req.query.tur || "");
+  res.json({ items: haber.liste({ tur }) });
+});
+
+/* GÖVDE AYRIŞTIRICISI BURADA AYRICA KURULUYOR — sıralama yüzünden.
+
+   Bu uçlar dosyanın başında tanımlı; `/api/admin` için JSON ayrıştırıcısı
+   ise auth.mount() içinde, çok daha SONRA kuruluyor. Express ara yazılımı
+   kayıt sırasına göre çalıştırdığı için rota, ayrıştırıcı daha yokken
+   devreye giriyordu ve req.body BOŞ kalıyordu: gönderilen başlık sunucuya
+   hiç ulaşmadan "Başlık boş olamaz" hatası dönüyordu.
+
+   express.json gövde zaten ayrıştırılmışsa atlıyor, yani ikinci kez
+   kurulması zarar vermiyor. */
+app.use("/api/admin/haber", require("express").json({ limit: "8kb" }));
+
+/* Haber EKLE / SİL — yalnızca yönetici. */
+app.post("/api/admin/haber", (req, res) => {
+  const s = proNeedAdmin(req, res); if (!s) return;
+  const r = haber.ekle(req.body || {});
+  if (r.hata) {
+    const mesaj = { baslik: "Başlık boş olamaz.", tur: "Tür geçersiz.",
+                    tarih: "Tarih GG biçiminde olmalı (YYYY-AA-GG)." }[r.hata] || "Eklenemedi.";
+    return res.status(400).json({ error: r.hata, message: mesaj });
+  }
+  console.log(`📰  Haber eklendi (${s.user.username}): [${r.haber.tur}] ${r.haber.baslik}`);
+  res.json(r);
+});
+
+/* DUYURUYU AYRIŞTIR — oyun içi metni düzenli listeye çevirir.
+
+   Yalnızca metni dönüştürüyor, hiçbir şey KAYDETMİYOR: yönetici
+   sonucu görüp beğenirse yayınlıyor. Kaydetmeden önce görmek,
+   yanlış ayrıştırılmış bir duyurunun siteye düşmesini engelliyor. */
+app.post("/api/admin/haber/ayristir", async (req, res) => {
+  const s = proNeedAdmin(req, res); if (!s) return;
+  const ham = String((req.body && req.body.metin) || "");
+  if (!ham.trim()) return res.status(400).json({ error: "bos", message: "Yapıştırılacak metin yok." });
+
+  let sozluk = null;
+  try {
+    const harita = await cardNamesTR();
+    const trTr = new Map(), enTr = new Map();
+    for (const [en, tr] of harita) {
+      trTr.set(String(tr).toLocaleLowerCase("tr"), tr);
+      enTr.set(String(en).toLowerCase(), tr);
+    }
+    sozluk = { trTr, enTr };
+  } catch { /* sözlük yoksa adlar olduğu gibi kalır */ }
+
+  const cikti = duyuru.ayristir(ham, sozluk);
+  if (!cikti) return res.status(422).json({ error: "cozulemedi",
+    message: "Metinden kart listesi çıkarılamadı. Duyuruyu olduğu gibi yapıştırdığından emin ol." });
+  res.json({ ok: true, metin: cikti });
+});
+
+/* Haberi DÜZENLE — akış sayısal ayrıntı veremediği için yönetici
+   oyun içi duyurudaki değerleri buradan tamamlıyor. */
+app.patch("/api/admin/haber/:kimlik", (req, res) => {
+  const s = proNeedAdmin(req, res); if (!s) return;
+  const r = haber.guncelle(req.params.kimlik, req.body || {});
+  if (r.hata) {
+    const mesaj = { yok: "Haber bulunamadı.", baslik: "Başlık boş olamaz.",
+                    tur: "Tür geçersiz.", tarih: "Tarih YYYY-AA-GG olmalı." }[r.hata] || "Güncellenemedi.";
+    return res.status(r.hata === "yok" ? 404 : 400).json({ error: r.hata, message: mesaj });
+  }
+  console.log(`📰  Haber düzenlendi (${s.user.username}): ${r.haber.baslik}`);
+  res.json(r);
+});
+
+app.delete("/api/admin/haber/:kimlik", (req, res) => {
+  const s = proNeedAdmin(req, res); if (!s) return;
+  const r = haber.sil(req.params.kimlik);
+  if (r.hata) return res.status(404).json({ error: "yok", message: "Haber bulunamadı." });
+  console.log(`📰  Haber silindi (${s.user.username}): ${r.haber.baslik}`);
+  res.json(r);
+});
+
+app.get("/api/admin/yedek", (req, res) => {
+  const s = proNeedAdmin(req, res); if (!s) return;
+  res.json(yedek.durum());
+});
+
+/* YEDEĞİ İNDİR — yönetici, tarayıcıdan tek tıkla.
+
+   NEDEN GEREKLİ: günlük yedekler /data/yedek altında, yani VERİNİN
+   DURDUĞU DİSKİN ÜSTÜNDE. Disk bozulur ya da birim silinirse yedekler
+   de onunla gider — "yedeğimiz var" duygusu verip hiçbir şey
+   kurtarmayan tam olarak bu düzendir. Gerçek yedek, kopyanın
+   sunucudan ÇIKMIŞ olanıdır.
+
+   `?yeni=1` önce taze bir yedek alır, sonra onu gönderir; parametresiz
+   çağrı en son alınanı verir.
+
+   Dosya kullanıcı hesaplarını ve parola özetlerini taşıyor: yanıt
+   hiçbir ara bellekte durmasın diye no-store, indirme olarak işaretli
+   ve yalnızca yöneticiye açık. */
+app.get("/api/admin/yedek/indir", (req, res) => {
+  const s = proNeedAdmin(req, res); if (!s) return;
+
+  if (String(req.query.yeni || "") === "1") yedek.al();
+
+  const ad = String(req.query.ad || "") || yedek.sonuncu();
+  if (!ad) return res.status(404).json({ error: "yok", message: "Henüz yedek alınmamış. ?yeni=1 ile taze yedek al." });
+
+  const govde = yedek.oku(ad);
+  if (!govde) return res.status(404).json({ error: "yok", message: "Yedek bulunamadı." });
+
+  res.set("Cache-Control", "no-store");
+  res.set("Content-Type", "application/gzip");
+  res.set("Content-Disposition", `attachment; filename="${ad}"`);
+  res.send(govde);
+});
 
 /* ---------- anlık kullanıcı sayacı ----------
    Her API isteği işaretleniyor. Sayfa dosyaları (HTML/CSS) sayılmıyor;
@@ -677,6 +930,32 @@ app.use("/api", (req, res, next) => {
   next();
 });
 
+/* KALKAN — pahalı uçlara ziyaretçi sınırı.
+
+   Sayaçtan SONRA takılıyor: engellenen istek de bir ziyaret sayılsın,
+   yoksa saldırı anında sitede kimse yokmuş gibi görünürdü.
+
+   İKİ ayrı bütçe işletiyor (bkz. kalkan.js):
+
+     · MALIYET — yukarı akışa (Supercell) yük bindiren uçlar. Kulüp,
+       profil, arama… Önbellekten dönen istek puanını geri alıyor.
+     · GENEL İSTEK — ham istek sayısı, TÜM /api uçları için. Önbellekli
+       uçlar da dâhil.
+
+   İkincisi sonradan eklendi. Burada eskiden "tabloya, habere, kart
+   verisine dokunmuyor — onlar zaten önbellekten dönüyor" yazıyordu ve
+   bu doğruydu ama eksikti: ucuz olmak sınırsız olmak değil. Ölçüldü
+   (canlı, 28.08.2026) — /api/cards ucuna 40 istek, 40'ı da geçti;
+   aynı anda /api/clan/ 40 istekten 38'ini kesti. 64 KB'lık bir yanıtı
+   dakikada binlerce kez üretmek veri sızdırmasa da sunucuyu meşgul
+   eder. Artık ham istek de sayılıyor.
+
+   Statik dosyalar (CSS, JS, kart görselleri) SAYILMIYOR: bu katman yol
+   verilmeden takılı ve express.static ondan sonra geliyor, o yüzden
+   kalkan içinde /api guard'ı var. Olmasaydı tek bir sayfa açılışı
+   onlarca görselle ani tavanı doldururdu. */
+app.use(kalkan.katman);
+
 /*
   Player search. Returns a LIST — it never guesses a single profile.
   An exact tag short-circuits to the real lookup; a name is matched against the
@@ -686,7 +965,10 @@ app.get("/api/players/search", async (req, res) => {
   try {
     const q = String(req.query.name || "").trim();
     const limit = Math.min(parseInt(req.query.limit) || 50, 100);
-    const badge = await badgeLookup();
+    /* Tur bitti: eski kayıtları at, diske yaz. */
+  modmeta.turBitti();
+
+  const badge = await badgeLookup();
     const base = { query: q, indexed: pIndex.rows.length, ready: true, items: [] };
 
     if (!q) return res.json(base);
@@ -841,26 +1123,61 @@ app.get("/api/players/index", (req, res) => {
   });
 });
 
+/* PROFİL ÖNBELLEĞİ. Önce hiç yoktu: aynı etiket için art arda dört
+   istek atıldığında dördü de ~0,7 sn sürüyordu, yani dördü de
+   Supercell'e gidiyordu (ölçüldü).
+
+   Süre KISA (60 sn) çünkü oyuncu maç yapınca kupası değişiyor ve
+   profilin bayat görünmesi istenmiyor. Bir dakika, sayfayı yenileyip
+   duran ya da sekmeler arasında gidip gelen kişiyi tamamen karşılıyor.
+
+   BULUNAMAYAN etiket de saklanıyor (negatif önbellek) ve daha UZUN:
+   var olmayan bir etiket birden var olmaz. Rastgele etiket tarayan
+   bot bize bir yukarı akış çağrısına mal oluyordu; artık ikinci
+   denemesi bedava — ama bize de bedava. */
+const PROFIL_SURE = 60e3;
+const YOK_SURE = 300e3;
+
 app.get("/api/player/:tag", async (req, res) => {
   try {
-    const { status, body } = await cr(`/players/${normTag(req.params.tag)}`);
+    const etiket = normTag(req.params.tag);
+    const onbellekli = cache.get("pl:" + etiket);
+    const taze = onbellekli && (Date.now() - onbellekli.t <
+      (onbellekli.v && onbellekli.v.status === 200 ? PROFIL_SURE : YOK_SURE));
+    if (taze) { kalkan.bedava(req); return res.status(onbellekli.v.status).json(onbellekli.v.body); }
+    const { status, body } = await cr(`/players/${etiket}`);
     if (status === 200 && body.clan) body.clan.badge = (await badgeLookup())(body.clan.badgeId);
     // Profil başlığındaki arena adı da Türkçe olsun (bkz. arenaNames).
     if (status === 200 && body.arena?.name) body.arena.nameTR = arenaTR(await arenaNames(), body.arena.name);
     // Rozetler profilde de görünsün (resmi hesap tiki + pro).
     if (status === 200 && body.tag) {
+      /* ÖNCE öğren, SONRA rozetle: oyuncu ilk kez açıldığında rozeti aynı
+         istekte çıksın, bir sonraki ziyareti beklemesin. */
+      prosezon.ogren(body);
       const rz = rozetle({}, body.tag, await proPlayers(),
                          body.currentPathOfLegendSeasonResult?.trophies);
       if (rz.verified) { body.verified = true; body.verifiedNote = rz.note; }
-      if (rz.pro) { body.pro = true; body.proRank = rz.proRank; }
+      if (rz.pro) { body.pro = true; body.proRank = rz.proRank; if (rz.proSezon) body.proSezon = true; }
     }
+    /* 429 SAKLANMIYOR: üst akış bizi kısıtladıysa ya da genel bütçe
+       dolduysa bu geçici bir durum; beş dakika boyunca herkese hata
+       döndürmek olurdu. */
+    if (status !== 429) cache.set("pl:" + etiket, { t: Date.now(), v: { status, body } });
     res.status(status).json(body);
   } catch (e) { res.status(502).json({ error: "upstream_error", detail: String(e) }); }
 });
 
+/* Savaş günlüğü de önbellekli. Süre profille aynı mantıkta: yeni maç
+   bir dakika içinde görünür. */
 app.get("/api/player/:tag/battlelog", async (req, res) => {
   try {
-    const { status, body } = await cr(`/players/${normTag(req.params.tag)}/battlelog`);
+    const etiket = normTag(req.params.tag);
+    const onbellekli = cache.get("bl:" + etiket);
+    if (onbellekli && Date.now() - onbellekli.t < PROFIL_SURE) {
+      kalkan.bedava(req);
+      return res.status(onbellekli.v.status).json(onbellekli.v.body);
+    }
+    const { status, body } = await cr(`/players/${etiket}/battlelog`);
     /* Savaş günlüğündeki her oyuncuya rozetlerini iliştir: karşına pro bir
        oyuncu ya da tanınmış bir hesap çıktıysa günlükte de görünsün. */
     if (status === 200 && Array.isArray(body)) {
@@ -868,7 +1185,11 @@ app.get("/api/player/:tag/battlelog", async (req, res) => {
       for (const b of body)
         for (const taraf of [...(b.team || []), ...(b.opponent || [])])
           if (taraf && taraf.tag) rozetle(taraf, taraf.tag, pro);
+      /* Her tarafa rakibin kulelerine vurduğu hasarı yaz. Anahtar
+         tanınmıyorsa alan hiç eklenmiyor — arayüz de o zaman yazmıyor. */
+      for (const b of body) kule.isle(b);
     }
+    if (status !== 429) cache.set("bl:" + etiket, { t: Date.now(), v: { status, body } });
     res.status(status).json(body);
   } catch (e) { res.status(502).json({ error: "upstream_error", detail: String(e) }); }
 });
@@ -885,6 +1206,12 @@ app.get("/api/player/:tag/battlelog", async (req, res) => {
 app.get("/api/clan/:tag", async (req, res) => {
   try {
     const tag = normTag(req.params.tag);
+    /* Önbellekte TAZE kopya varsa ziyaretçinin puanını geri ver:
+       kulüp sayfaları arasında gidip gelmek yukarı akışa hiçbir şeye
+       mal olmuyor, o yüzden kotadan da düşmemeli. (Ölçüldü: aynı
+       kulüp ikinci kez 0 çağrı, 2 ms.) */
+    const kopya = cache.get("clan:" + tag);
+    if (kopya && Date.now() - kopya.t < 600e3) kalkan.bedava(req);
     const data = await cached("clan:" + tag, 600e3, async () => {
       const { status, body } = await cr(`/clans/${tag}`);
       if (status !== 200 || !body.tag) return { status, body };
@@ -894,6 +1221,23 @@ app.get("/api/clan/:tag", async (req, res) => {
       const details = await pool(body.memberList || [], 8, async (m) => {
         try { const r = await crRetry(`/players/${normTag(m.tag)}`); return r.status === 200 ? r.body : null; }
         catch { return null; }
+      });
+      /* Rozetler üye listesinde de görünsün. Eksikti: profilde PRO yazan
+         oyuncu klan listesinde rozetsiz çıkıyordu (kullanıcı bildirdi).
+         Yalnızca yeni sezon PRO'su değil, resmi hesap tiki ve dünya ilk 100
+         rozeti de hiç basılmıyordu — eski bir boşluk.
+
+         SIRA ÖNEMLİ: önce yukarıda çekilen profillerden "en iyi sezon"
+         öğreniliyor, sonra rozet basılıyor. Tersi olsaydı liste ilk açılışta
+         rozetsiz çıkar, ancak o üyenin profili ayrıca açıldıktan SONRA
+         düzelirdi — sınama tam bu uyuşmazlığı yakaladı. Profiller zaten
+         çekiliyor (seviye ve lig için), ek API maliyeti yok. */
+      /* ÖĞRENME önbelleğin içinde kalıyor (profiller zaten burada çekiliyor);
+         ROZET BASMA ise dışarı taşındı — bkz. Nihai sıralamasındaki not.
+         Bu sezonki madalyon da kurala giriyor, o yüzden üyeye yazılıyor. */
+      for (const p of details) if (p) prosezon.ogren(p);
+      (body.memberList || []).forEach((m, i) => {
+        m.__sezonMadalyon = details[i]?.currentPathOfLegendSeasonResult?.trophies ?? null;
       });
       (body.memberList || []).forEach((m, i) => {
         const p = details[i];
@@ -913,6 +1257,11 @@ app.get("/api/clan/:tag", async (req, res) => {
         if (m.arena?.name) m.arena.nameTR = arenaTR(arenaAd, m.arena.name);
       });
       return { status, body };
+    });
+    const proKlan = await proPlayers();
+    (data.body?.memberList || []).forEach((m) => {
+      if (!m.tag) return;
+      rozetle(m, m.tag, proKlan, m.__sezonMadalyon);
     });
     res.status(data.status).json(data.body);
   } catch (e) { res.status(502).json({ error: "upstream_error", detail: String(e) }); }
@@ -1036,11 +1385,18 @@ app.get("/api/rankings/pathoflegend", async (req, res) => {
         p.deckAt = b.battleTime || "";
         p.deckRanked = b.type === "pathOfLegend";
       });
-      // Sıralama satırlarında da rozetler görünsün (madalyon kuralı dahil).
-      const pro = await proPlayers();
-      (body.items || []).forEach((p) => { if (p.tag) rozetle(p, p.tag, pro, p.eloRating); });
       return { status, body };
     });
+    /* ROZETLER ÖNBELLEĞİN DIŞINDA. Eskiden yukarıdaki derleyicinin içindeydi
+       ve karara 10 dakikalığına mühürleniyordu: bir oyuncunun profili
+       açılıp "en iyi sezon" öğrenildiğinde bile sıralama onu rozetsiz
+       göstermeye devam ediyordu (kullanıcı bildirdi). Aynı sorun yönetici
+       bir rozeti verdiğinde/kaldırdığında da yaşanıyordu.
+
+       Maliyeti yok: rozet kararı bellekteki listelere bakıyor, ağ isteği
+       içermiyor. */
+    const pro = await proPlayers();
+    (data.body?.items || []).forEach((p) => { if (p.tag) rozetle(p, p.tag, pro, p.eloRating); });
     res.status(data.status).json(data.body);
   } catch (e) { res.status(502).json({ error: "upstream_error", detail: String(e) }); }
 });
@@ -1133,6 +1489,30 @@ const CHR_BASE = "https://royaleapi.github.io/cr-api-assets";
 const CHR_INDEX = (dir) => `https://api.github.com/repos/RoyaleAPI/cr-api-assets/contents/${dir}`;
 const chrKey = (s) => String(s).toLowerCase().replace(/\.png$/, "").replace(/[^a-z0-9]/g, "");
 
+/* ============================================================
+   DIŞ VERİ ÖNBELLEKLERİNİN TAZELENME SÜRESİ
+   ------------------------------------------------------------
+   Kart türleri, özellikleri, Türkçe adları, savaş değerleri ve
+   ARENA bilgisi dışarıdaki veri dosyalarından geliyor. Altısı da
+   bir kez çekilip SÜRESİZ saklanıyordu: `if (harita) return harita`.
+
+   Bunun bedeli kullanıcı tarafından bildirildi — Bomba Kulesi'nin
+   4. arenada açıldığı, sistemin 3 dediği. Ölçüldüğünde veri kaynağı
+   4 diyordu, yani dosya düzelmişti; süreç eski kopyayı tutuyordu.
+   Supercell bir kart eklediğinde ya da bir değer düzeltildiğinde,
+   site YENİDEN DAĞITIM yapılana kadar eski sayıyı söylemeye devam
+   ediyordu. Yeniden dağıtım da veri düzeltmek için değil, kod
+   değiştiğinde yapıldığı için arada haftalar geçebiliyordu.
+
+   Altı saat seçildi: oyun verisi bu hızda değişmiyor, ama bir
+   düzeltme en geç yarım günde kendiliğinden yerine oturuyor.
+
+   Tazeleme BAŞARISIZ olursa eski kopya korunuyor. Ağ kesintisinde
+   haritayı boşaltmak, sorunun kendisinden daha kötü olurdu: kart
+   türü bilinmeyince oyunlar soru üretemez, site sessizce boşalır. */
+const DIS_VERI_TTL = 6 * 3600e3;
+const tazeMi = (an) => an && Date.now() - an < DIS_VERI_TTL;
+
 /*
   Card kinds. The Clash Royale API's /cards has no type field at all (just
   name/id/maxLevel/elixirCost/iconUrls/rarity), so "is this a character or a
@@ -1141,21 +1521,90 @@ const chrKey = (s) => String(s).toLowerCase().replace(/\.png$/, "").replace(/[^a
   needs: a spell like Arrows or The Log has no hero to show.
 */
 const CARD_DATA = "https://royaleapi.github.io/cr-api-data/json/cards.json";
-let kindMap = null;
+let kindMap = null, kindAn = 0;
+/* KART TÜRÜ DÜZELTMELERİ.
+
+   Kaynak veri (cr-api-data) oyunun dengeleme güncellemelerinin gerisinde
+   kalabiliyor: Supercell bir kartı yeniden tasarlayıp türünü değiştirdiğinde
+   veri günlerce eski hâlini göstermeye devam ediyor. Yarışmada bunun bedeli
+   doğrudan: "Fırın hangi tür bir karttır?" sorusunda oyuncu oyunda gördüğü
+   doğru cevabı veriyor ve yanlış sayılıyor (kullanıcı bildirdi).
+
+   Buradaki liste kaynak veriyi EZER. Kaynak düzeldiğinde satır silinebilir;
+   silinmezse de zarar vermez, aynı değeri söylemiş olur. */
+const TUR_DUZELTME = new Map([
+  ["furnace", "Troop"],          // Fırın: yeniden tasarımla binadan birliğe geçti
+]);
+
+/* KAYNAKTA HİÇ OLMAYAN KARTLAR — kimlik bloğundan tamamlanıyor.
+
+   TUR_DUZELTME yanlış türü düzeltiyor; bu ise türü HİÇ OLMAYAN kartlar
+   için. Ölçüldü: 122 kartın 13ünde tür boş — Küçük Prens, Goblinstein,
+   Ronin, Boşluk, Sarmaşıklar gibi yeni kartlar kaynak veride yok.
+
+   Boş tür sessiz bir hata değil, GERÇEK bir arıza: deste önerisi yedek
+   kartı aynı türden seçiyor ve "" hiçbir türle eşleşmediği için o kart
+   destede KİLİTLİ kalıyordu. Kullanıcı bildirdi — "önerdiğin desteler
+   düşük seviyeli geldi"; sebebi buydu, Goblinstein sv13 ile kilitliydi
+   ve 54 adayın hepsi "tür uyuşmuyor" diye eleniyordu.
+
+   ÖLÇÜM: Clash Royale kart kimlikleri türe göre bloklanmış.
+     26xxxxxx -> Troop     77/77 doğru
+     27xxxxxx -> Building  12/13 doğru  (istisna: Fırın)
+     28xxxxxx -> Spell     18/19 doğru  (istisna: İyileştirici Ruh)
+   Türü bilinen 108 kartta 106 doğru. İki istisna da zaten TUR_DUZELTME
+   ile ya da kaynaktan doğru geliyor.
+
+   Tahmin değil ölçüm, ama %100 de değil — o yüzden yalnızca BOŞLUĞU
+   dolduruyor, kaynağı hiçbir yerde ezmiyor. */
+const turBlogu = (id) =>
+  ({ 26: "Troop", 27: "Building", 28: "Spell" })[Math.floor(Number(id) / 1000000)] || "";
+
 async function cardKinds() {
-  if (kindMap) return kindMap;
+  if (kindMap && tazeMi(kindAn)) return kindMap;
+  /* Tazeleme başarısız olursa ELDEKİ kopya korunuyor ve damga
+     kurulmuyor, yani bir sonraki istek yeniden deniyor. Boş bir
+     haritayı önbelleğe almak, tek bir ağ kesintisini kalıcı hasara
+     çevirirdi. */
+  const eski_kindMap = kindMap;
   kindMap = new Map();
   try {
     const j = await (await fetch(CARD_DATA)).json();
-    j.forEach((c) => kindMap.set(chrKey(c.name), c.type));
-    console.log(`🃏  Kart tipi eşlemesi yüklendi (${kindMap.size} kart).`);
+    j.forEach((c) => {
+      const k = chrKey(c.name);
+      kindMap.set(k, TUR_DUZELTME.get(k) || c.type);
+    });
+    /* Kaynakta HİÇ olmayan kartların türünü kimlik bloğundan tamamla.
+       Var olan bir değeri asla ezmiyor. */
+    let tamamlanan = 0;
+    try {
+      const resmi = await kartListesi();
+      for (const c of resmi.items || []) {
+        const k = chrKey(c.name);
+        if (kindMap.get(k)) continue;
+        const t = TUR_DUZELTME.get(k) || turBlogu(c.id);
+        if (t) { kindMap.set(k, t); tamamlanan++; }
+      }
+    } catch (e) { console.warn("⚠️  Eksik kart türleri tamamlanamadı:", String(e)); }
+    console.log(`🃏  Kart tipi eşlemesi yüklendi (${kindMap.size} kart` +
+                (tamamlanan ? `, ${tamamlanan} tanesi kimlik bloğundan` : "") + ").");
   } catch (e) { console.warn("⚠️  Kart tipleri alınamadı:", String(e)); }
+  /* Ölçüt "boş değil" DEĞİL, "eskisinden küçük değil".
+     cardNamesTR haritayı elle yazılan çevirilerle tohumluyor: çekim
+     başarısız olsa bile harita boş görünmüyor ve "boş değil" ölçütü
+     bozuk hâli 6 saat önbelleğe alırdı. Küçülme her zaman kayıp
+     demektir; o durumda eldeki kopya korunuyor. */
+  if (kindMap && kindMap.size && (!eski_kindMap || kindMap.size >= eski_kindMap.size)) kindAn = Date.now();
+  else if (eski_kindMap) kindMap = eski_kindMap;
   return kindMap;
 }
 
-let chrMap = null;
+let chrMap = null, chrAn = 0;
 async function characterArt() {
-  if (chrMap) return chrMap;
+  if (chrMap && tazeMi(chrAn)) return chrMap;
+  /* Yeni bir kart çıktığında görseli de bu listeden geliyor; süresiz
+     önbellek, kart eklendiğinde görselinin çıkmaması demekti. */
+  const eski_chrMap = chrMap;
   chrMap = new Map();
   try {
     const [chr, champs] = await Promise.all(
@@ -1170,6 +1619,8 @@ async function characterArt() {
   } catch (e) {
     console.warn("⚠️  Karakter görselleri alınamadı:", String(e));
   }
+  if (chrMap.size && (!eski_chrMap || chrMap.size >= eski_chrMap.size)) chrAn = Date.now();
+  else if (eski_chrMap) chrMap = eski_chrMap;
   return chrMap;
 }
 
@@ -1187,12 +1638,42 @@ async function characterArt() {
   Champions (Archer Queen, Golden Knight, …) are a card rarity and belong to
   the "Şampiyon" filter, not here.
 */
-const HERO_ROSTER = [
+/* Kahramanların EKRANDAKİ SIRASI — oyundaki sırayla.
+
+   Bu liste artık "kimler kahramandır" sorusunu CEVAPLAMIYOR, yalnızca
+   sıralamayı veriyor. Kimlik sorusunun cevabı API'de: kahraman
+   kartları `iconUrls.heroMedium` taşıyor ve tam 16 tane.
+
+   Ayrım önemli, çünkü liste elle yazıldığında kayıyordu: içinde
+   "Bandit" vardı ve Haydut kahraman değil — kullanıcı ekran
+   görüntüsüyle bildirdi, Kartlar > Kahramanlar sekmesinde Yaramaz'ın
+   yerinde Haydut duruyordu. API 16 kahramanı doğru sayıyordu; yanlış
+   olan tek yer bu listeydi.
+
+   Supercell yeni bir kahraman eklediğinde de kendiliğinden geliyor:
+   listede olmayan kahramanlar sona ekleniyor. */
+const HERO_SIRA = [
   "Valkyrie", "Barbarian Barrel", "Wizard", "Mini P.E.K.K.A",
-  "Knight", "Goblins", "Bandit", "Tombstone",
+  "Knight", "Goblins", "Berserker", "Tombstone",
   "Magic Archer", "Balloon", "Dark Prince", "Bowler",
   "Giant", "Musketeer", "Ice Golem", "Mega Minion",
 ];
+
+/* Gerçek kahraman listesi: API söylüyor, sıra yukarıdan geliyor.
+
+   API'den okuyamazsak elimizdeki sırayı kullanıyoruz — kahraman sekmesini
+   tamamen boş bırakmaktansa eski liste daha iyi. */
+async function heroRoster() {
+  let apiKahraman = null;
+  try { apiKahraman = await heroAllCards(); } catch { /* API yoksa yedeğe düş */ }
+  if (!apiKahraman || !apiKahraman.size) return HERO_SIRA;
+  const sirali = HERO_SIRA.filter((n) => apiKahraman.has(n));
+  const eksik = [...apiKahraman].filter((n) => !HERO_SIRA.includes(n));
+  if (eksik.length) console.log(`🦸  Sırada olmayan kahraman sona eklendi: ${eksik.join(", ")}`);
+  const fazla = HERO_SIRA.filter((n) => !apiKahraman.has(n));
+  if (fazla.length) console.warn(`⚠️  Sıradaki bu kartlar API'ye göre kahraman DEĞİL: ${fazla.join(", ")}`);
+  return [...sirali, ...eksik];
+}
 
 /*
   Real hero portraits, dropped in by hand.
@@ -1252,7 +1733,11 @@ app.get("/api/heroes", async (req, res) => {
          Dark Prince, Mega Minion and — as a spell — Barbarian Barrel) have no
          standalone character render in the asset index; those fall back to the
          card art rather than being dropped or given another unit's picture. */
-      const heroes = HERO_ROSTER.map((name) => {
+      /* Liste API'den geliyor, sıra HERO_SIRA'dan. Eskiden doğrudan
+         elle yazılmış listeydi ve içindeki "Bandit" yüzünden Kahramanlar
+         sekmesinde Yaramaz yerine Haydut görünüyordu. */
+      const roster = await heroRoster();
+      const heroes = roster.map((name) => {
         const c = byName.get(name);
         if (!c) return null;
         return {
@@ -1269,12 +1754,12 @@ app.get("/api/heroes", async (req, res) => {
       return {
         champions: [], heroes,
         counts: {
-          heroes: heroes.length, roster: HERO_ROSTER.length,
+          heroes: heroes.length, roster: roster.length,
           withArt: heroes.filter((h) => h.art).length,
           portraits: have,
           // Which files the site is still waiting for, so the UI can say so.
           missingPortraits: heroes.filter((h) => !h.portrait).map((h) => h.slug + ".png"),
-          missing: HERO_ROSTER.filter((n) => !byName.has(n)),
+          missing: roster.filter((n) => !byName.has(n)),
         },
       };
     });
@@ -1294,6 +1779,20 @@ app.get("/api/heroes", async (req, res) => {
 */
 /* Resmi / tanınmış hesaplar (aramada en üstte + tik). Liste server/verified.js. */
 const verified = require("./verified");
+/* En iyi sezonu barajı geçen oyuncular (bkz. prosezon.js). */
+const prosezon = require("./prosezon");
+/* Ziyaretçinin gerçek adresi (Cloudflare arkasında req.ip yanlış — bkz. gercekip.js). */
+const { gercekIp } = require("./gercekip");
+/* Günlük yedek: /data tek kopya, kaybı geri dönüşsüz (bkz. yedek.js). */
+const yedek = require("./yedek");
+/* Haberler / son güncellemeler — elle girilen akış, bkz. haber.js */
+const haber = require("./haber");
+/* Denge/güncelleme duyurularını kendiliğinden çeken akış — bkz. akis.js */
+const akis = require("./akis");
+/* Oyun içi denge duyurusunu ayrıştıran yardımcı — bkz. duyuru.js */
+const duyuru = require("./duyuru");
+/* Kule hasarı: kulelerin azami canını gözleyerek öğreniyor (bkz. kule.js). */
+const kule = require("./kule");
 /* Yöneticinin siteden verdiği rozetler + PRO başvuruları (diskte). */
 const badges = require("./badges");
 
@@ -1347,6 +1846,11 @@ const rozetKumeSifirla = () => { rozetKume = null; };
    `elo` biliniyorsa 4. kural da işler; bilinmiyorsa atlanır. */
 function rozetle(nesne, tag, pro, elo) {
   const t = verified.normTag(tag);
+  /* ÖNCE TEMİZLE. Bu fonksiyon artık önbellekten çıkan gövdeye HER İSTEKTE
+     yeniden uygulanıyor; eski karar üstünde kalırsa rozet kaldırıldığında
+     ekrandan silinmez. Sıfırdan karar vermek tek doğru davranış. */
+  delete nesne.verified; delete nesne.note;
+  delete nesne.pro; delete nesne.proRank; delete nesne.proMedals; delete nesne.proSezon;
   const verilen = badges.get(t);
   /* Yönetici siteden kaldırdıysa kodda sabit yazılı rozet de gösterilmiyor.
      verified.js bir kaynak dosya, çalışırken değiştirilemiyor; gizleme
@@ -1369,20 +1873,91 @@ function rozetle(nesne, tag, pro, elo) {
   else if (proGizli) { /* elle verilen/sabit PRO gizlenmiş */ }
   else if (verified.isPro(t) || (verilen && verilen.pro)) nesne.pro = true;
   else if (elo != null && elo >= verified.PRO_MIN_MEDALS) { nesne.pro = true; nesne.proMedals = true; }
+  /* EN İYİ SEZONU barajı geçmiş oyuncu. Liste profil okundukça doluyor,
+     o yüzden rozet savaş listesinde ve akışta da çıkabiliyor — oralarda
+     "en iyi sezon" alanı hiç gelmiyor (bkz. prosezon.js). */
+  else if (prosezon.varMi(t)) { nesne.pro = true; nesne.proSezon = true; }
   return nesne;
 }
 
 const CARD_STATS = "https://royaleapi.github.io/cr-api-data/json/cards_stats.json";
 /* Aynı dosyayı iki yer okuyor (özellikler + savaş değerleri); bir kez indir.
    Hata olursa null kalır, sonraki çağrı yeniden dener. */
-let statsRaw = null;
+let statsRaw = null, statsAn = 0;
 async function cardStatsJson() {
-  if (!statsRaw) statsRaw = await (await fetch(CARD_STATS)).json();
+  /* Bu dosya kart özelliklerinin ve savaş değerlerinin kaynağı; o
+     yüzden onun da tazelenmesi gerekiyor, yoksa üsttekilere süre
+     eklemenin bir anlamı kalmaz — hep aynı eski gövdeyi işlerlerdi. */
+  if (!statsRaw || !tazeMi(statsAn)) {
+    try {
+      const y = await (await fetch(CARD_STATS)).json();
+      if (y && (y.troop || y.characters)) { statsRaw = y; statsAn = Date.now(); }
+    } catch (e) { if (!statsRaw) throw e; console.warn("⚠️  Kart veri dosyası tazelenemedi:", String(e)); }
+  }
   return statsRaw;
 }
-let traitMap = null;
+let traitMap = null, traitAn = 0;
+/* SEVİYEYE GÖRE DEĞER.
+
+   Oyun verisindeki `hitpoints` alanı kartın 1. SEVİYE değeri; nadirlikler
+   farklı seviyeden başladığı için bu sayılar BİRBİRİYLE KARŞILAŞTIRILAMAZ.
+   Şampiyon 11'den, Efsanevi 9'dan, Destansı 6'dan, Nadir 3'ten başlıyor —
+   yani bir Şampiyonun "temel" canı zaten 11. seviyesi, bir Nadir'inki ise
+   3. seviyesi.
+
+   Yayında bunun bedeli görüldü (kullanıcı bildirdi): "hangisinin canı en
+   yüksek" sorusunda Okçu Kraliçe (Şampiyon, temel 1000) Felaket Kulesi'ni
+   (Nadir, temel 825) yeniyordu. Oysa ikisi de 11. seviyede karşılaştığında
+   Felaket Kulesi 1749 canla açık ara önde. Cevap yanlıştı.
+
+   Bütün kartları TURNUVA STANDARDINA (11. seviye) çekiyoruz — Kart
+   Kapışması oyunu zaten bunu yapıyordu (bkz. cardCombat, ILK_SEVIYE);
+   özellik tablosunda atlanmıştı. `*_per_level` dizisi yoksa temel değere
+   düşülüyor: yanlış sayı üretmektense eldekiyle devam etmek daha az zararlı,
+   ama o kart karşılaştırmaya girerse yine yanılabilir — bu yüzden dizi
+   olmayan kart soruya SOKULMUYOR (bkz. quiz.js → hpDogru). */
+function seviyeliDeger(nesne, alan, nadirlik) {
+  const ilk = ILK_SEVIYE[String(nadirlik || "").toLowerCase()];
+  const dizi = nesne && nesne[alan + "_per_level"];
+  if (ilk == null || !Array.isArray(dizi)) return null;
+  const i = KAPISMA_SEVIYE - ilk;
+  return (i >= 0 && dizi[i] != null) ? dizi[i] : null;
+}
+
+/* SAVAŞ DEĞERİ DÜZELTMELERİ — kaynak veri geride kaldığında.
+
+   `cards_stats.json` denge güncellemelerinin gerisinde kalabiliyor;
+   Fırın'ın türünde, kart türlerinde ve Elit Barbarlar'ın evriminde
+   aynı gecikme yaşandı. Bir oyuncu yanlış değer bildirdiğinde
+   düzeltme buraya bir satır olarak giriyor.
+
+   İKİ VERİ YOLUNA DA uygulanıyor (cardTraits ve cardCombat). Bu şart:
+   yarışma soruları birinciden, Kart Kapışması ikinciden besleniyor ve
+   ölçüldü — 43 ortak kartta ikisi birebir aynı. Tek yola düzeltme
+   koymak o eşitliği bozar, iki oyun farklı sayı gösterir.
+
+   ANAHTAR: chrKey(kart adı). Değerler oyun içi kart ekranındaki
+   birimlerde: can 11. seviye, vuruş hızı MİLİSANİYE.
+
+   Kaynak düzelince satır silinebilir; silinmezse de zarar vermez,
+   aynı değeri söylemiş olur. */
+const SAVAS_DUZELTME = new Map([
+  ["battlehealer", { hitSpeed: 2000 }],   // Şifacı: oyuncu bildirdi, kaynak 1500 diyordu
+]);
+
+/* Bir kartın düzeltmesini uygula. Yalnızca VERİLEN alanlar değişiyor. */
+function savasDuzelt(ad, deger) {
+  const d = SAVAS_DUZELTME.get(chrKey(ad));
+  return d ? { ...deger, ...d } : deger;
+}
+
 async function cardTraits() {
-  if (traitMap) return traitMap;
+  if (traitMap && tazeMi(traitAn)) return traitMap;
+  /* Tazeleme başarısız olursa ELDEKİ kopya korunuyor ve damga
+     kurulmuyor, yani bir sonraki istek yeniden deniyor. Boş bir
+     haritayı önbelleğe almak, tek bir ağ kesintisini kalıcı hasara
+     çevirirdi. */
+  const eski_traitMap = traitMap;
   traitMap = new Map();
   try {
     const j = await cardStatsJson();
@@ -1398,16 +1973,41 @@ async function cardTraits() {
     for (const t of j.troop || []) {
       const ch = chars.get(chrKey(t.summon_character || t.name));
       if (!ch) continue;
-      traitMap.set(chrKey(t.name), {
-        air: !!ch.attacks_air,
+      /* İKİNCİ BİRİM. Bazı kartlar TEK TİP birim çıkarmıyor; oyunun verisinde
+         bunun için ayrı bir alan var (`summon_character_second`) ve kod onu
+         hiç okumuyordu. Ölçüldü: iki kartı etkiliyor, ikisi de yanlış
+         çıkıyordu —
+
+           Goblin Çetesi = 3 Goblin (havaya vurmaz) + 3 Mızraklı Goblin (vurur)
+           Serseriler    = 1 Serseri Oğlan (vurmaz)  + 2 Serseri Kız (vurur)
+
+         Yalnızca ilk birim okunduğu için ikisi de "havaya vuramaz" sayılıyordu.
+         Kullanıcı bildirdi: "hangisi havaya vurur" sorusunda Goblin Çetesi
+         çeldirici olarak çıkıyor, halbuki çetedeki mızraklılar havaya vuruyor —
+         yani sorunun iki doğru cevabı oluyordu.
+
+         `air` iki birimin BİRLEŞİMİ: kartın çıkardığı herhangi bir birim havaya
+         vurabiliyorsa kart havaya vurabiliyor demektir. `count` de toplam.
+
+         `karma` işareti, tek bir sayıyla anlatılamayan kartları belli ediyor:
+         Goblin Çetesi'nin "menzili" yok — içinde hem yakın dövüşçü hem menzilli
+         var. Menzil sorusu bu kartları eliyor (bkz. quiz.js → ranged). */
+      const ch2 = t.summon_character_second ? chars.get(chrKey(t.summon_character_second)) : null;
+      const sayi = (t.summon_number || 0) + (ch2 ? (t.summon_character_second_count || 0) : 0);
+      traitMap.set(chrKey(t.name), savasDuzelt(t.name, {
+        air: !!ch.attacks_air || !!(ch2 && ch2.attacks_air),
         flying: (ch.flying_height || 0) > 0,
         onlyBuildings: !!ch.target_only_buildings,
         speed: ch.speed || 0,                    // 45 slow · 60 medium · 90/120 fast
         // summon_number 0 or 1 is a single figure; 2+ is a squad.
-        count: t.summon_number || 0,
-        // <=1200 is melee reach; anything beyond it is a ranged attacker.
+        count: sayi,
+        karma: !!ch2,                            // birden fazla TİP birim çıkarıyor
+        // Menzil kademeleri için bkz. quiz.js → MENZIL_YAKIN / MENZIL_UZAK.
         range: ch.range || 0,
-        hp: ch.hitpoints || 0,
+        /* 11. seviyeye çekilmiş can — bkz. seviyeliDeger. Ham `hitpoints`
+           nadirlikler arasında karşılaştırılamaz. */
+        hp: seviyeliDeger(ch, "hitpoints", ch.rarity) || 0,
+        hpSeviyeli: seviyeliDeger(ch, "hitpoints", ch.rarity) != null,
         /* Tahmin oyunu için ek ayırt ediciler. Eskiden yalnızca yukarıdaki
            yedi alan vardı; tür/enderlik/iksir tükenince sorulacak bir şey
            kalmıyor, motor da körlemesine tahmine düşüyordu. Bunlar oyuncunun
@@ -1418,7 +2018,7 @@ async function cardTraits() {
         charge: (ch.charge_range || 0) > 0,      // hızlanarak vuruyor mu
         deathSpawn: !!ch.death_spawn_character,  // ölünce birim bırakıyor mu
         spawner: !!ch.spawn_character,           // sürekli birim üretiyor mu
-      });
+      }));
     }
     /* BİNALAR ve BÜYÜLER de özellik alsın.
 
@@ -1431,7 +2031,8 @@ async function cardTraits() {
       if (traitMap.has(k)) continue;                       // asker kaydı önceliklidir
       traitMap.set(k, {
         kind: "building",
-        hp: bld.hitpoints || 0,
+        hp: seviyeliDeger(bld, "hitpoints", bld.rarity) || 0,
+        hpSeviyeli: seviyeliDeger(bld, "hitpoints", bld.rarity) != null,
         hitSpeed: bld.hit_speed || 0,
         range: bld.range || 0,
         air: !!bld.attacks_air,
@@ -1455,6 +2056,13 @@ async function cardTraits() {
     }
     console.log(`🎯  Kart özellikleri yüklendi (${traitMap.size} kayıt: asker + bina + büyü).`);
   } catch (e) { console.warn("⚠️  Kart özellikleri alınamadı:", String(e)); }
+  /* Ölçüt "boş değil" DEĞİL, "eskisinden küçük değil".
+     cardNamesTR haritayı elle yazılan çevirilerle tohumluyor: çekim
+     başarısız olsa bile harita boş görünmüyor ve "boş değil" ölçütü
+     bozuk hâli 6 saat önbelleğe alırdı. Küçülme her zaman kayıp
+     demektir; o durumda eldeki kopya korunuyor. */
+  if (traitMap && traitMap.size && (!eski_traitMap || traitMap.size >= eski_traitMap.size)) traitAn = Date.now();
+  else if (eski_traitMap) traitMap = eski_traitMap;
   return traitMap;
 }
 
@@ -1503,9 +2111,14 @@ function traitBul(harita, ad) {
 
 const ILK_SEVIYE = { common: 1, rare: 3, epic: 6, legendary: 9, champion: 11 };
 const KAPISMA_SEVIYE = 11;
-let combatMap = null;
+let combatMap = null, combatAn = 0;
 async function cardCombat() {
-  if (combatMap) return combatMap;
+  if (combatMap && tazeMi(combatAn)) return combatMap;
+  /* Tazeleme başarısız olursa ELDEKİ kopya korunuyor ve damga
+     kurulmuyor, yani bir sonraki istek yeniden deniyor. Boş bir
+     haritayı önbelleğe almak, tek bir ağ kesintisini kalıcı hasara
+     çevirirdi. */
+  const eski_combatMap = combatMap;
   combatMap = new Map();
   try {
     const j = await cardStatsJson();
@@ -1513,6 +2126,20 @@ async function cardCombat() {
     const projs = new Map((j.projectile || []).map((p) => [chrKey(p.name), p]));
     for (const t of j.troop || []) {
       if ((t.summon_number || 0) >= 2) continue;              // yığın kartları elensin
+      /* KARMA BİRİM çıkaran kartlar da elensin.
+
+         Kart Kapışması iki kartın canını, hasarını ve vuruş hızını
+         karşılaştırıyor — yani her karta TEK bir sayı atfediyor.
+         Serseriler bu elemeden kaçıyordu: `summon_number` 1 (bir oğlan),
+         ama kart ayrıca iki Serseri Kız çıkarıyor ve onların değerleri
+         tamamen farklı (oğlan 1500 ms / 758 can, kız 1000 ms / 102 can).
+         Kullanıcı bildirdi: "Serseriler kaç saniyede vurur, 1,5 diyor —
+         kızdan mı oğlandan mı bahsediyor?"
+
+         Böyle bir kartı karşılaştırmaya sokmak, hangi birimden
+         bahsedildiğini söylemeden "hangisi daha güçlü" diye sormak
+         olurdu. Yığın kartları zaten aynı sebeple eleniyordu. */
+      if (t.summon_character_second) continue;
       const ch = chars.get(chrKey(t.summon_character || t.name));
       if (!ch) continue;
       const ilk = ILK_SEVIYE[String(ch.rarity || "").toLowerCase()];
@@ -1524,10 +2151,18 @@ async function cardCombat() {
       if (dmg == null && ch.projectile) dmg = projs.get(chrKey(ch.projectile))?.damage_per_level?.[i];
       const hiz = ch.hit_speed || 0;
       if (hp == null || dmg == null || !hiz) continue;
-      combatMap.set(chrKey(t.name), { hp, dmg, hitSpeed: hiz, level: KAPISMA_SEVIYE });
+      combatMap.set(chrKey(t.name),
+        savasDuzelt(t.name, { hp, dmg, hitSpeed: hiz, level: KAPISMA_SEVIYE }));
     }
     console.log(`⚔️  Kart savaş değerleri hazır (${combatMap.size} kart, ${KAPISMA_SEVIYE}. seviye).`);
   } catch (e) { console.warn("⚠️  Kart savaş değerleri alınamadı:", String(e)); }
+  /* Ölçüt "boş değil" DEĞİL, "eskisinden küçük değil".
+     cardNamesTR haritayı elle yazılan çevirilerle tohumluyor: çekim
+     başarısız olsa bile harita boş görünmüyor ve "boş değil" ölçütü
+     bozuk hâli 6 saat önbelleğe alırdı. Küçülme her zaman kayıp
+     demektir; o durumda eldeki kopya korunuyor. */
+  if (combatMap && combatMap.size && (!eski_combatMap || combatMap.size >= eski_combatMap.size)) combatAn = Date.now();
+  else if (eski_combatMap) combatMap = eski_combatMap;
   return combatMap;
 }
 
@@ -1572,9 +2207,14 @@ const TR_NAME_EXTRA = {
   "Goblin Curse": "Goblin Laneti", "Spirit Empress": "Ruh İmparatoriçe",
   "Vines": "Sarmaşıklar",
 };
-let trNameMap = null;
+let trNameMap = null, trNameAn = 0;
 async function cardNamesTR() {
-  if (trNameMap) return trNameMap;
+  if (trNameMap && tazeMi(trNameAn)) return trNameMap;
+  /* Tazeleme başarısız olursa ELDEKİ kopya korunuyor ve damga
+     kurulmuyor, yani bir sonraki istek yeniden deniyor. Boş bir
+     haritayı önbelleğe almak, tek bir ağ kesintisini kalıcı hasara
+     çevirirdi. */
+  const eski_trNameMap = trNameMap;
   trNameMap = new Map(Object.entries(TR_NAME_EXTRA));
   try {
     const j = await (await fetch(TEXTS_DATA)).json();
@@ -1585,6 +2225,13 @@ async function cardNamesTR() {
     }
     console.log(`🇹🇷  Türkçe kart adları yüklendi (${n} çeviri + ${Object.keys(TR_NAME_EXTRA).length} elle).`);
   } catch (e) { console.warn("⚠️  Türkçe kart adları alınamadı:", String(e)); }
+  /* Ölçüt "boş değil" DEĞİL, "eskisinden küçük değil".
+     cardNamesTR haritayı elle yazılan çevirilerle tohumluyor: çekim
+     başarısız olsa bile harita boş görünmüyor ve "boş değil" ölçütü
+     bozuk hâli 6 saat önbelleğe alırdı. Küçülme her zaman kayıp
+     demektir; o durumda eldeki kopya korunuyor. */
+  if (trNameMap && trNameMap.size && (!eski_trNameMap || trNameMap.size >= eski_trNameMap.size)) trNameAn = Date.now();
+  else if (eski_trNameMap) trNameMap = eski_trNameMap;
   return trNameMap;
 }
 
@@ -1755,15 +2402,25 @@ const arenaTR = (map, name) => (name && map.get(name)) || name || "";
 
 /* Kartın açıldığı arena — bilgi yarışmasının zor soruları için.
    /cards bunu vermiyor; oyunun kendi veri dosyasında var. */
-let arenaMap = null;
+let arenaMap = null, arenaAn = 0;
 async function cardArenas() {
-  if (arenaMap) return arenaMap;
-  arenaMap = new Map();
+  if (arenaMap && tazeMi(arenaAn)) return arenaMap;
+  /* Harita YERELDE kuruluyor, ancak dolduğunda değiştiriliyor.
+
+     Eskiden `arenaMap = new Map()` en başta yapılıyordu: çekim
+     başarısız olursa geriye BOŞ harita kalıyor ve süresiz önbellek
+     yüzünden site, süreç yeniden başlayana kadar hiçbir kartın
+     arenasını bilmiyordu. Tek bir ağ kesintisi kalıcı hasar
+     veriyordu. Şimdi hata olursa elde ne varsa o kalıyor; yoksa boş
+     harita dönüyor ama DAMGA KURULMUYOR, yani bir sonraki istek
+     yeniden deniyor. */
   try {
     const j = await (await fetch(CARD_DATA)).json();
-    j.forEach((c) => { if (c.arena != null) arenaMap.set(chrKey(c.name), c.arena); });
+    const yeni = new Map();
+    j.forEach((c) => { if (c.arena != null) yeni.set(chrKey(c.name), c.arena); });
+    if (yeni.size) { arenaMap = yeni; arenaAn = Date.now(); }
   } catch (e) { console.warn("⚠️  Arena bilgisi alınamadı:", String(e)); }
-  return arenaMap;
+  return arenaMap || new Map();
 }
 
 /* Card list, with the Troop/Building/Spell kind and the combat traits
@@ -1844,6 +2501,11 @@ function metaCard(c, isEvo, isHero) {
   };
 }
 
+const modmeta = require("./modmeta");
+/* "Bu kartın evrimi var mı" tek yerde cevaplanıyor — bkz. evrim.js */
+const evrim = require("./evrim");
+const oneri = require("./oneri");
+
 async function buildMeta(count) {
   /*
     Whose battle logs to read.
@@ -1876,7 +2538,14 @@ async function buildMeta(count) {
   for (const log of logs) {
     if (!Array.isArray(log)) continue;
     for (const b of log) {
-      if (b.type !== "pathOfLegend") continue;
+      /* Nihai DIŞINDAKİ takip edilen modlar burada birikiyor.
+
+         Bu satırdan önce bu maçlar sessizce atılıyordu. Büyük Mücadele
+         için ayrı bir meta kurmanın maliyeti, ölçüldüğünde, SIFIR ek API
+         çağrısı çıktı: aynı günlükleri zaten okuyoruz, yalnızca ikinci
+         kez değerlendiriyoruz. Örneklemi büyütmek 1000 çağrı/tazeleme
+         demek olurdu ve yine deste başına yeterli maç vermezdi. */
+      if (b.type !== "pathOfLegend") { modmeta.macEkle(b, sampledTags); continue; }
       const t = b.team?.[0], o = b.opponent?.[0];
       if (!t || !o) continue;
       const id = [b.battleTime, ...[t.tag, o.tag].sort()].join("|");
@@ -2091,11 +2760,31 @@ async function heroOnlyCards() {
   const body = await kartListesi();
   const items = body.items || [];
   heroAll = new Set(items.filter((c) => c.iconUrls?.heroMedium).map((c) => c.name));
+  /* "YALNIZCA KAHRAMAN" KÜMESİ GERÇEKTE BOŞ.
+
+     Ölçüt eskiden "kahraman çizimi var ama evrim çizimi yok" idi ve 12
+     kartı buraya sokuyordu. Ölçüldü: kahraman görseli olan 16 kartın
+     HEPSİNİN evrimi de var (bkz. evrim.js). Yani o 12 kart yanlış
+     sınıflanıyordu; küme doğru ölçütle boş çıkıyor.
+
+     Kümeyi kaldırmıyoruz: ileride evrimi olmayan bir kahraman kartı
+     çıkarsa burası kendiliğinden doğru çalışsın. */
   heroOnly = new Set(items
-    .filter((c) => c.iconUrls?.heroMedium && !c.iconUrls?.evolutionMedium)
+    .filter((c) => c.iconUrls?.heroMedium && !evrim.evrimiVar(c))
     .map((c) => c.name));
   console.log(`🦸  Kahraman kuralı hazır (${heroAll.size} kahraman · ${heroOnly.size} yalnızca kahraman).`);
   return heroOnly;
+}
+/* BÜTÜN kahramanlar (evrimi de olanlar dahil).
+
+   `heroOnlyCards` evrimi olanları AYIKLIYOR — deste jeneratöründe
+   kahraman yuvası ile evrim yuvasını ayırmak için. Ama "kimler
+   kahramandır" sorusunun cevabı ayıklanmamış küme; Kartlar sayfasındaki
+   Kahramanlar sekmesi bunu istiyor. İki kümeyi karıştırmak, Şövalye ve
+   Silahşör gibi hem kahraman hem evrimi olan kartları listeden düşürürdü. */
+async function heroAllCards() {
+  await heroOnlyCards();          // heroAll'u dolduran yer burası
+  return heroAll || new Set();
 }
 
 /* Savaş günlüğünde kahraman yuvası destenin 1. sırasında duruyor, evrimler
@@ -2156,9 +2845,40 @@ app.get("/api/meta", async (req, res) => {
        ölçüldü: sunucu ~275 istek/sn'de doyuyor, en ucuz kazanç tekrar
        eden isteği hiç yaptırmamak. */
     res.set("Cache-Control", "public, max-age=120");
+
+    /* MOD SEÇİMİ. Varsayılan Nihai — adres parametresi olmadan gelen
+       eski istemciler ve önbellekteki eski sayfalar bugünkü davranışı
+       görmeye devam etsin. */
+    const mod = String(req.query.mod || "nihai").toLowerCase();
+    if (mod !== "nihai") {
+      if (!Object.values(modmeta.MODLAR).includes(mod))
+        return res.status(400).json({ error: "mod", message: "Bilinmeyen mod." });
+      /* Kart çözümü burada yapılıyor: modmeta yalnızca kart KİMLİĞİ
+         saklıyor, ad ve görsel her zaman güncel kart listesinden
+         geliyor. Kopyalasaydı kart adı değiştiğinde eski ad donardı. */
+      const body = await kartListesi();
+      const kartlar = new Map((body.items || []).map((c) => [c.id, c]));
+      const tr = await cardNamesTR();
+      const coz = (id) => {
+        const c = kartlar.get(id);
+        if (!c) return null;
+        return { id: c.id, name: c.name, nameTR: tr.get(c.name) || c.name,
+                 elixir: c.elixirCost || 0, rarity: c.rarity || "",
+                 icon: c.iconUrls?.medium || "", evoIcon: c.iconUrls?.evolutionMedium || "" };
+      };
+      return res.json({ mod, ...modmeta.liste(mod, coz) });
+    }
+
     const { all, ...rest } = await metaCached();   // `all` is served separately
-    res.json(rest);
+    res.json({ mod: "nihai", ...rest });
   } catch (e) { res.status(502).json({ error: "upstream_error", detail: String(e) }); }
+});
+
+/* Hangi modlarda ne kadar veri birikti — arayüz sekmeyi buna göre
+   açıyor ve "biriktiriliyor" uyarısını buradan yazıyor. */
+app.get("/api/meta/modlar", (req, res) => {
+  res.set("Cache-Control", "public, max-age=60");
+  res.json(modmeta.durum());
 });
 
 /* Eşleşme tablosu: "bu karşılaşmada kim kazanıyor?".
@@ -2180,36 +2900,79 @@ const eslesme = require("./eslesme");
    Klasör HER İSTEKTE değil, 60 saniyede bir taranıyor: dosya koyunca bir
    dakika içinde görünüyor ama trafik altında disk sürekli okunmuyor.
    ============================================================ */
-const OYUN_IMG_DIR = path.join(__dirname, "..", "assets", "img", "oyunlar");
-const OYUN_IMG_UZANTI = ["png", "webp", "jpg", "jpeg", "gif"];
-let oyunGorselleri = null, oyunGorselAn = 0;
-function oyunGorselleriOku() {
-  if (oyunGorselleri && Date.now() - oyunGorselAn < 60e3) return oyunGorselleri;
+/* ============================================================
+   KAPAK GÖRSELİ KLASÖRLERİ
+   ------------------------------------------------------------
+   İki klasör var ve ikisi aynı kurallarla okunuyor:
+
+     oyunlar/  — Eğlence sayfasındaki oyunların kapakları
+     arayuz/   — Sıralamalar, Meta, Son Maçlar gibi BÖLÜM kapakları
+
+   Tarama mantığı tek bir yerde: uzantı önceliği, sürüm damgası ve
+   önbellek. İkinci klasör için kodu kopyalasaydım, ileride birinde
+   düzeltilen bir hata ötekinde yaşamaya devam ederdi — nitekim uzantı
+   önceliği bir kez zaten sessizce bozulmuştu. */
+const IMG_UZANTI = ["png", "webp", "jpg", "jpeg", "gif"];
+const KAPAK_KLASOR = {
+  oyun:   path.join(__dirname, "..", "assets", "img", "oyunlar"),
+  arayuz: path.join(__dirname, "..", "assets", "img", "arayuz"),
+  /* Meta sayfasındaki mod kutucukları (Nihai, Mücadele, Kupa Yolu). */
+  modlar: path.join(__dirname, "..", "assets", "img", "modlar"),
+};
+const KAPAK_YOL = { oyun: "assets/img/oyunlar/", arayuz: "assets/img/arayuz/",
+                    modlar: "assets/img/modlar/" };
+const kapakOnbellek = {};       // tur -> { harita, an }
+
+function kapaklariOku(tur) {
+  const o = kapakOnbellek[tur];
+  if (o && Date.now() - o.an < 60e3) return o.harita;
   const harita = {};
+  const uzantiSecimi = {};
   try {
-    for (const dosya of fs.readdirSync(OYUN_IMG_DIR)) {
+    for (const dosya of fs.readdirSync(KAPAK_KLASOR[tur])) {
       const nokta = dosya.lastIndexOf(".");
       if (nokta <= 0) continue;
       const kimlik = dosya.slice(0, nokta);
       const uzanti = dosya.slice(nokta + 1).toLowerCase();
-      if (!OYUN_IMG_UZANTI.includes(uzanti)) continue;
-      /* Aynı oyun için iki uzantı varsa listedeki ÖNCE geleni kazanır;
-         yoksa hangisinin çıkacağı klasör sırasına kalırdı. */
-      const eski = harita[kimlik];
-      if (eski) {
-        const eskiU = eski.slice(eski.lastIndexOf(".") + 1);
-        if (OYUN_IMG_UZANTI.indexOf(eskiU) <= OYUN_IMG_UZANTI.indexOf(uzanti)) continue;
-      }
-      harita[kimlik] = "assets/img/oyunlar/" + dosya;
+      if (!IMG_UZANTI.includes(uzanti)) continue;
+      /* Aynı kimlik için iki uzantı varsa listedeki ÖNCE geleni kazanır;
+         yoksa hangisinin çıkacağı klasör sırasına kalırdı.
+
+         Öncelik ADRESTEN değil, ayrıca tutulan uzantıdan okunuyor:
+         adresin sonunda sürüm damgası var ve "png?v=123" hiçbir
+         uzantıya eşleşmediğinden karşılaştırma sessizce bozulurdu. */
+      const eskiU = uzantiSecimi[kimlik];
+      if (eskiU && IMG_UZANTI.indexOf(eskiU) <= IMG_UZANTI.indexOf(uzanti)) continue;
+      uzantiSecimi[kimlik] = uzanti;
+      /* SÜRÜM DAMGASI. Görseller bir gün önbelleğe alınıyor (bilinçli:
+         46 piksellik simgeler için her ziyarette yeniden indirmek
+         israf). Ama adres sabit kalırsa, klasördeki dosya değişse bile
+         tarayıcı bir gün boyunca eski baytları gösterir — yeni kapak
+         yüklendiği hâlde "güncellenmedi" görünür. Adrese dosyanın
+         değişim zamanı ekleniyor: içerik aynı kaldıkça adres de aynı
+         kalıp önbellek çalışıyor, dosya değiştiği anda adres değişip
+         yeni kapak anında iniyor. */
+      let damga = "";
+      try { damga = "?v=" + Math.floor(fs.statSync(path.join(KAPAK_KLASOR[tur], dosya)).mtimeMs); } catch {}
+      harita[kimlik] = KAPAK_YOL[tur] + dosya + damga;
     }
   } catch { /* klasör yoksa boş harita */ }
-  oyunGorselleri = harita;
-  oyunGorselAn = Date.now();
+  kapakOnbellek[tur] = { harita, an: Date.now() };
   return harita;
 }
+const oyunGorselleriOku = () => kapaklariOku("oyun");
 app.get("/api/oyun-gorselleri", (req, res) => {
   res.set("Cache-Control", "public, max-age=60");
-  res.json(oyunGorselleriOku());
+  /* Oyun ve arayüz kapakları TEK YANITTA. İki ayrı uç açmak, her sayfa
+     açılışında ikinci bir gidiş-dönüş demekti; ikisi de aynı anda ve
+     aynı yerde kullanılıyor. Eski `oyun-gorselleri` adı korunuyor:
+     tarayıcıda önbellekte duran eski sayfalar bu adresi çağırmaya devam
+     ediyor ve alan adı değişseydi kapaklar bir süre kaybolurdu.
+
+     Eski biçim de korunuyor — yanıtın kökündeki alanlar hâlâ oyun
+     kapakları. Yeni sayfalar `arayuz` alanına bakıyor. */
+  res.json({ ...kapaklariOku("oyun"), arayuz: kapaklariOku("arayuz"),
+             modlar: kapaklariOku("modlar") });
 });
 app.get("/api/eslesme", (req, res) => {
   res.set("Cache-Control", "public, max-age=300");
@@ -2236,14 +2999,19 @@ app.get("/api/analiz", (req, res) => {
   if (a.length !== 8 || b.length !== 8 || !tekil(a) || !tekil(b))
     return res.status(400).json({ error: "deste", mesaj: "Her iki deste de 8 farklı kart içermeli." });
 
-  const s = eslesme.analiz(a, b);
+  /* `sadeceDeste=1` ile arketip yedeği kapanıyor: beş kart eşleşen
+     deste yoksa tahmin yürütmek yerine "bulunamadı" dönüyor. */
+  const s = eslesme.analiz(a, b, { sadeceDeste: String(req.query.sadeceDeste || "") === "1" });
   res.set("Cache-Control", "public, max-age=120");
   const yuzde = (v) => (v == null ? null : Math.round(v * 1000) / 10);
   res.json({
     kaynak: s.kaynak,                     // "deste" | "arketip" | "yok"
     katman: s.katman ?? null,             // kaç ortak kartla eşlendi (8..5), arketipte 0
     mac: s.mac || 0,
-    minOrnek: eslesme.MIN_ORNEK,
+    /* Bu ucun kullandığı eşik ANALIZ_MIN (30); MIN_ORNEK (40) meta
+       ekranlarının eşiği. Yanlış sayıyı bildirmek arayüze "30 maç
+       bulundu, eşik 40" gibi tutarsız bir cümle kurdururdu. */
+    minOrnek: eslesme.ANALIZ_MIN || eslesme.MIN_ORNEK,
     oran: yuzde(s.oran),                  // senin deste yüzden
     alt: yuzde(s.alt), ust: yuzde(s.ust), // %95 aralık
     pay: yuzde(s.pay),                    // ± puan
@@ -2330,6 +3098,67 @@ app.get("/api/anti/desteler", async (req, res) => {
   } catch (e) { res.status(502).json({ error: "upstream_error", detail: String(e) }); }
 });
 
+/* ============================================================
+   DESTE ÖNERİSİ  —  /api/oneri/:tag
+   ------------------------------------------------------------
+   Oyuncunun KENDİ kart seviyelerine göre, metaya yakın bir deste.
+   Kararın tamamı server/oneri.js içinde ve saf bir fonksiyon —
+   ağ olmadan sınanabilsin diye orada duruyor.
+
+   Burada yalnızca üç veri toplanıyor: oyuncunun kartları, meta
+   desteler ve kart künyeleri (tür/iksir/ad/görsel). Tür bilgisi
+   önemli: yedek kart aynı türden seçiliyor, yoksa binanın yerine
+   büyü koyup desteyi bozardık.
+   ============================================================ */
+app.get("/api/oneri/:tag", async (req, res) => {
+  try {
+    const { status, body } = await cr(`/players/${normTag(req.params.tag)}`);
+    if (status !== 200) return res.status(status).json(body || { error: "player" });
+    if (!Array.isArray(body.cards) || !body.cards.length)
+      return res.status(422).json({ error: "kart", message: "Bu hesabın kart listesi okunamadı." });
+
+    const { items: metaDesteler } = await metaCached();
+    const liste = await kartListesi();
+    const tr = await cardNamesTR();
+    const kinds = await cardKinds();
+    const traits = await cardTraits();
+
+    const kartBilgi = new Map();
+    for (const c of liste.items || []) {
+      kartBilgi.set(c.id, {
+        name: c.name,
+        nameTR: tr.get(c.name) || c.name,
+        elixir: c.elixirCost || 0,
+        rarity: c.rarity || "",
+        tur: kinds.get(chrKey(c.name)) || "",
+        /* Kazanma koşulu ayrımı için: yalnızca binaları hedefleyen kart mı.
+           oneri.js bunu kule yıkan kartı destekle değiştirmemek için
+           kullanıyor. */
+        hedefBina: !!(traits.get(chrKey(c.name)) || {}).onlyBuildings,
+        icon: c.iconUrls?.medium || "",
+        evoIcon: c.iconUrls?.evolutionMedium || "",
+        /* Kahraman portresi: kahraman yuvasındaki kart kendi görseliyle
+           çizilsin, sıradan hâliyle değil. */
+        heroImg: c.iconUrls?.heroMedium || "",
+      });
+    }
+
+    /* TEK DEĞİL LİSTE: tek deste önermek oyuncuya seçme hakkı
+       bırakmıyordu — beğenmediği bir arketip çıktığında yapabileceği
+       bir şey yoktu. */
+    const oneriler = oneri.onerListe({ oyuncuKartlari: body.cards, metaDesteler, kartBilgi });
+    if (!oneriler.length)
+      return res.status(503).json({ error: "veri", message: "Meta verisi henüz hazır değil, birazdan tekrar dene." });
+
+    /* Kişiye özel: paylaşılan bir ara bellekte durmasın. */
+    res.set("Cache-Control", "private, max-age=120");
+    /* `oneriler` yeni biçim. Kökteki alanlar İLKİNİ tekrar ediyor:
+       tarayıcıda önbellekte duran eski oyuncu.html tek deste bekliyor
+       ve alan kaldırılsaydı o pencerede öneri hiç çizilmezdi. */
+    res.json({ tag: body.tag, name: body.name, oneriler, ...oneriler[0] });
+  } catch (e) { res.status(502).json({ error: "upstream_error", detail: String(e) }); }
+});
+
 app.get("/api/anti", async (req, res) => {
   try {
     const harita = await kartlarIdIle();
@@ -2337,6 +3166,7 @@ app.get("/api/anti", async (req, res) => {
 
     /* Seçilen tarafın ARKETİPİ. İki giriş biçimi: deste ya da doğrudan koç. */
     let hedef = null;
+    let secilenAnahtar = null;   // seçilen destenin kart anahtarı (bkz. aşağısı)
     if (req.query.koc) {
       const kart = harita.get(parseInt(req.query.koc, 10));
       const k = kart ? eslesme.kosulSec([kart]) : null;
@@ -2346,12 +3176,24 @@ app.get("/api/anti", async (req, res) => {
     } else {
       const ids = String(req.query.deste || "").split(",")
         .map((x) => parseInt(x, 10)).filter(Number.isFinite);
+      /* Kullanıcının SEÇTİĞİ destenin kendisi. Aşağıda listeden çıkarılıyor:
+         bir deste kendisinin antisi olamaz. Kullanıcı bildirdi — koçbaşı
+         destesinin antileri arasında birebir aynı deste görünüyordu.
+
+         Neden oluyordu: eşleşme tablosu "deste × kazanma koşulu" çiftinde
+         tutuluyor. Seçilen destenin KOÇBAŞI ARKETİPİNE karşı oranı da
+         tabloda bir hücre ve o hücre listeye giriyordu. Sayı yanlış değil
+         (kendi destesinin öbür koçbaşı destelerine karşı oranı), ama
+         "bu deste seni yener" diye okunuyor; anlamsız. */
       if (ids.length < 1 || ids.length > 8)
         return res.status(400).json({ error: "bad_deck", mesaj: "Deste 1–8 kart kimliği olmalı." });
       const k = eslesme.kosulSec(ids.map((id) => harita.get(id)).filter(Boolean));
       /* Katman 2'ye düşen desteler (Mega Şövalye vb.) analiz ALMIYOR —
          kullanıcının bildirdiği anlamsız etiketler tam olarak bunlardı. */
       hedef = k && k.katman === 1 ? k : null;
+      /* Yalnızca TAM deste verildiyse (8 kart) dışlıyoruz. Eksik kartla
+         gelen sorgu bir desteyi değil bir yaklaşımı tarif ediyor. */
+      if (ids.length === 8) secilenAnahtar = [...ids].sort((x, y) => x - y).join(",");
     }
     if (!hedef) return res.json({ hazir: true, kocYok: true, sayac: [],
       mesaj: "Bu deste tanıdığımız bir arketipe girmiyor, o yüzden eşleşme istatistiği çıkarılamıyor. Analiz yalnızca meta destelerinde yapılıyor." });
@@ -2359,6 +3201,8 @@ app.get("/api/anti", async (req, res) => {
     const meta = await metaCached().catch(() => ({ all: [] }));
     const sayac = [];
     for (const m of tablo.metalar || []) {
+      /* Seçilen destenin ta kendisi listeye girmesin. */
+      if (secilenAnahtar && [...m.ids].sort((x, y) => x - y).join(",") === secilenAnahtar) continue;
       const kayit = tablo.hucreler[`${m.k}||${hedef.id}`];
       if (!kayit || kayit[0] < tablo.minOrnek) continue;
       const [n, w] = kayit;
@@ -2457,13 +3301,19 @@ app.get("/api/live", async (req, res) => {
       // newest first by battleTime (format: 20240101T120000.000Z)
       battles.sort((a, b) => (b.battleTime || "").localeCompare(a.battleTime || ""));
       const sonuc = battles.slice(0, LIVE_MAX);
-      // Canlı akışta da rozetler görünsün.
-      const pro = await proPlayers();
-      for (const b of sonuc)
-        for (const taraf of [...(b.team || []), ...(b.opponent || [])])
-          if (taraf && taraf.tag) rozetle(taraf, taraf.tag, pro);
+      /* Rozetler burada DEĞİL, önbellekten çıkarken basılıyor (aşağıda) —
+         bkz. Nihai sıralamasındaki not. */
+      /* Canlı akışta da kule hasarı görünsün. */
+      for (const b of sonuc) kule.isle(b);
       return { items: sonuc, scanned: players.length, top: LIVE_TOP };
     });
+    /* Rozetler önbelleğin DIŞINDA basılıyor: akış 60 sn önbellekli, rozet
+       kararı ise her istekte tazelenmeli (bkz. Nihai sıralamasındaki not).
+       Burada, feed hazır olduktan sonra. */
+    const proAkis = await proPlayers();
+    for (const b of (feed?.items || []))
+      for (const taraf of [...(b?.team || []), ...(b?.opponent || [])])
+        if (taraf && taraf.tag) rozetle(taraf, taraf.tag, proAkis);
     res.json(feed);
   } catch (e) { res.status(502).json({ error: "upstream_error", detail: String(e) }); }
 });
@@ -2512,6 +3362,7 @@ app.get("/api/youtube", async (req, res) => {
 /* Accounts. Mounted before the static handler so /api/auth/* is not shadowed. */
 const auth = require("./auth");
 auth.mount(app);
+onay.mount(app);
 const board = require("./board");
 board.mount(app, {
   readSession: auth.readActiveSession, listUsers: auth.listUsers,
@@ -2540,11 +3391,17 @@ const gameDeps = {
       name: c.name, tr: tr.get(c.name) || c.name, elixir: c.elixirCost || 0,
       rarity: c.rarity || "", type: kinds.get(chrKey(c.name)) || "",
       traits: traitBul(traits, c.name),
-      evo: !!(c.maxEvolutionLevel || c.iconUrls?.evolutionMedium),
-      /* Deste jeneratörü evrim ile kahraman yuvasını AYIRMAK zorunda; yukarıdaki
-         `evo` ikisini birden kapsıyor (ipucu için öyle isteniyor). Ayrım kuralı
-         heroOnlyCards()'ta ölçülmüş: evrim sanatı yayınlanmamış ama işaretli
-         kart = kahraman. Knight/Valkyrie/Musketeer/Wizard ikisi birden. */
+      /* EVRİM = yalnızca yayımlanmış evrim çizimi (41 kart).
+
+         Burada `maxEvolutionLevel` de sayılıyordu ve o alan KAHRAMAN
+         mekaniğini de işaretliyor (53 kart, 16'sı kahraman). Sonuç: Günün
+         Kartı oyununda "Evrimi var mı → Evet" ipucu, evrimi olmayan 16
+         kahraman kartı için yalan söylüyordu. Mega Minyon bir kahraman;
+         evrimi yok ama o alanı taşıyor.
+
+         Kahraman bilgisi zaten aşağıda ayrı duruyor (`kahraman`), yani
+         ikisini tek alanda birleştirmeye gerek yok. */
+      evo: evrim.evrimiVar(c),
       evoIcon: c.iconUrls?.evolutionMedium || "",
       kahraman: heroSet.has(c.name) || HERO_DUAL.has(c.name),
       kahramanTek: heroSet.has(c.name),          // evrimi yok, yalnızca kahraman
@@ -2582,6 +3439,15 @@ const messages = require("./messages");
 messages.mount(app, {
   readSession: auth.readActiveSession, listUsers: auth.listUsers,
   isAdmin: auth.isAdmin, userInfo: auth.userInfo,
+});
+const bildirim = require("./bildirim");
+bildirim.mount(app, {
+  readSession: auth.readActiveSession, isAdmin: auth.isAdmin,
+  veriKaydet: auth.veriKaydet,
+  /* takvim.js server.js icinde ust duzey degisken degil, satir icinde
+     cagriliyor. Adiyla gecirmek `undefined` gonderirdi ve zamanlayici
+     ilk kurulumda patlardi. */
+  takvim: require("./takvim"),
 });
 
 /* ---------- KVKK: silme ve görüntüleme haklarının kapsamı ----------
@@ -2790,6 +3656,84 @@ const ONBELLEK = [
   [/\.(css|js|mjs)$/i,                                 "public, max-age=300, stale-while-revalidate=3600"],
   [/\.html?$/i,                                        "public, max-age=60, stale-while-revalidate=600"],
 ];
+/* ============================================================
+   CSS/JS SÜRÜM DAMGASI
+   ------------------------------------------------------------
+   Yukarıdaki başlıkta CSS/JS için `stale-while-revalidate=3600` var:
+   5 dakikalık tazelik dolunca tarayıcı BİR SAAT boyunca eski kopyayı
+   ekrana basıp tazelemeyi arka planda yapabiliyor. Görsellerde bu
+   zararsız çünkü adreslerine zaten `?v=<mtime>` ekleniyor; CSS/JS'te
+   eklenmiyordu.
+
+   Bedeli yayında görüldü: desteler sayfası çıktığında düzen kuralı yeni
+   CSS'teydi, sunucu doğru dosyayı veriyordu, önbelleksiz tarayıcıda
+   ölçüm doğruydu — ama açık duran Chrome eski CSS'i gösterdiği için
+   kartlar alt alta ve tam genişlikte duruyordu. Kullanıcının elle
+   yenilemesi gerekiyordu.
+
+   Çözüm: HTML içindeki `assets/css/*.css` ve `assets/js/*.js`
+   adreslerine dosyanın değişim zamanını ekliyoruz. Dosya değişince
+   ADRES değişiyor, tarayıcının eski kaydı o adrese ait olmadığı için
+   yeni dosya hemen iniyor — elle yenileme gerekmiyor.
+
+   Maliyet: HTML dosyaları bellekte, mtime'a göre anahtarlanmış olarak
+   tutuluyor. Dosya değişmediği sürece disk okuması yok. */
+const HTML_ONBELLEK = new Map();   // yol → { htmlMtime, varliklar, govde }
+const DAMGA_KALIP = /\b(href|src)="(assets\/(?:css|js)\/[A-Za-z0-9._-]+\.(?:css|m?js))"/g;
+
+/* Damgalanmış gövdeyi ve dayandığı dosyaların zamanlarını birlikte üretir.
+
+   `varliklar` ŞART: ilk yazımda önbellek yalnızca HTML'in değişim
+   zamanına bakıyordu. HTML'e dokunmadan sadece `app.js` ya da
+   `styles.css` değiştirildiğinde — ki olağan durum bu — gövde
+   önbellekten geliyor ve ESKİ damgayı taşıyordu. Yani düzeltme çıkıyor,
+   adres değişmiyor, tarayıcı eski dosyayı kullanmaya devam ediyordu:
+   damganın önlemesi gereken hatanın ta kendisi. Sınama yakaladı
+   (t_damga: "dosya değişince damga da değişiyor"). */
+function damgaliGovde(kok, tam) {
+  const govde = fs.readFileSync(tam, "utf8");
+  const varliklar = [];
+  const yeniGovde = govde.replace(DAMGA_KALIP, (hepsi, nitelik, yol) => {
+    try {
+      const v = Math.floor(fs.statSync(path.join(kok, yol)).mtimeMs);
+      varliklar.push({ yol, v });
+      return nitelik + '="' + yol + "?v=" + v + '"';
+    } catch { return hepsi; }   // dosya yoksa adresi olduğu gibi bırak
+  });
+  return { varliklar, govde: yeniGovde };
+}
+
+app.use((req, res, next) => {
+  if (req.method !== "GET" && req.method !== "HEAD") return next();
+  /* Yalnızca .html ve klasör kökü. Sorgu dizesi req.path'e girmiyor. */
+  let yol;
+  try { yol = decodeURIComponent(req.path); } catch { return next(); }
+  if (yol.endsWith("/")) yol += "index.html";
+  if (!/.html?$/i.test(yol)) return next();
+
+  const kok = path.join(__dirname, "..");
+  const tam = path.join(kok, yol);
+  /* Kök dışına çıkma denemesi statik katmana bırakılıyor (o da reddeder). */
+  if (!tam.startsWith(kok)) return next();
+
+  let st;
+  try { st = fs.statSync(tam); } catch { return next(); }   // yoksa 404 katmanına
+  if (!st.isFile()) return next();
+
+  let kayit = HTML_ONBELLEK.get(tam);
+  const bayat = !kayit || kayit.htmlMtime !== st.mtimeMs || kayit.varliklar.some((x) => {
+    try { return Math.floor(fs.statSync(path.join(kok, x.yol)).mtimeMs) !== x.v; }
+    catch { return true; }
+  });
+  if (bayat) {
+    kayit = Object.assign({ htmlMtime: st.mtimeMs }, damgaliGovde(kok, tam));
+    HTML_ONBELLEK.set(tam, kayit);
+  }
+  res.set("Cache-Control", "public, max-age=60, stale-while-revalidate=600");
+  res.type("html").send(kayit.govde);
+});
+
+
 app.use(express.static(path.join(__dirname, ".."), {
   dotfiles: "deny",
   setHeaders(res, dosya) {
@@ -2825,14 +3769,23 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log(`    Site:   http://localhost:${PORT}/index.html`);
   console.log(`    API:    http://localhost:${PORT}/api/health`);
   console.log(`    ${TOKEN ? "✅ API anahtarı yüklü — veriler CANLI." : "⚠️  API anahtarı yok — demo veri gösterilir."}`);
+  yedek.basla();
+  haber.yukle();
+  /* Akışa KART ADI ÇEVİRİCİSİ veriliyor: haber metnindeki ad,
+     sitenin geri kalanında yazan adla aynı olsun. */
+  akis.basla(haber, () => cardNamesTR());
+  require("./mail").acilistaSina();
   /* Yayında hangi ayarlarla çalıştığını açılışta yazıyoruz: kalıcı disk
      bağlanmadıysa ya da vekil ayarlanmadıysa bunu günlükten görmek,
      kullanıcılar "hesabım silinmiş" demeden önce fark etmeyi sağlıyor. */
   const { DATA_DIR } = require("./veriyolu");
   console.log(`    Veri klasörü: ${DATA_DIR}${process.env.DATA_DIR ? "" : "  ⚠️  DATA_DIR ayarlı değil — bulutta veri kalıcı OLMAZ"}`);
   console.log(`    CR API: ${CR_BASE}${/royaleapi/.test(CR_BASE) ? "  (vekil)" : "  (doğrudan — IP beyaz listesi gerekir)"}`);
+  if (process.env.SINIRSIZ_OYUN === "1")
+    console.log("    ⚠️  SINIRSIZ OYUN KİPİ AÇIK — günlük hak sayılmıyor. Bu, canlıda ASLA açık olmamalı.");
   if (!CRAWL_CLANS) console.log("    Oyuncu adı indeksi KAPALI (CRAWL_CLANS=0) — arama yalnızca etiketle.");
   require("./takvim").banner();
+  kalkan.banner();
   console.log("");
   // Warm the badge map and the player-name index so the first search is instant
   // (~255 ladder requests, a few seconds) instead of making a user wait.

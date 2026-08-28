@@ -173,6 +173,13 @@ const PRO_TAGS = [
    sezon ilerledikçe kendiliğinden devreye girecek. */
 const PRO_MIN_MEDALS = 3000;
 
+/* EN İYİ SEZON barajı. Yukarıdaki 3000 BU sezonu ölçüyor ("şu anda güçlü");
+   bu ise geçmişteki en iyi sezonu ("bir kere bu seviyeye çıkmış"). Daha
+   düşük olması bilinçli: geçmiş bir başarıyı ödüllendiriyor, güncel formu
+   değil. Ölçüldü — ilk 30 klanın 150 üyesinde barajı geçen 9 kişi (%6),
+   ortanca en iyi sezon 1706 (bkz. server/prosezon.js). */
+const PRO_MIN_BEST = 2200;
+
 const norm = (s) => String(s || "").toLocaleLowerCase("tr").replace(/\s+/g, " ").trim();
 /* Süs ve noktalama atılmış biçim. Adlarda ":)" gibi işaretler var
    ("Code: Furkan", "GençAslan:)"); kullanıcı bunları yazmaz, o yüzden
@@ -206,5 +213,5 @@ const info = (tag) => BY_TAG.get(normTag(tag)) || null;
 const PRO_SET = new Set(PRO_TAGS.map(normTag));
 const isPro = (tag) => PRO_SET.has(normTag(tag));
 
-module.exports = { PLAYERS, PRO_TAGS, PRO_SET, PRO_MIN_MEDALS,
+module.exports = { PLAYERS, PRO_TAGS, PRO_SET, PRO_MIN_MEDALS, PRO_MIN_BEST,
                    matches, isVerified, info, isPro, normTag };

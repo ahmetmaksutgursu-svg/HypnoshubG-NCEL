@@ -38,9 +38,9 @@ try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribut
 
 <section class="page-strip">
   <div class="container">
-    <p class="eyebrow">SİTE GÜNCELLEMELERİ · CHANGELOG</p>
-    <h1>GÜNCELLEMELER</h1>
-    <p>HYPNOSHUB'a eklenen yenilikler ve düzenlemeler. (Oyun değil, sitenin güncellemeleri.)</p>
+    <p class="eyebrow">DENGELEMELER · GÜNCELLEMELER · DUYURULAR</p>
+    <h1>CLASH ROYALE HABERLERİ</h1>
+    <p>Oyundaki denge değişiklikleri, güncellemeler ve etkinlik duyuruları.</p>
   </div>
 </section>
 
@@ -50,28 +50,53 @@ try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribut
   </div>
 </section>
 
+
+<!-- REKLAM · alt bilgiden önce -->
+<div class="reklam-yuva" data-reklam="icerik3"></div>
+
 <div id="app-footer"></div>
 <script src="assets/js/data.js"></script>
 <script src="assets/js/app.js"></script>
+<script src="assets/js/reklam.js"></script>
 <script>
 mountChrome("guncellemeler.html");
-const UPDATES = [
-  { date:"14 Ağustos 2026", tag:"YENİ", tone:"green", title:"Eğlence bölümü eklendi", body:"Kart Sıralama Oyunu (TikTok akımı tarzı) ve Rastgele Meta Deste Çarkı 'Eğlence' kategorisi altında toplandı. Yeni oyunlar yakında." },
-  { date:"14 Ağustos 2026", tag:"TASARIM", tone:"", title:"Sade ve nötr tema", body:"Arayüz beyaz/açık, nötr bir temaya taşındı; vurgular mavi tonlarına indirildi. Ana sayfa sadeleştirildi ve hızlı erişim kutucukları eklendi." },
-  { date:"14 Ağustos 2026", tag:"MENÜ", tone:"", title:"Hamburger menü (☰)", body:"Sağ üstteki menüden oyuncu/klan araması, tüm liderlik tabloları ve eğlence bölümüne tek yerden erişim eklendi." },
-  { date:"14 Ağustos 2026", tag:"VERİ", tone:"green", title:"Canlı meta ve sıralamalar", body:"Meta desteleri artık Nihai Kademe zirvesindeki oyuncuların gerçek destelerinden hesaplanıyor. Kartlarda evrim ve kahraman görselleri kullanılıyor." },
-  { date:"13 Ağustos 2026", tag:"YENİ", tone:"", title:"Global Son Maçlar & YouTube", body:"Canlı maç akışı ve HYPNOS CR son videoları bölümü eklendi. Sıralamalar 20'şerli sayfalandı." },
-  { date:"12 Ağustos 2026", tag:"YENİ", tone:"green", title:"HYPNOSHUB yayında!", body:"Oyuncu/klan araması, global sıralamalar ve meta deste kütüphanesi ile ilk sürüm yayınlandı." },
-];
-document.getElementById("updates").innerHTML = UPDATES.map(u=>`
-  <div class="card" style="margin-bottom:16px">
-    <div class="flex center gap-12" style="margin-bottom:8px">
-      <span class="badge ${u.tone}">${u.tag}</span>
-      <span class="muted" style="font-size:.82rem">${u.date}</span>
-    </div>
-    <h3 style="margin:0 0 6px;font-size:1.15rem">${u.title}</h3>
-    <p class="soft" style="margin:0">${u.body}</p>
-  </div>`).join("");
+/* AKIŞ ARTIK KOD İÇİNDE DEĞİL.
+
+   Buradaki liste bir JavaScript dizisiydi ve tam da bu yüzden
+   14 Ağustos 2026'da kalmıştı: bir haber eklemek için dosyayı
+   düzenleyip yeniden dağıtmak gerekiyordu. Artık sunucudan
+   geliyor ve yönetim panelinden yazılıyor (bkz. server/haber.js).
+
+   Eski altı kayıt silinmedi; haber dosyası ilk oluşturulurken
+   tohum olarak taşındı. */
+const HB_FILTRE = { tur: "" };
+
+async function haberleriCiz(){
+  const kutu = document.getElementById("updates");
+  kutu.innerHTML = spinnerBox("Yükleniyor…");
+  let liste = [];
+  try {
+    const r = await fetch(API_BASE + "/haberler" + (HB_FILTRE.tur ? "?tur=" + HB_FILTRE.tur : ""));
+    liste = (await r.json()).items || [];
+  } catch {
+    kutu.innerHTML = notice("<span>⚠️</span><span>Güncellemeler alınamadı.</span>");
+    return;
+  }
+  if (!liste.length) {
+    kutu.innerHTML = notice("<span>📰</span><span>Bu türde henüz kayıt yok.</span>");
+    return;
+  }
+  kutu.innerHTML = '<div class="hb-liste tek">' + liste.map(haberKart).join("") + "</div>";
+}
+
+function haberFiltre(tur, btn){
+  HB_FILTRE.tur = tur;
+  document.querySelectorAll("#hbFiltre .btn").forEach((b) => b.classList.remove("btn-primary"));
+  if (btn) btn.classList.add("btn-primary");
+  haberleriCiz();
+}
+
+haberleriCiz();
 </script>
 </body>
 </html>

@@ -32,7 +32,17 @@ const RULES = {
   duello: { perDay: 10, maxPoints: 1  },   // tur başına 1 puan
   eksik:  { perDay: 3,  maxPoints: 3  },   // tur başına 3 puan → günde en fazla 9
   kapisma:{ perDay: 3,  maxPoints: 3  },   // 3 soru × 1 puan → günde en fazla 9
+  iksir:  { perDay: 3,  maxPoints: 5  },   // 5 soru × 1 puan → günde en fazla 15
 };
+
+/* İKSİR HESABI — süre ve tur sayısı.
+   Süre yarışmadakiyle aynı (7 sn) ve aynı gerekçeyle bir TOLERANS var:
+   sayaç istemcide bitiyor, cevabın ağdan dönmesi zaman alıyor. Tolerans
+   olmasa kötü bağlantıdaki oyuncu son saniyede bastığında haksız yere
+   süre aşımına düşerdi. */
+const IKSIR_TUR = 5;
+const IKSIR_SURE_MS = Math.max(3000, parseInt(process.env.IKSIR_SURE_MS, 10) || 7000);
+const IKSIR_TOLERANS = 2000;
 
 /* ---------- günlük hak sayacı ---------- */
 let plays = {};
@@ -50,7 +60,21 @@ function save() {
   }, 500);
 }
 const dayKey = (d = new Date()) => takvim.gunAnahtari(d);
-const used = (uid, game) => plays[`${game}|${uid}|${dayKey()}`] || 0;
+/* SINIRSIZ OYUN KİPİ — yalnızca sınama içindir.
+
+   `SINIRSIZ_OYUN=1` ile başlatılan sunucuda günlük hak sayacı okunmuyor,
+   yani puanlı oyunlar sınırsız oynanabiliyor. Amaç, oyunları elle sınarken
+   günde üç hakla kısıtlı kalmamak.
+
+   Canlı sunucuda bu değişken TANIMLI DEĞİL, dolayısıyla davranış hiç
+   değişmiyor. Değişken bilerek ortamdan okunuyor: kodda sabit bir anahtar
+   olsaydı yanlışlıkla açık dağıtılabilirdi. Açıkken sunucu başlarken
+   büyük harflerle uyarı yazıyor ki fark edilmeden kalmasın.
+
+   Hak KAYDI yine tutuluyor (notePlay/note çalışıyor); yalnızca kontrol
+   sırasında sıfır sayılıyor. Böylece sayaç mantığı da sınanmış oluyor. */
+const SINIRSIZ = process.env.SINIRSIZ_OYUN === "1";
+const used = (uid, game) => SINIRSIZ ? 0 : (plays[`${game}|${uid}|${dayKey()}`] || 0);
 function note(uid, game) {
   const k = `${game}|${uid}|${dayKey()}`;
   plays[k] = (plays[k] || 0) + 1;
@@ -93,6 +117,31 @@ const DAILY_SALT = process.env.DAILY_SALT || "hypnoshub-gunun-karti";
 function dailyIndex(n, day = dayKey(), userId = "") {
   const h = crypto.createHash("sha256").update(DAILY_SALT + "|" + day + "|" + userId).digest();
   return h.readUInt32BE(0) % n;
+}
+
+/* DÖRT ŞIK — doğru ortalama + üç yakın çeldirici.
+
+   Çeldiriciler BAŞKA DESTELERİN ortalamasından türetilmiyor: iki meta
+   destesinin ortalaması aynı çıkabiliyor (ölçüldü: 16 destede birkaç
+   çakışma var) ve o zaman iki şık birden doğru olurdu.
+
+   Sapma en az 0,2: 0,1 fark tek bir kartın 1 iksirlik değişimine denk
+   gelmiyor bile, oyuncu için yazı-tura olurdu. En çok 0,8: bundan
+   uzağı bakar bakmaz eleniyor, soru kolaylaşırdı.
+
+   Değerler METİN olarak dönüyor ("3.4"). Sayı olarak gönderilseydi
+   3.40 ile 3.4 karşılaştırması ve kayan nokta yuvarlaması cevabı
+   yanlış eleyebilirdi; karşılaştırma metin üzerinden kesin. */
+function iksirSiklar(dogru) {
+  const kume = new Set([dogru.toFixed(1)]);
+  const sapmalar = shuffle([-0.8,-0.7,-0.6,-0.5,-0.4,-0.3,-0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]);
+  for (const d of sapmalar) {
+    if (kume.size >= 4) break;
+    const v = Math.round((dogru + d) * 10) / 10;
+    if (v < 1.0 || v > 9.9) continue;     // geçerli iksir aralığı dışına çıkma
+    kume.add(v.toFixed(1));
+  }
+  return shuffle([...kume]);
 }
 
 const RARITY_TR = { common: "Sıradan", rare: "Ender", epic: "Destansı", legendary: "Efsanevi", champion: "Şampiyon" };
@@ -161,12 +210,66 @@ function mount(app, deps) {
      bozmuyordu ama insanlar hakkını boşa harcıyordu ve soruların cevabı da
      baştan öğrenilmiş oluyordu. Kilit SUNUCUDA: istemciyi gizlemek yetmez,
      uca doğrudan istek atılabilir. */
+  /* Kilit artık "dönem açık mı"ya değil "oynanabilir mi"ye bakıyor.
+     Serbest modda oyun açılıyor, puan yazılmıyor — puanı zaten
+     board.js reddediyor (addPoints kapalıyken null döner). */
   const acikMi = (res) => {
-    if (takvim.acikMi()) return true;
+    if (takvim.oynanabilirMi()) return true;
+    /* Tarih SABİT yazılmıyor: ara verildiğinde "20 Ağustos" yanlış
+       olurdu. Cümleyi takvim kuruyor. */
     res.status(423).json({ error: "kapali", ...takvim.durum(),
-      message: "Puanlı oyunlar 20 Ağustos 18.00'da açılıyor." });
+      message: takvim.kilitMesaji("Puanlı oyunlar") });
     return false;
   };
+
+/* ---------- YARIDA KALAN OYUNU BULMA ----------
+
+   Yarışmadaki sorunun aynısı bu dört oyunda da vardı: hak oyunun
+   BAŞINDA harcanıyor (note), oturum diskte yaşamaya devam ediyor ama
+   `sessionId` yalnızca sayfanın belleğinde duruyordu. Bağlantı koptuğunda
+   ya da sunucu yeniden başladığında kullanıcı hem hakkını hem
+   ilerlemesini kaybediyordu — Günün Kartı'nda 5 ipucu açmış biri için
+   günün tek hakkı demek.
+
+   Açılış yanıtı oturumda SAKLANIYOR (`acilis`). Devam ederken onu
+   yeniden üretmeye çalışmıyoruz: dört oyunun yanıtı birbirinden farklı
+   (kart listesi, deste çifti, tur dizisi…) ve yeniden üretmek hem
+   kartların hem soruların DEĞİŞMESİ riskini taşırdı — kullanıcı devam
+   ettiğinde başka bir soru görürdü. Saklanan yanıt, kullanıcının
+   gördüğü ekranın birebir aynısını geri getiriyor. */
+/* Eski oturumlarla uyum. Diskte Set olarak yazılmış (yani {} olmuş) ya
+   da hiç bulunmayan kayıtlar olabilir; ilk dokunuşta diziye çeviriyoruz.
+   Yükleme sırasında topluca dönüştürmek de olurdu ama o zaman yeni bir
+   alan eklendiğinde aynı dönüşümü orada da hatırlamak gerekirdi — tek
+   kapıdan geçirmek daha güvenli. */
+function cevaplananDizi(g) {
+  if (!Array.isArray(g.cevaplanan)) g.cevaplanan = [];
+  return g.cevaplanan;
+}
+
+function aktifOyun(userId, kind) {
+  const simdi = Date.now();
+  for (const [id, g] of sessions) {
+    /* Biten oturum zaten siliniyor (sessions.delete), ayrıca işaret aranmıyor. */
+    if (g.userId !== userId || g.kind !== kind) continue;
+    if (simdi - (g.at || 0) > SESSION_TTL) continue;
+    if (!g.acilis) continue;                 // eski oturum: açılışı saklanmamış
+    return { id, g };
+  }
+  return null;
+}
+/* Devam gövdesi: saklanan açılış + o ana kadarki ilerleme.
+
+   İlerlemeyi ÇAĞIRAN hesaplıyor. İlk yazışımda oturuma bir işlev
+   koymuştum (g.ilerleme); oturumlar diske JSON olarak yazıldığı için
+   işlev orada kayboluyordu — yani tam da korumak istediğim durumda,
+   sunucu yeniden başladığında, ilerleme yok olurdu. Oturumda yalnızca
+   veri durur. */
+function oyunDevam(id, g, ek = {}) {
+  g.at = Date.now();
+  oturumKaydet();
+  return { ...g.acilis, sessionId: id, devam: true, ...ek };
+}
 
   app.get("/api/games/status", (req, res) => {
     const s = readSession(req);
@@ -180,6 +283,18 @@ function mount(app, deps) {
   app.post("/api/games/gunun/start", async (req, res) => {
     if (!acikMi(res)) return;
     const s = needAuth(req, res); if (!s) return;
+
+    /* YARIM OYUN VARSA ONU SÜRDÜR — hak kontrolünden ÖNCE.
+       Hakkı zaten harcanmış bir oyuna dönmek yeni hak istemek değil;
+       kontrolü öne almak, kopan kullanıcıyı kendi yarım oyunundan
+       kilitlerdi. Açılan ipuçları da geri getiriliyor. */
+    const yarim = aktifOyun(s.user.id, "gunun");
+    if (yarim) {
+      const ipuclari = [];
+      for (let i = 0; i < yarim.g.tries; i++) ipuclari.push(hintFor(i, yarim.g.answer));
+      return res.json(oyunDevam(yarim.id, yarim.g, { tries: yarim.g.tries, hints: ipuclari }));
+    }
+
     if (left(s.user.id, "gunun") <= 0)
       return res.status(429).json({ error: "limit", resetAt: resetAt(), message: "Günün kartını bugün zaten oynadın." });
 
@@ -189,13 +304,17 @@ function mount(app, deps) {
 
     sweep();
     const id = newId();
-    sessions.set(id, { kind: "gunun", userId: s.user.id, answer, tries: 0, at: Date.now() }); oturumKaydet();
-    note(s.user.id, "gunun");
-    res.json({
-      sessionId: id, tries: 0, maxTries: 6,
+    /* Açılış yanıtı oturumda saklanıyor: devam ederken kullanıcı ekranın
+       BİREBİR aynısını görsün. Yeniden üretmek, kart listesinin arada
+       değişmesi hâlinde başka bir oyun göstermek olurdu. */
+    const acilis = {
+      tries: 0, maxTries: 6,
       names: cards.map((c) => c.tr).sort((a, b) => a.localeCompare(b, "tr")),
       hints: [],
-    });
+    };
+    sessions.set(id, { kind: "gunun", userId: s.user.id, answer, tries: 0, at: Date.now(), acilis }); oturumKaydet();
+    note(s.user.id, "gunun");
+    res.json({ sessionId: id, ...acilis });
   });
 
   /* İpuçları sırayla açılır: her yanlış tahmin bir ipucu getirir. */
@@ -242,6 +361,12 @@ function mount(app, deps) {
   app.post("/api/games/duello/start", async (req, res) => {
     if (!acikMi(res)) return;
     const s = needAuth(req, res); if (!s) return;
+    /* Yarım oyun varsa onu sürdür — hak kontrolünden ÖNCE, bkz. gunun. */
+    {
+      const yarim = aktifOyun(s.user.id, "duello");
+      if (yarim) return res.json(oyunDevam(yarim.id, yarim.g));
+    }
+
     if (left(s.user.id, "duello") <= 0)
       return res.status(429).json({ error: "limit", resetAt: resetAt(), message: "Bugünlük düello hakkın bitti." });
 
@@ -260,13 +385,17 @@ function mount(app, deps) {
     sweep();
     const id = newId();
     const pair = shuffle([a, b]);
-    sessions.set(id, { kind: "duello", userId: s.user.id, winner: a.winrate > b.winrate ? a.key : b.key, at: Date.now() }); oturumKaydet();
-    note(s.user.id, "duello");
-    res.json({
-      sessionId: id,
+    /* Açılış yanıtı oturumda saklanıyor: devam ederken kullanıcı ekranın
+       BİREBİR aynısını görsün. Yeniden üretmek, aradaki meta/kart
+       değişiminde BAŞKA bir soru göstermek olurdu — kullanıcı kaldığı
+       yere değil, yeni bir oyuna dönerdi. */
+    const acilis = {
       decks: pair.map((d) => ({ key: d.key, cards: d.cards, usage: d.usage, battles: d.battles })),
       left: left(s.user.id, "duello"),
-    });
+    };
+    sessions.set(id, { kind: "duello", userId: s.user.id, winner: a.winrate > b.winrate ? a.key : b.key, at: Date.now(), acilis }); oturumKaydet();
+    note(s.user.id, "duello");
+    res.json({ sessionId: id, ...acilis });
   });
 
   app.post("/api/games/duello/answer", async (req, res) => {
@@ -301,6 +430,12 @@ function mount(app, deps) {
   app.post("/api/games/eksik/start", async (req, res) => {
     if (!acikMi(res)) return;
     const s = needAuth(req, res); if (!s) return;
+    /* Yarım oyun varsa onu sürdür — hak kontrolünden ÖNCE, bkz. gunun. */
+    {
+      const yarim = aktifOyun(s.user.id, "eksik");
+      if (yarim) return res.json(oyunDevam(yarim.id, yarim.g));
+    }
+
     if (left(s.user.id, "eksik") <= 0)
       return res.status(429).json({ error: "limit", resetAt: resetAt(),
         message: "Bugünlük \"Eksik Kartı Bul\" hakkın bitti." });
@@ -333,18 +468,21 @@ function mount(app, deps) {
 
     sweep();
     const id = newId();
-    sessions.set(id, { kind: "eksik", userId: s.user.id, answer: gizli.id, at: Date.now() }); oturumKaydet();
-    note(s.user.id, "eksik");
-
     const sade = (c) => ({ id: c.id, name: c.name, elixir: c.elixir, icon: c.icon,
                            evoIcon: c.evoIcon, rarity: c.rarity, hero: c.hero, champion: c.champion });
-    res.json({
-      sessionId: id,
+    /* Açılış yanıtı oturumda saklanıyor: devam ederken kullanıcı ekranın
+       BİREBİR aynısını görsün. Yeniden üretmek, aradaki meta/kart
+       değişiminde BAŞKA bir soru göstermek olurdu — kullanıcı kaldığı
+       yere değil, yeni bir oyuna dönerdi. */
+    const acilis = {
       cards: kalan.map(sade),                 // ekranda duran yedi kart
       options: secenekler.map(sade),          // dört şık — hangisi doğru belli değil
       usage: deck.usage, winrate: deck.winrate, battles: deck.battles,
       left: left(s.user.id, "eksik"), resetAt: resetAt(),
-    });
+    };
+    sessions.set(id, { kind: "eksik", userId: s.user.id, answer: gizli.id, at: Date.now(), acilis }); oturumKaydet();
+    note(s.user.id, "eksik");
+    res.json({ sessionId: id, ...acilis });
   });
 
   app.post("/api/games/eksik/answer", (req, res) => {
@@ -392,6 +530,12 @@ function mount(app, deps) {
   app.post("/api/games/kapisma/start", async (req, res) => {
     if (!acikMi(res)) return;
     const s = needAuth(req, res); if (!s) return;
+    /* Yarım oyun varsa onu sürdür — hak kontrolünden ÖNCE, bkz. gunun. */
+    {
+      const yarim = aktifOyun(s.user.id, "kapisma");
+      if (yarim) return res.json(oyunDevam(yarim.id, yarim.g, { dogru: yarim.g.dogru || 0, cevaplanan: cevaplananDizi(yarim.g) }));
+    }
+
     if (left(s.user.id, "kapisma") <= 0)
       return res.status(429).json({ error: "limit", resetAt: resetAt(),
         message: "Bugünlük \"Kart Kapışması\" hakkın bitti." });
@@ -416,18 +560,32 @@ function mount(app, deps) {
 
     sweep();
     const id = newId();
-    oturumKaydet(); sessions.set(id, {
-      kind: "kapisma", userId: s.user.id, at: Date.now(), dogru: 0, cevaplanan: new Set(),
+    oturumKaydet();
+    const g = {
+      /* DİZİ, Set DEĞİL. Oturumlar diske JSON olarak yazılıyor ve
+         JSON.stringify bir Set'i {} yapıyor. Yani sunucu yeniden
+         başladığında `cevaplanan` boş bir NESNE olarak geri geliyor ve
+         ilk cevapta "cevaplanan.has is not a function" ile patlıyordu —
+         kullanıcının bildirdiği "sistem hatası" tam olarak bu: oyun
+         ölüyor, hak da yanıyordu. Dizi hem yazılıyor hem okunuyor. */
+      kind: "kapisma", userId: s.user.id, at: Date.now(), dogru: 0, cevaplanan: [],
       turlar: turlar.map((t) => ({ answer: t.answer, aId: t.a.id, bId: t.b.id, va: t.va, vb: t.vb, birim: t.q.birim })),
-    });
+    };
+    sessions.set(id, g);
     note(s.user.id, "kapisma");
 
     const sade = (c) => ({ id: c.id, name: c.tr, elixir: c.elixir, icon: c.icon, rarity: c.rarity });
-    res.json({
-      sessionId: id, level: cards[0].level,
+    /* Açılış yanıtı oturumda saklanıyor — turların kendisi de burada.
+       Devam eden kullanıcı AYNI üç turu görüyor; yeniden üretilse
+       cevapladığı turlar başka sorulara dönerdi. */
+    const acilis = {
+      level: cards[0].level,
       rounds: turlar.map((t) => ({ soru: t.q.soru, birim: t.q.birim, a: sade(t.a), b: sade(t.b) })),
       left: left(s.user.id, "kapisma"), resetAt: resetAt(),
-    });
+    };
+    g.acilis = acilis;
+    oturumKaydet();
+    res.json({ sessionId: id, ...acilis });
   });
 
   app.post("/api/games/kapisma/answer", (req, res) => {
@@ -440,14 +598,14 @@ function mount(app, deps) {
     if (!Number.isInteger(i) || i < 0 || i >= g.turlar.length)
       return res.status(400).json({ error: "round" });
     // Aynı tur iki kez cevaplanıp puan çoğaltılmasın.
-    if (g.cevaplanan.has(i))
+    if (cevaplananDizi(g).includes(i))
       return res.status(400).json({ error: "done", message: "Bu tur zaten cevaplandı." });
-    g.cevaplanan.add(i); g.at = Date.now();
+    cevaplananDizi(g).push(i); g.at = Date.now();
 
     const t = g.turlar[i];
     const correct = Number(req.body?.id) === t.answer;
     if (correct) { g.dogru++; addPoints(s.user.id, 1, "kapisma"); }
-    const finished = g.cevaplanan.size >= g.turlar.length;
+    const finished = cevaplananDizi(g).length >= g.turlar.length;
     const dogru = g.dogru;
     if (finished) sessions.delete(String(req.body.sessionId));
 
@@ -457,6 +615,132 @@ function mount(app, deps) {
       dogru, toplam: g.turlar.length, points: dogru,
       left: left(s.user.id, "kapisma"), resetAt: resetAt(),
     });
+  });
+
+  /* ================= 6) İKSİR HESABI =================
+     Ekranda bir META DESTESİNİN sekiz kartı; oyuncu destenin ORTALAMA
+     İKSİR maliyetini dört şıktan seçiyor. 5 soru, her doğru +1 puan.
+
+     YANLIŞ CEVAP ELEMİYOR. Tokmak Yarışması'nda yanlış = tur biter;
+     burada beş sorunun beşi de soruluyor. Bilerek farklı: bu oyun
+     hız ve göz kararı ölçüyor, bir eleme sınavı değil. Elemeli
+     olsaydı ilk soruda yanlış yapan 7 saniyede oyunu bitirirdi.
+
+     SORULAR TEKER TEKER VERİLİYOR — Kart Kapışması'ndaki gibi hepsi
+     birden değil. Sebep süre: 7 saniye ancak sorunun ekrana geldiği
+     an sunucuda biliniyorsa ölçülebilir. Beşini birden gönderseydik
+     istemci "hepsini 2 saniyede cevapladım" diyebilir, sunucunun
+     doğrulayacağı bir şey olmazdı.
+
+     KART İKSİRLERİ İSTEMCİYE GÖNDERİLMİYOR. Sekiz kartın tek tek
+     maliyetini yollasaydık cevap toplama işlemine dönerdi: konsolu
+     açan herkes 5/5 yapardı. İstemci yalnızca görselleri görüyor. */
+
+  /* Sorunun gövdesi — hem açılışta hem devam ederken aynı yerden.
+     Süre HER ÇAĞRIDA sıfırlanıyor: bağlantı koptuğu ya da sunucu
+     yeniden başladığı için geri dönen oyuncu, kaybettiği saniyelerin
+     bedelini ödememeli. */
+  const iksirSoru = (id, g, userId, ek = {}) => {
+    g.soruAt = Date.now();
+    g.at = Date.now();
+    oturumKaydet();
+    const t = g.turlar[g.step];
+    return {
+      sessionId: id, step: g.step + 1, toplam: g.turlar.length,
+      dogru: g.dogru, cards: t.cards, options: t.options,
+      sureMs: IKSIR_SURE_MS, left: left(userId, "iksir"), resetAt: resetAt(), ...ek,
+    };
+  };
+
+  app.post("/api/games/iksir/start", async (req, res) => {
+    if (!acikMi(res)) return;
+    const s = needAuth(req, res); if (!s) return;
+    /* Yarım oyun varsa onu sürdür — hak kontrolünden ÖNCE, bkz. gunun. */
+    {
+      const yarim = aktifOyun(s.user.id, "iksir");
+      if (yarim) return res.json(iksirSoru(yarim.id, yarim.g, s.user.id, { devam: true }));
+    }
+
+    if (left(s.user.id, "iksir") <= 0)
+      return res.status(429).json({ error: "limit", resetAt: resetAt(),
+        message: "Bugünlük \"İksir Hesabı\" hakkın bitti." });
+
+    /* Sekiz kartı ve her kartın iksiri TAM olan desteler. Eksik veriyle
+       ortalama yanlış çıkar ve oyuncu doğru cevabı işaretlediği hâlde
+       yanlış sayılırdı. */
+    const desteler = (await metaDecks()).filter((d) =>
+      Array.isArray(d.cards) && d.cards.length === 8 &&
+      d.cards.every((c) => Number.isFinite(c.elixir) && c.icon));
+    if (desteler.length < IKSIR_TUR)
+      return res.status(503).json({ error: "data", message: "Meta desteleri henüz hazır değil." });
+
+    const turlar = shuffle(desteler).slice(0, IKSIR_TUR).map((d) => {
+      const ort = Math.round((d.cards.reduce((a, c) => a + c.elixir, 0) / 8) * 10) / 10;
+      return {
+        answer: ort.toFixed(1),
+        options: iksirSiklar(ort),
+        /* elixir ALANI YOK — bkz. yukarıdaki not.
+
+           evo / hero / champion GİDİYOR: deste ekranda evrim ve kahraman
+           slotlarıyla, oyundaki görünümünün aynısıyla çizilsin. Bu üç
+           alan cevabı ele vermiyor, yalnızca kartın hangi slotta
+           durduğunu ve hangi görselin kullanılacağını söylüyor. */
+        cards: d.cards.map((c) => ({
+          id: c.id, name: c.name, icon: c.icon,
+          evo: !!c.evo, evoIcon: c.evoIcon || "",
+          hero: !!c.hero, champion: !!c.champion,
+          rarity: c.rarity || "", heroImg: c.heroImg || "",
+        })),
+      };
+    });
+
+    sweep();
+    const id = newId();
+    const g = { kind: "iksir", userId: s.user.id, at: Date.now(), step: 0, dogru: 0, turlar };
+    sessions.set(id, g);
+    note(s.user.id, "iksir");
+    /* aktifOyun() `acilis` alanı olmayan oturumu ESKİ sayıp atlıyor.
+       Bu oyunda açılış diye sabit bir gövde yok (sorular teker teker
+       veriliyor), ama devam edebilmek için işaretin bulunması gerek. */
+    g.acilis = { kind: "iksir" };
+    res.json(iksirSoru(id, g, s.user.id));
+  });
+
+  app.post("/api/games/iksir/answer", (req, res) => {
+    const s = needAuth(req, res); if (!s) return;
+    const id = String(req.body?.sessionId || "");
+    const g = sessions.get(id);
+    if (!g || g.kind !== "iksir" || g.userId !== s.user.id)
+      return res.status(400).json({ error: "session" });
+
+    /* Adım İSTEMCİDEN geliyor ama doğrulanıyor: eşleşmezse reddediliyor.
+       Böylece aynı soru iki kez cevaplanıp puan çoğaltılamıyor. */
+    const i = Number(req.body?.step);
+    if (!Number.isInteger(i) || i !== g.step)
+      return res.status(400).json({ error: "step", message: "Bu soru zaten cevaplandı." });
+
+    const t = g.turlar[g.step];
+    const secim = String(req.body?.choice ?? "");
+    const gecen = Date.now() - (g.soruAt || Date.now());
+    /* Süre iki yoldan dolabiliyor: istemci sayacı bitince boş cevap
+       yolluyor (olağan yol), ya da hiç yollamıyor — o zaman arka duvar
+       burada yakalıyor. */
+    const zamanAsimi = secim === "" || gecen > IKSIR_SURE_MS + IKSIR_TOLERANS;
+    const correct = !zamanAsimi && secim === t.answer;
+    if (correct) { g.dogru++; addPoints(s.user.id, 1, "iksir"); }
+
+    g.step++;
+    const finished = g.step >= g.turlar.length;
+    if (finished) { sessions.delete(id); oturumKaydet(); }
+
+    const govde = {
+      correct, answer: t.answer, zamanAsimi, finished,
+      dogru: g.dogru, toplam: g.turlar.length, points: g.dogru,
+      left: left(s.user.id, "iksir"), resetAt: resetAt(),
+    };
+    /* Bitmediyse SIRADAKİ soru aynı yanıtta geliyor: ayrı bir istek
+       daha atmak, süre sayacının başlangıcını ağ gecikmesine bağlardı. */
+    res.json(finished ? govde : { ...govde, ...iksirSoru(id, g, s.user.id) });
   });
 
   /* ================= 5) DESTE JENERATÖRÜ =================
@@ -525,6 +809,17 @@ function mount(app, deps) {
   const DESTE_ADAY = 3;               // yuva başına seçenek → 8 × 3 = 24 kart
 
   app.get("/api/games/deste/start", async (req, res) => {
+    /* DESTE KURMA PUANSIZ ve tasarım gereği HER ZAMAN AÇIK — açılıştan
+       önce de oynanabiliyordu, çünkü kimsenin hakkını ya da sırasını
+       etkilemiyor.
+
+       ARA bir dönem bunun istisnasıydı: boşlukta düzenleme yapılırken
+       hiçbir oyunun açık olmaması istenmişti. Serbest mod geldiğinde o
+       kural geri alındı — kapalı bir ara, sitenin içeriğini de yok
+       ediyordu. Artık ara YALNIZCA serbest mod kapalıyken kapatıyor. */
+    if (takvim.aradaMi() && !takvim.oynanabilirMi())
+      return res.status(423).json({ error: "kapali", ...takvim.durum(),
+        message: takvim.kilitMesaji("Oyunlar") });
     try {
       const cards = (await allCards()).filter((c) => c.tr && c.icon && c.elixir > 0);
       if (cards.length < 40)

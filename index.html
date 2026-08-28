@@ -65,8 +65,28 @@ try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribut
       </div>
     </div>
 
-    <div class="hero-stats">
-      <span class="api-status" data-api-status><span class="led"></span>Veri alınamadı</span>
+    <!-- CANLI SAYAÇ ŞERİDİ
+         Hero'nun altında tek satır "Veri alınamadı" rozetinden ibaretti;
+         .hero-stat stili CSS'te tanımlıydı ama HİÇ kullanılmıyordu —
+         tasarlanmış, doldurulmamış bir alan. Rakamlar sunucuda zaten
+         hazır (/api/players/index), yeni bir uç açılmadı.
+
+         Sayılar "—" ile başlıyor: veri gelmeden 0 yazmak, indeks boşmuş
+         gibi görünürdü. -->
+    <div class="hero-stats" id="heroStats">
+      <div class="hstat">
+        <span class="hs-ic">🔎</span>
+        <span class="hs-tx"><b id="hsPlayers">—</b><span id="hsPlayersL">İndekslenmiş oyuncu</span></span>
+      </div>
+      <div class="hstat">
+        <span class="hs-ic">🛡️</span>
+        <span class="hs-tx"><b id="hsClans">—</b><span id="hsClansL">Taranmış klan</span></span>
+      </div>
+      <div class="hstat">
+        <span class="hs-ic"><img class="oyun-simge" src="assets/img/hammer-logo.jpg" alt="" onerror="this.parentElement.textContent='🔨'"></span>
+        <span class="hs-tx"><b id="hsPlayers2">—</b><span id="hsPlayers2L">Yarışan tokmakçı</span></span>
+      </div>
+      <span class="api-status" data-api-status><span class="led"></span>Veri yükleniyor…</span>
     </div>
    </div>
 
@@ -116,15 +136,34 @@ try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribut
       <a class="tile fun" href="eglence.html#siralama"><span class="t-ic">🎲</span><span class="t-tx"><span class="tt" data-i18n="fun.rank">Kart Sıralama Oyunu</span><span class="ts" data-i18n="tile.nopts">Puansız</span></span></a>
       <a class="tile fun" href="eglence.html#deste"><span class="t-ic">🧪</span><span class="t-tx"><span class="tt" data-i18n="fun.deck">Deste Jeneratörü</span><span class="ts" data-i18n="tile.nopts">Puansız</span></span></a>
       <a class="tile fun" href="eglence.html#cark"><span class="t-ic">🎡</span><span class="t-tx"><span class="tt" data-i18n="fun.wheel">Rastgele Deste Çarkı</span><span class="ts" data-i18n="tile.nopts">Puansız</span></span></a>
-      <a class="tile fun" href="eglence.html#cenabet"><span class="t-ic"><img class="oyun-simge" src="assets/img/cenabet.png" alt=""></span><span class="t-tx"><span class="tt" data-i18n="fun.cenabet">Cenabet Buton</span><span class="ts" data-i18n="tile.nopts">Puansız</span></span></a>
+      <a class="tile fun" href="eglence.html#cenabet"><span class="t-ic">🪄</span><span class="t-tx"><span class="tt" data-i18n="fun.cenabet">Cenabet Buton</span><span class="ts" data-i18n="tile.nopts">Puansız</span></span></a>
       <a class="tile fun" href="eglence.html#gunun"><span class="t-ic">🎯</span><span class="t-tx"><span class="tt" data-i18n="fun.daily">Günün Kartı</span><span class="ts pts" data-i18n="tile.pts">Puanlı</span></span></a>
       <a class="tile fun" href="eglence.html#duello"><span class="t-ic">⚔️</span><span class="t-tx"><span class="tt" data-i18n="fun.duel">Deste Düellosu</span><span class="ts pts" data-i18n="tile.pts">Puanlı</span></span></a>
       <a class="tile fun" href="eglence.html#eksik"><span class="t-ic">🧩</span><span class="t-tx"><span class="tt" data-i18n="fun.missing">Eksik Kartı Bul</span><span class="ts pts" data-i18n="tile.pts">Puanlı</span></span></a>
       <a class="tile fun" href="eglence.html#kapisma"><span class="t-ic">🥊</span><span class="t-tx"><span class="tt" data-i18n="fun.clash">Kart Kapışması</span><span class="ts pts" data-i18n="tile.pts">Puanlı</span></span></a>
+      <a class="tile fun" href="eglence.html#iksir"><span class="t-ic">💧</span><span class="t-tx"><span class="tt" data-i18n="fun.iksir">İksir Hesabı</span><span class="ts pts" data-i18n="tile.pts">Puanlı</span></span></a>
       <a class="tile fun" href="eglence.html#yarisma"><span class="t-ic"><img class="oyun-simge" src="assets/img/hammer-logo.jpg" alt=""></span><span class="t-tx"><span class="tt" data-i18n="fun.quiz">Tokmak Yarışması</span><span class="ts pts" data-i18n="tile.pts">Puanlı</span></span></a>
       <a class="tile fun" href="eglence.html#tahmin"><span class="t-ic">🔮</span><span class="t-tx"><span class="tt" data-i18n="fun.guess">Kart Tahmin Oyunu</span><span class="ts" data-i18n="tile.nopts">Puansız</span></span></a>
       <div class="tile soon"><span class="t-ic">❓</span><span class="t-tx"><span class="tt" data-i18n="tile.new">Yeni Eğlenceler</span><span class="ts" data-i18n="tag.soon">Yakında</span></span></div>
     </div>
+  </div>
+</section>
+
+
+<!-- REKLAM · sezon çubuğunun altı · ekranın üst yarısı -->
+<div class="reklam-yuva" data-reklam="icerik1"></div>
+
+<!-- SON GÜNCELLEMELER -->
+<section class="section" id="haberBolum" hidden>
+  <div class="container">
+    <div class="flex between center wrap" style="margin-bottom:16px">
+      <div>
+        <p class="eyebrow" data-i18n="home.haber.sub">Dengelemeler, güncellemeler ve yaklaşanlar</p>
+        <h2 class="section-title" data-i18n="home.haber.title">Clash Royale Haberleri</h2>
+      </div>
+      <a class="btn btn-ghost" href="guncellemeler.html" data-i18n="word.more">Tümü →</a>
+    </div>
+    <div class="hb-liste" id="homeHaber"></div>
   </div>
 </section>
 
@@ -166,6 +205,10 @@ try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribut
   </div>
 </section>
 
+
+<!-- REKLAM · meta desteler ile videolar arası · sayfa ortası -->
+<div class="reklam-yuva" data-reklam="icerik2"></div>
+
 <!-- SON VİDEOLAR -->
 <section class="section" style="padding-top:0">
   <div class="container">
@@ -183,12 +226,59 @@ try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribut
   </div>
 </section>
 
+
+<!-- REKLAM · alt bilgiden önce -->
+<div class="reklam-yuva" data-reklam="icerik3"></div>
+
+<!-- ÖZGÜN İÇERİK — bkz. diğer sayfalardaki aynı blok. -->
+<section class="section aciklama">
+  <div class="container">
+    <div class="aciklama-kutu">
+      <h2>HYPNOSHUB nedir?</h2>
+      <p>HYPNOSHUB, Clash Royale verilerini Türkçe ve ücretsiz olarak
+   toplayan bağımsız bir istatistik sitesi. Oyuncu ve klan aramaktan
+   güncel meta destelere, Nihai Kademe sıralamalarından eşleşme
+   oranlarına kadar her şey tek yerde. Supercell ile bir bağlantısı
+   yoktur; resmî oyun verisi Supercell'in geliştirici arayüzünden
+   alınmaktadır.</p>
+      <h3>Veriler nereden geliyor?</h3>
+      <p>Sayılar elle girilmiyor. Sıralamalar, profiller ve savaş günlükleri
+   oyunun resmî arayüzünden okunuyor; meta listeleri ve eşleşme
+   istatistikleri ise bu günlüklerden zaman içinde birikiyor. Tek bir
+   çekim yeterli olmadığı için veri günlerce toplanıyor ve eskiyen maçlar
+   düşürülüyor.</p>
+      <h3>Neden bazı yerlerde yüzde yerine maç sayısı yazıyor?</h3>
+      <p>Çünkü az maça dayanan bir yüzde, bilgi değil yanlış güven verir. %50
+   civarındaki bir oranın %95 güven aralığı 40 maçta yaklaşık ±15 puandır;
+   sekiz maçtan çıkan bir yüzde ise neredeyse hiçbir şey söylemez. Bu
+   yüzden 40 maçın altındaki destelerde ve eşleşmelerde yüzde
+   yazılmıyor, kaç maça dayandığı yazılıyor. Site boş yeri sayıyla
+   doldurmak yerine "yeterli veri yok" demeyi tercih ediyor.</p>
+      <h3>Sitede neler var?</h3>
+      <p><a href="siralamalar.html">Sıralamalar</a> aktif sezonun dünya ve
+   Türkiye listelerini; <a href="meta.html">Meta</a> gerçek maçlardan
+   hesaplanan güncel desteleri; <a href="anti.html">Anti Deste</a> bir
+   desteye karşı ne oynandığını; <a href="kartlar.html">Kartlar</a> bütün
+   kartları ve hangi destelerde kullanıldığını;
+   <a href="klanlar.html">Klanlar</a> klan liderlik tablolarını;
+   <a href="canli.html">Son Maçlar</a> üst sıralarda yeni biten maçları
+   gösterir. <a href="eglence.html">Eğlence</a> bölümünde ise haftalık
+   ödüllü oyunlar bulunur.</p>
+    </div>
+  </div>
+</section>
+
+
 <div id="app-footer"></div>
 
 <script src="assets/js/data.js"></script>
 <script src="assets/js/app.js"></script>
+<script src="assets/js/reklam.js"></script>
 <script>
 mountChrome("index.html");
+
+/* Son Güncellemeler — haber yoksa bölüm hiç çizilmiyor (bkz. app.js). */
+haberleriYukle();
 
 function go(type, q){ location.href = searchUrl(type==="klan" ? "clan" : "player", q); }
 
@@ -203,12 +293,48 @@ attachSuggest(document.getElementById("cIn"), () => "clan");
    olsa da görünür: asıl amacı zaten insanları tabloya çekmek. */
 function odulHtml(d, fmt, TRb){
   const ob = new Date(d.odul.start), oe = new Date(d.odul.end);
-  const ne = d.odul.buHafta
-    ? (TRb ? "Bu dönem" : "This period")
-    : (TRb ? `${fmt(ob)} – ${fmt(new Date(oe - 1))}` : `${fmt(ob)} – ${fmt(new Date(oe - 1))}`);
+  /* BELİRSİZ ARADA TARİH ARALIĞI YAZILMIYOR.
+
+     Ödül hâlâ 2026-08-28 haftasına bağlı olduğu için kutuda
+     "28 Ağu – 4 Eyl" görünüyordu. Yarışma bitişi bilinmeyen bir ara
+     verdiğine göre o aralık artık gerçekleşmeyecek bir söz: ödüller
+     duruyor ama tarihleri durmuyor.
+
+     Aralık SİLİNMİYOR, koşula bağlanıyor — yarışma gerçek bir tarihle
+     yeniden başlatıldığında (DONEM_BASLARI'na tarih yazılınca) satır
+     kendiliğinden geri geliyor. Sabit silseydik o gün elle geri
+     eklemek gerekirdi. */
+  const belirsiz = d.belirsiz === true || (d.week && d.week.belirsiz === true);
+  const ne = belirsiz
+    ? null
+    : d.odul.buHafta
+      ? (TRb ? "Bu dönem" : "This period")
+      : `${fmt(ob)} – ${fmt(new Date(oe - 1))}`;
+  /* Ödüller SIRAYA göre ayrı satırlarda. Üçünü tek cümleye dizmek
+     ("1.'ye şu, 2.'ye bu, 3.'ye şu") okunmuyordu; yarışan kişi kendi
+     sırasının karşılığını tek bakışta görmeli.
+
+     Liste sunucudan geliyor ve burada SAYILMIYOR: ödül eklenip
+     çıkarıldığında bu dosyaya dokunmak gerekmesin. Liste boşsa (ya da
+     eski sunucudan geliyorsa) tek satırlık `metin` alanına düşülüyor,
+     yani kutu hiçbir durumda boş kalmıyor. */
+  /* Ödül metinleri SUNUCUDAN geliyor, ön yüzdeki sözlükten değil — o
+     yüzden site İngilizceye alındığında Türkçe kalıyorlardı (kullanıcı
+     bildirdi). Sunucu artık her ödülün İngilizcesini de gönderiyor;
+     burada dile göre seçiliyor. İngilizcesi yoksa Türkçesine düşülüyor:
+     yeni bir ödül çevrilmeden eklenirse boş görünmesin. */
+  const odulMetni = (o) => (LANG === "en" && o.en) ? o.en : (o.ne || "");
+  const odulBasligi = (o) => (LANG === "en" && o.baslikEn) ? o.baslikEn : (o.baslik || "");
+  const siralar = Array.isArray(d.odul.siralar) ? d.odul.siralar : [];
+  const govde = siralar.length
+    ? `<span class="bp-liste">${siralar.map((o) => `
+        <span class="bp-satir"><span class="bp-yer">${esc(o.simge || (o.sira + "."))}</span>
+        <span class="bp-ne">${esc(odulMetni(o))}</span></span>`).join("")}</span>`
+    : `<span>${d.odul.metin || ""}</span>`;
   return `<div class="board-prize">
       <span class="bp-ic">🎁</span>
-      <span class="bp-tx"><b>${esc(d.odul.baslik)}</b><span>${ne} · ${d.odul.metin}</span></span>
+      <span class="bp-tx"><b>${esc(odulBasligi(d.odul))}</b>${
+        ne ? `<span class="bp-donem">${ne}</span>` : ""}${govde}</span>
     </div>`;
 }
 
@@ -235,7 +361,14 @@ async function loadBoard(){
      O zaman dönem tarihi yerine "ne zaman açılıyor" yazıyoruz; oyunlar
      oynanıyor ama puan yazmıyor ve bunu saklamak yanlış olur. */
   if (d.week.acik === false){
-    const a = new Date(d.week.start);
+    /* BELİRSİZ ARA — tarih yok.
+
+       Yarışma, bitişi bilinmeyen bir sebeple durdurulduğunda sunucu
+       start: null yolluyor. `new Date(null)` 1 Ocak 1970 verir; ekranda
+       "2. hafta 1 Ocak Perşembe'de başlayacaktır" yazardı. O yüzden
+       tarihe hiç dokunmadan ayrı bir metin yolu var. */
+    const belirsiz = d.week.belirsiz === true || !d.week.start;
+    const a = d.week.start ? new Date(d.week.start) : null;
     /* SAAT de yazılmalı: açılış 20 Ağustos 18.00 ama ekranda yalnız
        "20 Ağu" görünüyordu ve o gün sabah gelen herkes tablonun neden
        kapalı olduğunu anlamıyordu. Saat Türkiye'ye sabit — sunucu da
@@ -243,16 +376,64 @@ async function loadBoard(){
     const acilisAni = (t) => t.toLocaleString(TRb ? "tr-TR" : "en-GB",
       { timeZone: "Europe/Istanbul", day: "numeric", month: "long",
         hour: "2-digit", minute: "2-digit" });
-    document.getElementById("boardWeek").textContent =
-      TRb ? `${acilisAni(a)}'de açılıyor` : `Opens ${acilisAni(a)}`;
-    document.getElementById("boardLeft").textContent = sure(d.week.acilisMs);
+    /* KAPALI olmanın İKİ sebebi var ve aynı cümle ikisine de uymuyor:
+         · henüz hiç açılmadı → "yarış başlamadı"
+         · ARA veriliyor      → "2. hafta ... başlayacaktır"
+       Sunucu hangisi olduğunu `week.ara` ile söylüyor. Ara sırasında
+       "yarış henüz başlamadı" yazmak, bir haftadır oynayan insana
+       yanlış olurdu. */
+    const ara = d.week.ara === true;
+    /* Serbest mod: tablo kapalı ama oyunlar oynanabiliyor. */
+    const serbest = d.serbest === true || (d.week && d.week.serbest === true);
+    /* Ara metninde GÜN ADI da var: "28 Ağustos Cuma" denince insan
+       takvime bakmadan anlıyor. */
+    const gunluAn = (t) => t.toLocaleString(TRb ? "tr-TR" : "en-GB",
+      { timeZone: "Europe/Istanbul", day: "numeric", month: "long",
+        weekday: "long", hour: "2-digit", minute: "2-digit" });
+    const no = d.week.sonrakiNo || 2;
+    document.getElementById("boardWeek").textContent = ara
+      ? (belirsiz
+          ? (TRb ? `${no}. hafta yakında` : `Week ${no} coming soon`)
+          : (TRb ? `${no}. hafta ${gunluAn(a)}'da başlıyor` : `Week ${no} starts ${gunluAn(a)}`))
+      : (TRb ? `${acilisAni(a)}'de açılıyor` : `Opens ${acilisAni(a)}`);
+    /* Geri sayacak bir an yok: rakam yerine kum saati duruyor. */
+    document.getElementById("boardLeft").textContent =
+      belirsiz ? "⏳" : sure(d.week.acilisMs);
     body.innerHTML = (d.odul ? odulHtml(d, fmt, TRb) : "") + `
       <p class="board-empty">
-        <b>${TRb?"Yarış henüz başlamadı.":"The race has not started yet."}</b><br>
-        ${TRb ? `Tokmakçılar tablosu <b>${acilisAni(a)}</b>'de açılıyor. O ana kadar <b>puanlı oyunlar oynanamıyor</b>;
-                 sıralama da o anda başlıyor — herkes aynı yerden başlasın diye.
-                 <b>Puansız oyunlar</b> her zaman açık.`
-              : `The board opens <b>${acilisAni(a)}</b>. Scored games are locked until then and the leaderboard starts at the same moment, so everyone begins together. Unscored games are always open.`}
+        <b>${ara
+            ? (belirsiz
+                ? (TRb ? `⏳ ${no}. hafta yakında başlayacaktır.`
+                       : `⏳ Week ${no} is coming soon.`)
+                : (TRb ? `${no}. hafta ${gunluAn(a)}'da başlayacaktır.`
+                       : `Week ${no} starts ${gunluAn(a)}.`))
+            : (TRb ? "Yarış henüz başlamadı." : "The race has not started yet.")}</b><br>
+        ${ara
+          ? (belirsiz
+              /* SERBEST MOD: tablo kapalı ama oyunlar açık. Eski cümle
+                 ("puanlı oyunlar oynanamıyor") artık yanlış olurdu ve
+                 oyuncuyu sitenin kapalı olduğuna inandırırdı. */
+              ? (serbest
+                 ? (TRb ? `${no - 1}. hafta sona erdi ve <b>ödüller dağıtıldı</b>. ${no}. hafta
+                          <b>yakında</b> başlayacak; <b>ödüller aynı</b> olacak.
+                          <b>Bütün oyunlar şu an açık ve oynanabiliyor</b> — ama puan hiçbir
+                          haftaya yazılmıyor, yeni hafta herkes için sıfırdan başlasın diye.`
+                        : `Week ${no - 1} has ended and the rewards were handed out. Week ${no} starts soon with the same rewards. <b>All games are open and playable right now</b>, but no points are recorded so the new week starts from zero for everyone.`)
+                 : TRb ? `${no - 1}. hafta sona erdi ve <b>ödüller dağıtıldı</b>. ${no}. hafta
+                        <b>yakında</b> başlayacak; <b>ödüller aynı</b> olacak. O ana kadar
+                        <b>puanlı oyunlar oynanamıyor</b> ve puan hiçbir haftaya yazılmıyor —
+                        yeni hafta herkes için sıfırdan başlasın diye.
+                        <b>Puansız oyunlar</b> her zaman açık.`
+                     : `Week ${no - 1} has ended and the rewards were handed out. Week ${no} starts soon with the same rewards. Scored games are locked until then and no points are recorded, so the new week starts from zero for everyone. Unscored games are always open.`)
+              : (TRb ? `1. hafta sona erdi. Yeni dönem <b>${gunluAn(a)}</b>'da başlıyor ve
+                    <b>ödüller aynı</b> olacak. O ana kadar <b>puanlı oyunlar oynanamıyor</b>;
+                    puan da hiçbir haftaya yazılmıyor — yeni hafta herkes için sıfırdan
+                    başlasın diye. <b>Puansız oyunlar</b> her zaman açık.`
+                 : `Week 1 has ended. The new period starts <b>${gunluAn(a)}</b> with the same rewards. Scored games are locked until then and no points are recorded, so the new week starts from zero for everyone. Unscored games are always open.`))
+          : (TRb ? `Tokmakçılar tablosu <b>${acilisAni(a)}</b>'de açılıyor. O ana kadar <b>puanlı oyunlar oynanamıyor</b>;
+                    sıralama da o anda başlıyor — herkes aynı yerden başlasın diye.
+                    <b>Puansız oyunlar</b> her zaman açık.`
+                 : `The board opens <b>${acilisAni(a)}</b>. Scored games are locked until then and the leaderboard starts at the same moment, so everyone begins together. Unscored games are always open.`)}
       </p>`;
     return;
   }
@@ -263,11 +444,43 @@ async function loadBoard(){
     `${fmt(s)} – ${fmt(new Date(e - 1))} · ${TRb?"haftalık":"weekly"}`;
   document.getElementById("boardLeft").textContent = sure(d.week.endsInMs);
 
+  /* ARA UYARISI — dönem sürerken, ÖNCEDEN.
+
+     Ara uyarısı yalnızca ara başladıktan sonra görünüyordu: bugün
+     oynayan kimse yarın oyunların kilitleneceğini bilmiyordu. Sunucu
+     artık dönem açıkken de "sonrasında ara var mı" diyor
+     (week.araGeliyor); boşluk yoksa null geliyor ve hiçbir şey
+     çizilmiyor — yani 3. haftadan sonrası için ekranda kalmıyor.
+
+     Haber akışına KOYMUYORUZ: orası yalnızca Clash Royale haberleri
+     için, site duyurusu oraya girmemeli. */
+  const araBasi = d.week.araGeliyor;
+  /* Belirsiz arada araGeliyor null geliyor ama ara VAR: `araVar`
+     olmasaydı bant hiç çizilmez, oyuncu haftanın sonunda oyunların
+     kilitleneceğini öğrenemezdi. */
+  const araVar = d.week.araVar === true || !!araBasi;
+  const araBelirsiz = d.week.araBelirsiz === true;
+  const araNo = d.week.araNo || 2;
+  const anAdli = (t) => new Date(t).toLocaleString(TRb ? "tr-TR" : "en-GB",
+    { timeZone: "Europe/Istanbul", day: "numeric", month: "long",
+      weekday: "long", hour: "2-digit", minute: "2-digit" });
+  const araUyari = araVar
+    ? `<p class="board-ara">${
+        araBelirsiz
+          ? (TRb
+              ? `<b>⏳ ${araNo}. hafta yakında başlayacaktır.</b> Bu hafta <b>${anAdli(d.week.end)}</b>'da bitiyor; sonrasında <b>oyunlar kapalı olacak</b>. Ödüller aynı kalıyor.`
+              : `<b>⏳ Week ${araNo} is coming soon.</b> This week ends <b>${anAdli(d.week.end)}</b> and the games are closed afterwards. The rewards stay the same.`)
+          : (TRb
+              ? `<b>📅 ${araNo}. hafta ${anAdli(araBasi)}'da başlayacaktır.</b> Bu hafta <b>${anAdli(d.week.end)}</b>'da bitiyor; arada <b>oyunlar kapalı olacak</b>. Ödüller aynı kalıyor.`
+              : `<b>📅 Week ${araNo} starts ${anAdli(araBasi)}.</b> This week ends <b>${anAdli(d.week.end)}</b> and the games are closed in between. The rewards stay the same.`)
+      }</p>`
+    : "";
+
   /* Ödül duyurusu. Hangi hafta için geçerli olduğuna sunucu karar veriyor
      ve hafta bitince `odul` null döner — burada tarih hesabı yok, yani
      duyuru ekranda unutulup kalmıyor. Tablo boş olsa da görünür: asıl
      amacı zaten insanları tabloya çekmek. */
-  const odul = d.odul ? odulHtml(d, fmt, TRb) : "";
+  const odul = araUyari + (d.odul ? odulHtml(d, fmt, TRb) : "");
 
   if (!d.items.length){
     body.innerHTML = odul + `
@@ -380,6 +593,15 @@ async function loadGecenHafta(){
   const TRb = LANG === "tr";
   const kutu = document.getElementById("gecenHafta");
   if (!kutu) return;
+  /* BAŞLIK ARTIK NUMARALI: "1. HAFTANIN TOKMAKÇILARI".
+
+     "Geçen hafta" ancak dönemler arka arkaya giderken doğru. Ara
+     uzayınca (bitişi belirsiz durdurmada olduğu gibi) bir ay önce
+     biten dönem hâlâ "geçen hafta" diye görünürdü. Numara her zaman
+     doğru; numara bilinmiyorsa eski metne düşülüyor. */
+  const baslikMetni = (no) => TRb
+    ? (no ? no + ". HAFTANIN TOKMAKÇILARI" : "GEÇEN HAFTANIN TOKMAKÇILARI")
+    : (no ? "WEEK " + no + " CHAMPIONS" : "LAST WEEK’S CHAMPIONS");
   const d = await fetch(API_BASE + "/board/gecen", { credentials: "same-origin" })
     .then(r => r.ok ? r.json() : null).catch(() => null);
   /* Henüz tamamlanmış dönem yok (ilk hafta). Kutuyu gizlemek yerine ne
@@ -405,7 +627,34 @@ async function loadGecenHafta(){
       ? bitis.toLocaleDateString(TRb ? "tr-TR" : "en-GB", { day: "numeric", month: "long" }) +
         " " + String(bitis.getHours()).padStart(2, "0") + ".00"
       : null;
-    const metin = TRb
+    /* ARA sırasında "İlk dönem sürüyor" demek YANLIŞ: dönem bitti,
+       yenisi henüz başlamadı. Ölçüldü — ara benzetiminde kutuda
+       "İlk dönem sürüyor. Tablo 2 Eylül'da sıfırlanacak" yazıyordu;
+       hem cümle hem tarih anlamsızdı (tarih sonraki başlangıçtan
+       türetiliyordu).
+
+       Bu yol yalnızca HİÇ veri yokken görünüyor. Normalde ara
+       sırasında 1. haftanın şampiyonları burada duruyor. */
+    const araMi = b && (b.ara === true || (b.week && b.week.ara === true));
+    const sonrakiNo = (b && (b.sonrakiNo || (b.week && b.week.sonrakiNo))) || 2;
+    /* Belirsizse acilis null geliyor; `basAn` de null kalıyor ve aşağıdaki
+       hazır "yakında" yolu devreye giriyor. */
+    const belirsizB = b && (b.belirsiz === true || (b.week && b.week.belirsiz === true));
+    const baslangic = (b && b.acilis && !belirsizB) ? new Date(b.acilis) : null;
+    const basAn = baslangic
+      ? baslangic.toLocaleString(TRb ? "tr-TR" : "en-GB",
+          { timeZone: "Europe/Istanbul", day: "numeric", month: "long",
+            weekday: "long", hour: "2-digit", minute: "2-digit" })
+      : null;
+    const metin = araMi
+      ? (TRb
+          ? (basAn
+              ? sonrakiNo + ". hafta <b>" + basAn + "</b>'da başlayacaktır; ödüller aynı olacak."
+              : sonrakiNo + ". hafta yakında başlayacaktır; ödüller aynı olacak.")
+          : (basAn
+              ? "Week " + sonrakiNo + " starts <b>" + basAn + "</b> with the same rewards."
+              : "Week " + sonrakiNo + " starts soon with the same rewards."))
+      : TRb
       ? (nezaman
           ? "İlk dönem sürüyor. Tablo <b>" + nezaman + "</b>'da sıfırlanacak; dönemi ilk üçte bitirenler puanlarıyla burada kalacak."
           : "İlk dönem sürüyor. Dönem bitince ilk üçte bitirenler puanlarıyla burada kalacak.")
@@ -413,7 +662,7 @@ async function loadGecenHafta(){
     kutu.hidden = false;
     kutu.innerHTML =
       '<div class="gecen-bas"><span class="gecen-baslik">' +
-        (TRb ? "GEÇEN HAFTANIN TOKMAKÇILARI" : "LAST WEEK\u2019S CHAMPIONS") + '</span></div>' +
+        baslikMetni(araMi && sonrakiNo > 1 ? sonrakiNo - 1 : null) + '</span></div>' +
       '<div class="gecen-bos">' + metin + '</div>';
     return;
   }
@@ -423,7 +672,7 @@ async function loadGecenHafta(){
   kutu.hidden = false;
   kutu.innerHTML =
     '<div class="gecen-bas">' +
-      '<span class="gecen-baslik">' + (TRb ? "GEÇEN HAFTANIN TOKMAKÇILARI" : "LAST WEEK’S CHAMPIONS") + '</span>' +
+      '<span class="gecen-baslik">' + baslikMetni(d.no) + '</span>' +
       '<span class="gecen-tarih">' + tarih(d.start) + ' – ' + tarih(d.end) + '</span>' +
     '</div>' +
     '<div class="gecen-liste">' + d.items.map((x) =>
@@ -538,12 +787,62 @@ async function loadHome(){
 }
 function reloadHome(){ loadHome(); }
 
+/* ---------- CANLI SAYAÇ ŞERİDİ ----------
+   Üç rakam: indekslenmiş oyuncu, taranmış klan, yarışmış tokmakçı.
+   İkisi /api/players/index'ten, üçüncüsü puan tablosundan geliyor.
+
+   ÇEVİRİ: site genelinde t() ve data-i18n var ama etiketler burada
+   LANG'a bakılarak yazılıyor — loadBoard/loadGecenHafta da öyle
+   yapıyor. Sözlüğe üç anahtar eklemek yerine mevcut deseni izlemek
+   dil değişiminde de doğru çalışıyor (bkz. window.onLangChange). */
+function sayacaYaz(el, hedef){
+  if (!el) return;
+  /* Hareketi kısıtlamış kullanıcıya animasyon YOK: sayı doğrudan
+     yazılıyor. Süslemenin erişilebilirlikten önce gelmesi olmaz. */
+  const azHareket = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (azHareket || !Number.isFinite(hedef)) { el.textContent = nfTR(hedef || 0); return; }
+  const sure = 900, bas = performance.now();
+  /* Sondan yavaşlayan eğri: rakam hedefe "oturuyor", birden durmuyor. */
+  const yumusat = (x) => 1 - Math.pow(1 - x, 3);
+  const adim = (t) => {
+    const o = Math.min(1, (t - bas) / sure);
+    el.textContent = nfTR(Math.round(hedef * yumusat(o)));
+    if (o < 1) requestAnimationFrame(adim);
+  };
+  requestAnimationFrame(adim);
+}
+
+async function loadHeroStats(){
+  const TRb = LANG === "tr";
+  const yaz = (id, metin) => { const e = document.getElementById(id); if (e) e.textContent = metin; };
+  yaz("hsPlayersL",  TRb ? "İndekslenmiş oyuncu" : "Players indexed");
+  yaz("hsClansL",    TRb ? "Taranmış klan"       : "Clans indexed");
+  yaz("hsPlayers2L", TRb ? "Yarışan tokmakçı"    : "Players competed");
+
+  /* İki uç PARALEL çağrılıyor: sıraya dizmek şeridi iki tur bekletirdi.
+     Biri düşerse diğeri yine yazılıyor — hepsi ya da hiç değil. */
+  const [ix, wk, gc] = await Promise.all([
+    fetch(API_BASE + "/players/index").then(r => r.ok ? r.json() : null).catch(() => null),
+    fetch(API_BASE + "/board/weekly", { credentials: "same-origin" }).then(r => r.ok ? r.json() : null).catch(() => null),
+    fetch(API_BASE + "/board/gecen").then(r => r.ok ? r.json() : null).catch(() => null),
+  ]);
+
+  if (ix && Number.isFinite(ix.indexed)) sayacaYaz(document.getElementById("hsPlayers"), ix.indexed);
+  if (ix && Number.isFinite(ix.clans))   sayacaYaz(document.getElementById("hsClans"), ix.clans);
+
+  /* ARA sırasında haftalık tablo boş (total 0) — o an "0 tokmakçı"
+     yazmak yarışmayı ölü gösterirdi. Biten dönemin katılımcı sayısına
+     düşülüyor; ikisi de yoksa alan "—" kalıyor. */
+  const tokmakci = (wk && wk.total) || (gc && gc.toplam) || 0;
+  if (tokmakci) sayacaYaz(document.getElementById("hsPlayers2"), tokmakci);
+}
+
 (async function(){
   await loadHome();
-  loadBoard(); loadGecenHafta();
+  loadBoard(); loadGecenHafta(); loadHeroStats();
 })();
 
-window.onLangChange = () => { paintApiStatus(); const s=seasonInfo(); document.getElementById("sDays").textContent = s.daysLeft + (LANG==="tr"?" gün kaldı":" days left"); document.getElementById("sEnd").textContent=s.endStr; };
+window.onLangChange = () => { paintApiStatus(); loadHeroStats(); const s=seasonInfo(); document.getElementById("sDays").textContent = s.daysLeft + (LANG==="tr"?" gün kaldı":" days left"); document.getElementById("sEnd").textContent=s.endStr; };
 window.repaint = () => { loadBoard(); loadGecenHafta(); if (window.__vid) renderVideos(window.__vid); if (window.__meta) renderHomeMeta(window.__meta); if (window.__pl) renderLbPlayers(window.__pl); if (window.__cl) renderLbClans(window.__cl); const s = seasonInfo(); document.getElementById('sDays').textContent = s.daysLeft + (LANG==='tr'?' gün kaldı':' days left'); document.getElementById('sEnd').textContent = s.endStr; };
 </script>
 </body>

@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="gece">
+<head>
+<meta charset="UTF-8">
+<!-- viewport-fit=cover: bu olmadan env(safe-area-inset-*) HER ZAMAN 0 döner,
+     yani alt çubuğun iPhone çentik/ana-ekran çubuğu payı hiç uygulanmıyordu. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Oyuncunun Desteleri — HYPNOSHUB</title>
+<meta name="description" content="Bir Clash Royale oyuncusunun son savaşlarında kullandığı desteler: hangi desteyle kaç maç yapmış, kaçını kazanmış.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="HYPNOSHUB">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:url" content="https://hypnoshub.pro/desteler.html">
+<meta property="og:title" content="Oyuncunun Desteleri — HYPNOSHUB">
+<meta property="og:description" content="Bir Clash Royale oyuncusunun son savaşlarında kullandığı desteler: hangi desteyle kaç maç yapmış, kaçını kazanmış.">
+<meta property="og:image" content="https://hypnoshub.pro/assets/img/hammer-logo.jpg">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Oyuncunun Desteleri — HYPNOSHUB">
+<meta name="twitter:description" content="Bir Clash Royale oyuncusunun son savaşlarında kullandığı desteler.">
+<meta name="twitter:image" content="https://hypnoshub.pro/assets/img/hammer-logo.jpg">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" href="assets/img/hammer-logo.jpg">
+<link rel="apple-touch-icon" href="assets/img/hammer-logo.jpg">
+<meta name="theme-color" content="#1e5ae0">
+<script>/* Tema İLK BOYAMADAN ÖNCE uygulanır: aşağıdaki stil dosyası
+  yüklenmeden çalıştığı için sayfa hiç yanıp sönmüyor. Varsayılan "gece". */
+try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribute("data-theme",
+["gece","light","dark"].indexOf(_t)>=0?_t:"gece")}catch(e){}</script>
+<meta name="google-adsense-account" content="ca-pub-2829452879673360">
+<link rel="stylesheet" href="assets/css/styles.css">
+<!-- AdSense betiği BURADA DEĞİL: reklam çerezleri onay gerektirdiği için
+     betik, ziyaretçi kabul ettikten sonra app.js tarafından yükleniyor
+     (bkz. ÇEREZ ONAYI). -->
+</head>
+<body>
+<div id="app-header"></div>
+
+<section class="page-strip">
+  <div class="container">
+    <p class="eyebrow" id="dsEyebrow">OYUNCUNUN DESTELERİ</p>
+    <h1 id="dsBaslik">DESTELER</h1>
+    <p><span class="api-status" data-api-status style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2);color:#eaf0fb"><span class="led"></span>Veri yükleniyor…</span></p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div id="dsGeri" style="margin-bottom:14px"></div>
+    <div id="dsNot" class="muted" style="font-size:.84rem;margin-bottom:16px"></div>
+    <div id="dsListe"></div>
+  </div>
+</section>
+
+
+<!-- REKLAM · alt bilgiden önce -->
+
+<!-- ÖZGÜN İÇERİK — sayfanın verisini nasıl okuyacağını anlatır.
+     Doldurma metin değil: rakamlar sunucudaki ölçümlerden geliyor. -->
+<section class="section aciklama">
+  <div class="container">
+    <div class="aciklama-kutu">
+      <h2>Bir oyuncunun destelerini incelemek</h2>
+      <p>Bu sayfa tek bir oyuncunun kullandığı desteleri bir arada gösteriyor.
+   En çok işe yaradığı yer, iyi bir oyuncunun ne oynadığını merak
+   ettiğiniz an: sıralamalarda ya da savaş günlüğünde bir isim gördünüz,
+   destesini bütün hâlinde görmek istiyorsunuz.</p>
+      <h3>Bir desteyi kopyalamadan önce</h3>
+      <p>Üst sıradaki bir oyuncunun destesini olduğu gibi almak çoğu zaman
+   beklenen sonucu vermez ve sebebi kartların gücü değildir. O deste, o
+   oyuncunun <i>oynayış tarzına</i> göre seçilmiştir: hangi kartla savunup
+   hangisiyle karşı saldırıya geçtiği, hangi anı beklediği, hangi hatayı
+   affettiği. Aynı sekiz kart, farklı bir refleksle bambaşka bir deste
+   olur.</p>
+      <p>Daha sağlıklı yol, desteyi bütün olarak kopyalamak yerine <b>rolleri</b>
+   incelemektir: kazanma koşulu hangisi, havaya cevabı ne, sürüye cevabı
+   ne, bina var mı, büyüler hangi rolü üstlenmiş. Kendi destenizde eksik
+   olan rolü gördüğünüzde asıl dersi almış olursunuz.</p>
+      <h3>Deste kurmayı denemek</h3>
+      <p>Sıfırdan deste kurmak istiyorsanız <a href="eglence.html#deste">Deste
+   Jeneratörü</a> sekiz yuvayı adım adım doldurtuyor ve her yuvada üç aday
+   veriyor — böylece seçim yaparken destenin dengesini de görüyorsunuz.
+   Güncel metadan ilham almak isterseniz <a href="meta.html">meta
+   listesi</a> başlangıç için daha sağlam bir yer.</p>
+    </div>
+  </div>
+</section>
+
+<div class="reklam-yuva" data-reklam="icerik3"></div>
+
+<div id="app-footer"></div>
+<!-- data.js ÖNCE: kart veritabanını (CARD_DB) o tanımlıyor ve app.js
+     içindeki registerApiCard ona yazıyor. Yalnızca app.js yüklenince
+     sayfa "CARD_DB is not defined" ile düşüyordu — öteki sayfalar da
+     ikisini bu sırayla yüklüyor. -->
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/reklam.js"></script>
+<script>
+/* Bu satır UNUTULMUŞTU ve sayfa sessizce yarım çalışıyordu: üst menü, alt
+   çubuk, tema, dil, çerez bandı, tıklama sesleri — hiçbiri yoktu. En
+   sinsisi kart adlarıydı: `mountChrome` içinden çağrılan `loadCardNames`
+   çalışmadığı için Türkçe sözlük boş kaldı ve kartlar İngilizce yazıldı
+   ("GOLEM DESTESİ · Phoenix"). Sayfa açılıyor ve veri geliyor olduğu için
+   eksiklik hata vermiyordu.
+
+   "oyuncu" veriliyor: bu sayfa profilin bir sekmesi, menüde Oyuncu
+   bölümü etkin görünmeli. */
+mountChrome("oyuncu");
+/* ============================================================
+   OYUNCUNUN DESTELERİ
+   ------------------------------------------------------------
+   İstenen: oyuncunun 5 ve üzeri maç yaptığı desteler, her birinin
+   maç sayısıyla, lig/mücadele ayrımı olmadan.
+
+   ÖNEMLİ SINIR — ve ekranda da yazıyor: Supercell savaş günlüğünde
+   yalnızca SON 30 MAÇI veriyor. Bu 30 maçın kapsadığı süre oyuncuya
+   göre değişiyor; ölçüldü, 12 oyuncuda 0,1 gün ile 7,4 gün arasında.
+   Yani "bu haftaki desteler" diyemiyoruz — kimisinde iki saat,
+   kimisinde bir hafta. Onun yerine kaç maç ve hangi tarih aralığı
+   olduğu açıkça yazılıyor.
+
+   Ölçüm ayrıca şunu gösterdi: bir oyuncuda ortalama 5,1 farklı deste
+   çıkıyor ve bunların 1,4'ü 5+ maça ulaşıyor. Yani liste çoğu
+   oyuncuda kısa olacak; bu veri sınırı, hata değil.
+   ============================================================ */
+
+/* Eşiğin altındaki desteler de sayılıyor ama LİSTELENMİYOR — kaç tane
+   olduğu notta yazıyor ki kullanıcı eksik bir şey görmediğini bilsin. */
+const MIN_MAC = 5;
+
+const qs = new URLSearchParams(location.search);
+const TAG = qs.get("tag") || "";
+
+const el = (id) => document.getElementById(id);
+
+/* Bir destenin anahtarı: kart anahtarları sıralı. Aynı sekiz kart farklı
+   sırada gelirse aynı deste sayılmalı. */
+const desteAnahtari = (keys) => [...(keys || [])].sort().join("|");
+
+/* `crTime` bir Date DEĞİL, ISO biçimli METİN döndürüyor
+   ("20260822T101530.000Z" → "2026-08-22T10:15:30Z"). Doğrudan Date
+   sanıp `toLocaleDateString` çağırınca patlıyordu; sınama yakaladı.
+   Metni burada Date'e çeviriyoruz. */
+const zamanNesnesi = (s) => {
+  const d = new Date(crTime(s));
+  return isNaN(d) ? null : d;
+};
+
+function gunFarki(a, b){
+  const x = zamanNesnesi(a), y = zamanNesnesi(b);
+  if (!x || !y) return null;
+  return Math.abs(y - x) / 864e5;
+}
+
+function tarihYaz(s){
+  const d = zamanNesnesi(s);
+  if (!d) return "";
+  return d.toLocaleDateString("tr-TR", { day: "numeric", month: "long" }) + " " +
+         d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+}
+
+function ciz(p, savaslar){
+  el("dsBaslik").textContent = (p && p.name ? p.name : TAG).toUpperCase();
+  el("dsEyebrow").textContent = "OYUNCUNUN DESTELERİ";
+  el("dsGeri").innerHTML =
+    `<a class="btn btn-ghost" href="oyuncu.html?tag=${encodeURIComponent(TAG)}">← Profile dön</a>`;
+
+  const liste = Array.isArray(savaslar) ? savaslar : [];
+  if (!liste.length){
+    el("dsNot").textContent = "";
+    el("dsListe").innerHTML = notice(`<span>ℹ️</span><span>Bu oyuncunun savaş geçmişi alınamadı.</span>`);
+    return;
+  }
+
+  /* TEK KİŞİLİK maçlar sayılıyor. 2v2'de bir tarafta iki ayrı deste var;
+     hangisinin "oyuncunun destesi" olduğu belli olsa da takım arkadaşının
+     destesiyle kazanılan maçı oyuncunun destesine yazmak yanıltıcı olur. */
+  const desteler = new Map();
+  let sayilan = 0, atlanan = 0;
+  let enEski = null, enYeni = null;
+  for (const b of liste){
+    const keys = b.myDeck || [];
+    if (keys.length !== 8){ atlanan++; continue; }
+    sayilan++;
+    if (b.zaman){
+      if (!enEski || b.zaman < enEski) enEski = b.zaman;
+      if (!enYeni || b.zaman > enYeni) enYeni = b.zaman;
+    }
+    const k = desteAnahtari(keys);
+    let d = desteler.get(k);
+    if (!d){
+      d = { k, cards: keys, evo: b.myEvo || [], hero: b.myHero || [],
+            n: 0, w: 0, l: 0, b: 0, modlar: new Map(), sonZaman: b.zaman || "" };
+      desteler.set(k, d);
+    }
+    d.n++;
+    if (b.result === "win") d.w++; else if (b.result === "loss") d.l++; else d.b++;
+    /* Mod dağılımı da gösteriliyor: "lig mi mücadele mi" sorusunun cevabı
+       destenin yanında dursun. İstenen ayrım YOK (hepsi sayılıyor) ama
+       hangi modda oynandığını gizlemenin de sebebi yok. */
+    const mod = modAdi(b);
+    d.modlar.set(mod, (d.modlar.get(mod) || 0) + 1);
+    if (!d.sonZaman || (b.zaman && b.zaman > d.sonZaman)) d.sonZaman = b.zaman;
+  }
+
+  const hepsi = [...desteler.values()].sort((a, b2) => b2.n - a.n || b2.w - a.w);
+  const gosterilen = hepsi.filter((d) => d.n >= MIN_MAC);
+  const gizli = hepsi.length - gosterilen.length;
+
+  /* NOT: verinin sınırını açıkça söylüyor. */
+  const gun = (enEski && enYeni) ? gunFarki(enEski, enYeni) : null;
+  const sure = gun == null ? ""
+    : gun < 1 ? `${Math.max(1, Math.round(gun * 24))} saat`
+    : `${gun.toFixed(1)} gün`;
+  el("dsNot").innerHTML =
+    `Clash Royale yalnızca <b>son ${sayilan} maçı</b> yayınlıyor` +
+    (sure ? ` — bu maçlar <b>${sure}</b> içine sığıyor` : "") +
+    (enEski && enYeni ? ` (${tarihYaz(enEski)} – ${tarihYaz(enYeni)})` : "") + `. ` +
+    `Lig, mücadele, kupa yolu — hepsi sayılıyor. ` +
+    `<b>${MIN_MAC} maç ve üzeri</b> oynanan desteler listeleniyor` +
+    (gizli ? `; ${gizli} deste bu eşiğin altında kaldığı için gösterilmiyor` : "") + `.` +
+    (atlanan ? ` <span class="muted">(${atlanan} maç 2v2 ya da eksik deste olduğu için sayılmadı.)</span>` : "");
+
+  if (!gosterilen.length){
+    el("dsListe").innerHTML = notice(
+      `<span>ℹ️</span><span>Son ${sayilan} maçta <b>${MIN_MAC} kez ve üzeri</b> oynanmış deste yok. ` +
+      `Bu oyuncu ${hepsi.length} farklı deste denemiş.</span>`);
+    return;
+  }
+
+  /* Bir oyuncu aynı desteyi bir iki kart değiştirip oynuyor ve `nameDeck`
+     hepsine aynı adı veriyor: sınadığımız oyuncuda ÜÇ deste birden
+     "GOLEM DESTESİ" çıktı, hangisinin hangisi olduğu yalnızca sıra
+     numarasından anlaşılıyordu.
+
+     Ayrımı grubun ORTAK çekirdeğine göre yapıyoruz: aynı adı taşıyan
+     destelerin hepsinde bulunan kartlar zaten ayırt etmiyor, o yüzden
+     desteyi kendine özgü kılan ilk kartı ada ekliyoruz. Etiket yine
+     çakışırsa ikinci farkı da yazıyoruz.
+
+     `d.cards` kart NESNESİ değil, CARD_DB ANAHTARI tutuyor (yukarıda
+     `cards: keys`) — bu yüzden `cardName` değil `cardNameOf` çağrılıyor.
+     İlk denemede `cardName` yazılmıştı: sessizce boş döndü, ek hiç
+     görünmedi ve üç başlık da aynı kaldı. */
+  const adlar = gosterilen.map((d) => nameDeck(d.cards) || "Deste");
+  gosterilen.forEach((d, i) => {
+    d.ad = adlar[i];
+    const grup = gosterilen.filter((o, j) => adlar[j] === adlar[i]);
+    if (grup.length < 2) return;
+    const ortak = grup[0].cards.filter((c) => grup.every((o) => o.cards.includes(c)));
+    const fark = d.cards.filter((c) => !ortak.includes(c));
+    const yaz = (n) => fark.slice(0, n).map(cardNameOf).filter(Boolean).join(" + ");
+    let ek = yaz(1);
+    if (ek && grup.some((o) => o !== d && o.__ek === ek)) ek = yaz(2);
+    d.__ek = ek;
+    if (ek) d.ad = adlar[i] + " · " + ek;
+  });
+  el("dsListe").innerHTML = gosterilen.map((d, i) => {
+    const oran = d.n ? Math.round((d.w / d.n) * 100) : 0;
+    const cls = oran >= 55 ? "good" : oran < 45 ? "bad" : "";
+    const link = copyDeckLink(d.cards, { evo: d.evo, hero: d.hero });
+    const modlar = [...d.modlar.entries()].sort((a, b2) => b2[1] - a[1])
+      .map(([m, n]) => `${esc(m)} ${n}`).join(" · ");
+    const card = (c) => renderCard(c, { evo: (d.evo || []).includes(c), heroSlot: (d.hero || []).includes(c) });
+    return `
+    <div class="card ds-deste" style="margin-bottom:16px">
+      <div class="flex between center wrap gap-12">
+        <h3 style="margin:0;font-size:1.05rem">${i + 1}. ${esc(d.ad || "Deste")}</h3>
+        <div class="flex center gap-12" style="flex-wrap:wrap">
+          <span class="badge">${d.n} maç</span>
+          <span class="badge ${cls}">%${oran} galibiyet</span>
+          <span class="muted" style="font-size:.8rem">${d.w}G / ${d.l}M${d.b ? ` / ${d.b}B` : ""}</span>
+        </div>
+      </div>
+      <div class="mini-cards" style="margin-top:10px">${d.cards.slice(0, 4).map(card).join("")}</div>
+      <div class="mini-cards">${d.cards.slice(4, 8).map(card).join("")}</div>
+      <div class="foot" style="margin-top:10px">
+        <span class="elixir-badge">💧 ${deckElixir(d.cards)}</span>
+        <span class="muted" style="font-size:.8rem">${modlar}</span>
+        ${link ? `<a class="deck-copy" href="${link}" onclick="event.preventDefault();openDeck(${jsArg(link)},this)" title="Oyunda aç">${ICONS.copy}</a>` : ""}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+/* Maçın modunu okunur bir adla söyler. `rawType` Supercell'in değeri;
+   çevirisi olmayan modlarda mod adına düşülüyor. */
+function modAdi(b){
+  const t = b.rawType || "";
+  if (t === "pathOfLegend") return "Nihai";
+  if (t === "trail") return /Ladder/i.test(b.modeName || "") ? "Kupa" : "Mücadele";
+  if (t === "PvP") return "Kupa";
+  if (t === "tournament") return "Turnuva";
+  if (t === "friendly" || t === "clanMate") return "Dostluk";
+  if (/riverRace|boatBattle/i.test(t)) return "Klan Savaşı";
+  return b.modeName || t || "Diğer";
+}
+
+(async function(){
+  if (!TAG){
+    el("dsListe").innerHTML = notice(`<span>🔍</span><span>Oyuncu etiketi verilmedi. <a href="oyuncu.html">Oyuncu ara</a>.</span>`);
+    return;
+  }
+  el("dsListe").innerHTML = spinnerBox("Desteler hesaplanıyor…");
+  /* Eşleşme tablosu deste ADLARINI belirliyor (nameDeck onu kaynak alıyor),
+     o yüzden çizimden önce yüklenmeli — sonradan gelirse desteler adsız
+     çizilir ve Anti Deste sayfasından farklı adlar görünür. */
+  const [p, savaslar] = await Promise.all([
+    HypnoAPI.player(TAG), HypnoAPI.battlelog(TAG), eslesmeYukle(),
+  ]);
+  paintApiStatus();
+  ciz(p && !p.notFound && !p.offline ? p : null, savaslar);
+})();
+window.onLangChange = paintApiStatus;
+</script>
+</body>
+</html>

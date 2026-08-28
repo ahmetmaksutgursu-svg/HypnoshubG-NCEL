@@ -86,10 +86,40 @@ function odulAnahtariGecerliMi(anahtar) {
   const d = new Date(y, ay - 1, g, takvim.GUN_SAATI, 0, 0, 0);
   return takvim.donemAnahtari(d) === anahtar;
 }
+/* `haftalar` bir LİSTE — aynı ödüller birden çok döneme bağlanabiliyor.
+
+   Önce tek bir `hafta` alanı vardı ve 1. dönem bitince ödül kutusu
+   ekrandan düşüyordu. 2. dönemde AYNI ödüller verilecek; tek alanı
+   "2026-08-28" yapsaydık 1. dönem daha bitmeden ödül duyurusu
+   kaybolurdu. Liste olunca sıradaki dönem kendiliğinden devralıyor.
+
+   Her giriş GERÇEK bir dönem başlangıcı olmak zorunda; açılışta
+   kontrol ediliyor (bkz. odulAnahtariGecerliMi). */
 const ODUL = {
-  hafta: "2026-08-20",                 // 20–27 Ağustos 2026 (1. dönem)
-  baslik: "Açılış ödülü",
-  metin: "Dönemi <b>1. sırada</b> bitiren tokmakçıya <b>Pass Royale</b> hediye!",
+  haftalar: [
+    "2026-08-20",                      // 1. dönem · 20–27 Ağustos 2026
+    "2026-08-28",                      // 2. dönem · 28 Ağustos – 4 Eylül 2026
+  ],
+  baslik: "Açılış ödülleri",
+  baslikEn: "Opening rewards",
+  /* Ödüller TEK CÜMLE değil, SIRAYA bağlı bir liste.
+
+     Başta yalnızca birinciye Pass Royale vardı ve tek bir metin
+     yetiyordu. Üç ödül olunca tek cümleye sıkıştırmak okunmaz hâle
+     gelirdi: yarışan kişinin "ben şu an kaçıncıyım, bana ne düşüyor"
+     sorusunu tek bakışta cevaplaması gerekiyor.
+
+     Ödül eklemek/çıkarmak için yalnızca bu liste değişiyor; ön yüz
+     kaç ödül olduğunu saymıyor, listeyi olduğu gibi çiziyor. */
+  /* Her ödül İKİ DİLDE. Önceden yalnızca Türkçesi vardı ve site
+     İngilizceye alındığında ödüller Türkçe kalıyordu (kullanıcı
+     bildirdi). Ödül metinleri sunucudan geldiği için ön yüzdeki
+     sözlükle çözülemiyor; karşılığı burada duruyor. */
+  siralar: [
+    { sira: 1, simge: "🥇", ne: "Pass Royale",             en: "Pass Royale" },
+    { sira: 2, simge: "🥈", ne: "Klana katılım hakkı",     en: "A spot in the clan" },
+    { sira: 3, simge: "🥉", ne: "İstediği emoji",          en: "Emote of their choice" },
+  ],
 };
 
 const db = { weeks: {} };          // { "2026-W33": { userId: {points, games, at} } }
@@ -140,20 +170,78 @@ const acikMi = () => weekStart() !== null;
 function weekInfo() {
   const s = weekStart();
   if (!s) {
-    // Henüz açılmadı: ne zaman açılacağını söyleyebilelim.
-    return { key: null, acik: false, start: BASLANGIC.toISOString(),
-             end: null, endsInMs: null, acilisMs: BASLANGIC - Date.now() };
+    /* Kapalıyız. İKİ ayrı sebep olabilir ve ön yüz farklı cümle yazıyor:
+         · henüz hiç açılmadı  → "yarış başlamadı"
+         · ARA veriliyor       → "2. hafta ... başlayacak"
+
+       Geri sayım her iki durumda da BİR SONRAKİ başlangıcı gösteriyor.
+       Eskiden hep BASLANGIC yazılıyordu; ara sırasında bu, geçmiş bir
+       tarihe eksi geri sayım demek olurdu. */
+    /* Belirsiz arada BİR SONRAKİ BAŞLANGIÇ YOK. Eskiden bu durumda
+       BASLANGIC'a düşülüyordu ve ekranda GEÇMİŞ bir tarih ile eksiye
+       giden bir geri sayım çıkardı. Artık start null gidiyor; ön yüz
+       null görünce tarih yerine "yakında" yazıyor. */
+    const belirsiz = takvim.belirsizMi() && takvim.aradaMi();
+    const sonraki = takvim.sonrakiBasi() || (belirsiz ? null : BASLANGIC);
+    return { key: null, acik: false,
+             start: sonraki ? sonraki.toISOString() : null,
+             end: null, endsInMs: null,
+             acilisMs: sonraki ? Math.max(0, sonraki - Date.now()) : null,
+             ara: takvim.aradaMi(), belirsiz, sonrakiNo: takvim.sonrakiNo() };
   }
   const e = new Date(s); e.setDate(e.getDate() + DONEM_GUN);
+  /* Dönem sürerken de "sonrasında ara var mı" bilgisi gidiyor:
+     ön yüz bunu ÖNCEDEN duyurabilsin. Boşluk yoksa null. */
+  const gelen = takvim.araGeliyor();
   return { key: tarihAnahtari(s), acik: true, start: s.toISOString(),
-           end: e.toISOString(), endsInMs: e - Date.now(), acilisMs: 0 };
+           end: e.toISOString(), endsInMs: e - Date.now(), acilisMs: 0,
+           ara: false, no: takvim.donemNo(),
+           /* Belirsiz arada gelen.basi null: uyarı yine gidiyor ama
+              tarihsiz. `araVar` olmasa ön yüz "ara yok" sanırdı. */
+           araVar: !!gelen,
+           araBelirsiz: !!(gelen && gelen.belirsiz),
+           araGeliyor: gelen && gelen.basi ? gelen.basi.toISOString() : null,
+           araNo: gelen ? gelen.no : null };
 }
 
 /* Ödül hâlâ geçerli mi? Anahtardan o haftanın başını/sonunu çözüp
    bakıyoruz; hafta bitince null döner ve duyuru ekrandan düşer. */
+/* Listedeki İLK geçerli dönemi seçiyoruz: bitmemiş olan en erken
+   dönem. Böylece 1. dönem sürerken 1. dönemin ödülü, o bitince
+   kendiliğinden 2. dönemin ödülü görünüyor. */
+function odulHaftasi() {
+  const liste = Array.isArray(ODUL && ODUL.haftalar) ? ODUL.haftalar : [];
+  const simdi = Date.now();
+
+  /* BELİRSİZ ARADA ÖDÜL DUYURUSU ZAMANLA DÜŞMÜYOR.
+
+     Aşağıdaki döngü "bitişi henüz geçmemiş ilk hafta"yı seçiyor.
+     Yarışma bitişi bilinmeyen bir ara verdiğinde bu kural duyuruyu
+     4 Eylül 18.00'da sessizce yok ederdi: ödüller hâlâ geçerli,
+     yarışma hâlâ başlamayı bekliyor, ama kutu ekrandan düşmüş olurdu.
+
+     Ara sürerken takvim durduğu için ödül seçimi de duruyor: listenin
+     SON kaydı (en ileri tarihli, yani sırada bekleyen dönem) veriliyor
+     ve zaman filtresi hiç uygulanmıyor. Yarışma gerçek bir tarihle
+     başlatıldığında normal davranış kendiliğinden geri geliyor. */
+  if (takvim.belirsizMi() && takvim.aradaMi()) {
+    const sirali = [...liste].sort();
+    return sirali[sirali.length - 1] || null;
+  }
+
+  for (const h of [...liste].sort()) {
+    const [y, ay, g] = String(h).split("-").map(Number);
+    if (!y || !ay || !g) continue;
+    const bas = new Date(y, ay - 1, g, takvim.GUN_SAATI, 0, 0, 0);
+    const bit = new Date(bas); bit.setDate(bit.getDate() + DONEM_GUN);
+    if (simdi < bit.getTime()) return h;
+  }
+  return null;
+}
 function odulDurumu() {
-  if (!ODUL || !ODUL.hafta) return null;
-  const [y, ay, g] = ODUL.hafta.split("-").map(Number);
+  const hafta = odulHaftasi();
+  if (!hafta) return null;
+  const [y, ay, g] = hafta.split("-").map(Number);
   if (!y || !ay || !g) return null;
   /* Pencere GECE YARISINDAN değil dönem saatinden (18.00) başlıyor.
      Eskiden gece yarısı alınıyordu ve iki hata birden çıkıyordu:
@@ -164,17 +252,46 @@ function odulDurumu() {
          insan ödülün durduğunu göremezdi. */
   const bas = new Date(y, ay - 1, g, takvim.GUN_SAATI, 0, 0, 0);
   const bit = new Date(bas); bit.setDate(bit.getDate() + DONEM_GUN);
-  if (Date.now() >= bit) return null;                 // dönem geçti
+  /* İKİNCİ ZAMAN AŞIMI. odulHaftasi() düzeltildi ama burada AYRI bir
+     bitiş kontrolü daha vardı; yalnızca birini düzeltmek yetmezdi,
+     duyuru yine 4 Eylül'de düşerdi. Ara sürerken ödülün ömrü yok. */
+  const belirsizAra = takvim.belirsizMi() && takvim.aradaMi();
+  if (!belirsizAra && Date.now() >= bit) return null; // dönem geçti
   return {
-    baslik: ODUL.baslik, metin: ODUL.metin,
-    hafta: ODUL.hafta, start: bas.toISOString(), end: bit.toISOString(),
-    buHafta: weekKey() === ODUL.hafta,                // "bu hafta" mı "gelecek hafta" mı
+    baslik: ODUL.baslik,
+    /* İngilizce başlık da gidiyor: ön yüz dile göre seçiyor. Yalnızca
+       ödül satırlarını çevirip başlığı unutmak, kutunun yarısını Türkçe
+       bırakırdı. */
+    baslikEn: ODUL.baslikEn || null,
+    siralar: Array.isArray(ODUL.siralar) ? ODUL.siralar : [],
+    /* `metin` UYUMLULUK İÇİN duruyor. Sayfa bir dakika önbelleğe
+       alınıyor, yani yeni sunucu yayına girdiğinde bazı ziyaretçilerin
+       elinde hâlâ eski index.html olur ve o `odul.metin` okuyor. Alan
+       kaldırılsaydı o kısa pencerede ödül kutusu boş görünürdü.
+       Listeden türetiliyor, yani iki yeri ayrı ayrı güncellemek
+       gerekmiyor — birbirinden ayrı düşemezler. */
+    metin: (ODUL.siralar || []).map((o) => `<b>${o.sira}.</b> ${o.ne}`).join(" · "),
+    hafta, start: bas.toISOString(), end: bit.toISOString(),
+    buHafta: weekKey() === hafta,                     // "bu hafta" mı "gelecek hafta" mı
   };
 }
 
 /* Tablo hangi tarihte açılıyor / açık mı — oyunlar bunu kullanıcıya
    söyleyebilsin diye dışarıya veriliyor. */
-const acilisBilgisi = () => ({ acik: acikMi(), acilis: BASLANGIC.toISOString() });
+/* `acilis` artık "20 Ağustos" değil, BİR SONRAKİ başlangıç: ara
+   sırasında oyun sayfası da doğru tarihe geri sayabilsin diye. */
+const acilisBilgisi = () => {
+  const sonraki = takvim.sonrakiBasi();
+  const belirsiz = takvim.belirsizMi() && takvim.aradaMi();
+  return {
+    acik: acikMi(),
+    /* Belirsizse null — uydurma tarih yollamaktansa tarihsiz kalıyor. */
+    acilis: sonraki ? sonraki.toISOString() : (belirsiz ? null : BASLANGIC.toISOString()),
+    ara: takvim.aradaMi(),
+    belirsiz,
+    sonrakiNo: takvim.sonrakiNo(),
+  };
+};
 
 /* ---------- hız sınırı ---------- */
 const recent = new Map();          // userId -> [{t, p}]
@@ -221,18 +338,44 @@ function addPoints(userId, points, game) {
    TAMAMLANMIŞ dönem aranıyor: içinde bulunduğumuz dönemden geriye
    doğru gidip veri bulunan ilk dönem veriliyor. Böylece arada boş
    geçen bir hafta olsa bile son gerçek şampiyonlar görünür. */
+/* Dönemler artık EŞİT ARALIKLI DEĞİL: araya boşluk konabiliyor
+   (1. dönem 20 Ağustos, 2. dönem 28 Ağustos). "Yedi gün geri" diye
+   yürümek 21 Ağustos gibi hiç yaşanmamış bir anahtar üretir ve geçen
+   haftanın şampiyonları kaybolurdu. Zinciri takvim.oncekiBasi()
+   yürütüyor.
+
+   ARA sırasında weekStart() null: o an açık dönem yok. Böyle
+   zamanlarda SIRADAKİ dönemden geriye yürüyoruz — yoksa tam da
+   şampiyonların merak edildiği 24 saatte kutu boş kalırdı. */
 function oncekiDonem(enFazlaGeri = 8) {
-  const bu = weekStart();
-  if (!bu) return null;                       // tablo henüz açılmadı
-  for (let i = 1; i <= enFazlaGeri; i++) {
-    const d = new Date(bu);
-    d.setDate(d.getDate() - DONEM_GUN * i);
-    if (d < BASLANGIC) return null;           // açılıştan öncesi yok
+  let d = weekStart() || takvim.sonrakiBasi();
+  /* ÜÇÜNCÜ ÇIPA — BELİRSİZ ARA.
+
+     Yukarıdaki iki yol da null verebiliyor: ara sırasında açık dönem
+     yok (weekStart null) ve bitişi bilinmeyen arada SIRADAKİ başlangıç
+     da yok (sonrakiBasi null). İkisi birden null olunca fonksiyon
+     hiç yürümeden çıkıyordu ve kutu tam da şampiyonların merak
+     edildiği anda boş kalıyordu — ölçüldü: /board/gecen {"var":false}.
+
+     Çıpa olarak zincirdeki SON dönemin BİTİŞİ alınıyor; oradan bir
+     adım geriye yürümek son tamamlanmış dönemi veriyor. */
+  if (!d && takvim.aradaMi()) {
+    const son = takvim.BASLANGICLAR[takvim.BASLANGICLAR.length - 1];
+    if (son) { d = new Date(son); d.setDate(d.getDate() + DONEM_GUN); }
+  }
+  if (!d) return null;                        // tablo henüz açılmadı
+  for (let i = 0; i < enFazlaGeri; i++) {
+    d = takvim.oncekiBasi(d);
+    if (!d || d < BASLANGIC) return null;     // açılıştan öncesi yok
     const anahtar = tarihAnahtari(d);
     const satirlar = db.weeks[anahtar];
     if (satirlar && Object.keys(satirlar).length) {
       const bit = new Date(d); bit.setDate(bit.getDate() + DONEM_GUN);
-      return { anahtar, start: d.toISOString(), end: bit.toISOString(), satirlar };
+      /* Kaçıncı dönemdi? Başlık "geçen hafta" yerine "1. hafta"
+         yazabilsin diye numara da gidiyor — "geçen", ara uzayınca
+         yanlış oluyor (ay önceki dönem hâlâ "geçen hafta" görünürdü). */
+      return { anahtar, no: takvim.donemNo(d),
+               start: d.toISOString(), end: bit.toISOString(), satirlar };
     }
   }
   return null;
@@ -287,7 +430,24 @@ function mount(app, { readSession, listUsers, isAdmin, banUser, userInfo }) {
       /* Puanlama açık mı? İki koşulu birden anlatıyor: puan veren bir oyun
          tanımlı mı VE tablo açılış tarihine gelmiş mi. */
       scoring: acikMi() && (Object.keys(GAME_POINTS).length + WIRED_GAMES.length > 0),
-      acik: acikMi(), acilis: BASLANGIC.toISOString(),
+      acik: acikMi(),
+      /* Ara sırasında BASLANGIC geçmişte kalıyor; sonraki başlangıcı
+         veriyoruz ki geri sayım eksiye düşmesin. */
+      acilis: (() => {
+        const s = takvim.sonrakiBasi();
+        if (s) return s.toISOString();
+        /* Belirsiz ara: tarih yok. BASLANGIC'a düşmek geçmiş bir tarihi
+           "başlangıç" diye göstermek olurdu. */
+        return (takvim.belirsizMi() && takvim.aradaMi()) ? null : BASLANGIC.toISOString();
+      })(),
+      ara: takvim.aradaMi(),
+      /* Tablo kapalı ama oyunlar açık olabiliyor (serbest mod).
+         Ön yüz "oyunlar kapalı" mı yoksa "puan yazılmıyor" mu
+         yazacağını buna bakarak seçiyor. */
+      serbest: takvim.serbestMi(),
+      oynanabilir: takvim.oynanabilirMi(),
+      belirsiz: takvim.belirsizMi() && takvim.aradaMi(),
+      sonrakiNo: takvim.sonrakiNo(),
       /* Dönem kaç gün — tablo henüz açılmadığında ön yüz ilk dönemin
          BİTİŞİNİ bundan hesaplıyor. Yoksa "dönem bitiminde" gibi bir
          yer tutucu yazmak zorunda kalıyordu. */
@@ -317,7 +477,8 @@ function mount(app, { readSession, listUsers, isAdmin, banUser, userInfo }) {
       .sort((a, b) => b.points - a.points || a.at - b.at)
       .slice(0, 3)
       .map((x, i) => ({ rank: i + 1, ...x }));
-    res.json({ var: items.length > 0, hafta: d.anahtar, start: d.start, end: d.end,
+    res.json({ var: items.length > 0, hafta: d.anahtar, no: d.no,
+               start: d.start, end: d.end,
                items, toplam: Object.keys(d.satirlar).length });
   });
 
@@ -398,13 +559,24 @@ function mount(app, { readSession, listUsers, isAdmin, banUser, userInfo }) {
     const row = addPoints(s.user.id, points, game);
     /* Tablo henüz açılmadıysa addPoints null döner; `row.points` demek
        sunucuyu düşürürdü. Oyun yine oynanabiliyor, sadece puan yazılmıyor. */
-    if (!row) return res.json({ ok: true, points: 0, yazilmadi: true, acilis: BASLANGIC.toISOString(),
-      message: "Tokmakçılar tablosu 20 Ağustos'ta açılıyor — bu tur puan yazmadı." });
+    /* Mesaj SABİT değil: ara sırasında "20 Ağustos'ta açılıyor" demek
+       yanlış olurdu. Tarih sonraki başlangıçtan okunuyor. */
+    if (!row) {
+      const sonraki = takvim.sonrakiBasi() || BASLANGIC;
+      const nezaman = sonraki.toLocaleString("tr-TR",
+        { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+      return res.json({ ok: true, points: 0, yazilmadi: true,
+        acilis: sonraki.toISOString(), ara: takvim.aradaMi(),
+        message: takvim.aradaMi()
+          ? `${takvim.sonrakiNo()}. hafta ${nezaman}'da başlıyor — bu tur puan yazmadı.`
+          : `Tokmakçılar tablosu ${nezaman}'da açılıyor — bu tur puan yazmadı.` });
+    }
     res.json({ ok: true, points, total: row.points, week: weekKey() });
   });
 
-  if (ODUL && ODUL.hafta && !odulAnahtariGecerliMi(ODUL.hafta))
-    console.warn(`⚠️  ODUL.hafta (${ODUL.hafta}) bir dönem başlangıcı DEĞİL — ödül hiçbir döneme bağlanmaz.`);
+  for (const h of (ODUL && ODUL.haftalar) || [])
+    if (!odulAnahtariGecerliMi(h))
+      console.warn(`⚠️  ODUL haftası (${h}) bir dönem başlangıcı DEĞİL — ödül hiçbir döneme bağlanmaz.`);
   console.log("🔨  Tokmakçılar uçları hazır (/api/board/*). Puan veren oyun: " +
     [...Object.keys(GAME_POINTS), ...WIRED_GAMES].join(", "));
 }

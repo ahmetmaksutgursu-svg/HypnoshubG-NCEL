@@ -123,7 +123,164 @@ function ciz() {
         '<button class="btn btn-primary" onclick="ellePuan()">Ekle</button>' +
       '</div>' +
       '<div id="epSonuc" class="muted" style="font-size:.82rem;margin-top:10px"></div>' +
+    '</div>' +
+
+    /* HABERLER — oyundaki dengelemeler ve duyurular.
+
+       Metin BURADAN giriliyor çünkü Clash Royale denge değişiklikleri
+       için açık bir uç yok. Eskiden guncellemeler.html içine gömülüydü
+       ve bir haber eklemek dağıtım gerektiriyordu — tam bu yüzden sayfa
+       14 Ağustos'ta kalmıştı. */
+    '<div class="card" style="margin-top:16px">' +
+      '<div class="card-head"><span class="dot">📰</span><h3>Clash Royale haberi ekle</h3>' +
+        '<span class="badge" id="hbSayac" style="margin-left:auto">—</span></div>' +
+      '<p class="muted" style="font-size:.84rem;margin:0 0 12px">' +
+        'Ana sayfada “Clash Royale Haberleri” bölümünde ve haberler sayfasında görünür. ' +
+        'Denge duyurusunu olduğu gibi yapıştırabilirsin — satır sonları korunuyor. ' +
+        '“Öne çıkar” işaretlenen kayıtlar ana sayfada en üstte durur.</p>' +
+      '<div class="flex gap-8" style="flex-wrap:wrap;margin-bottom:8px">' +
+        '<select id="hbTur" style="flex:0 1 140px">' +
+          '<option value="denge">Denge değişikliği</option>' +
+          '<option value="guncelleme">Güncelleme</option>' +
+          '<option value="yakinda">Yakında geliyor</option>' +
+          '<option value="etkinlik">Etkinlik</option>' +
+        '</select>' +
+        '<input id="hbTarih" type="date" style="flex:0 1 160px">' +
+        '<label class="muted" style="display:flex;align-items:center;gap:6px;font-size:.84rem">' +
+          '<input id="hbOne" type="checkbox"> Öne çıkar</label>' +
+      '</div>' +
+      '<input id="hbBaslik" placeholder="Başlık (zorunlu)" autocomplete="off" style="width:100%;margin-bottom:8px">' +
+      '<textarea id="hbMetin" placeholder="Açıklama — ya da oyun içi denge duyurusunu olduğu gibi yapıştır" ' +
+        'rows="6" style="width:100%;margin-bottom:8px"></textarea>' +
+      '<div class="flex gap-8" style="margin-bottom:10px;flex-wrap:wrap">' +
+        '<button class="btn btn-ghost" style="font-size:.82rem" onclick="duyuruAyristir()">⚖️ Duyuruyu düzenle</button>' +
+        '<span class="muted" style="font-size:.78rem;align-self:center">' +
+          'Oyun içi denge duyurusunu yapıştırıp bas — kart adları düzeltilip listeye çevrilir.</span>' +
+      '</div>' +
+      '<div class="flex gap-8">' +
+        '<button class="btn btn-primary" id="hbGonder" onclick="haberEkle()">Yayınla</button>' +
+        '<button class="btn btn-ghost" id="hbVazgec" hidden onclick="haberVazgec()">Vazgeç</button>' +
+      '</div>' +
+      '<div id="hbSonuc" class="muted" style="font-size:.82rem;margin-top:10px"></div>' +
+      '<div id="hbListe" style="margin-top:14px"></div>' +
     '</div>';
+
+  haberPaneli();
+}
+
+/* Mevcut haberler + silme. */
+async function haberPaneli(){
+  const kutu = document.getElementById('hbListe');
+  if (!kutu) return;
+  const t = document.getElementById('hbTarih');
+  if (t && !t.value) t.value = new Date().toISOString().slice(0, 10);
+  let liste = [];
+  try { liste = (await (await fetch(API_BASE + '/haberler')).json()).items || []; }
+  catch { kutu.innerHTML = '<p class="muted">Haberler alınamadı.</p>'; return; }
+  const sayac = document.getElementById('hbSayac');
+  if (sayac) sayac.textContent = liste.length + ' kayıt';
+  kutu.innerHTML = liste.slice(0, 15).map((h) =>
+    '<div class="flex between center" style="gap:10px;padding:8px 0;border-top:1px solid var(--border)">' +
+      '<div style="min-width:0">' +
+        '<b style="font-size:.9rem">' + esc(h.baslik) + '</b>' +
+        (h.one ? ' <span class="badge gold">ÖNE</span>' : '') +
+        /* Otomatik geleni ayırt et: yönetici düzeltmek isteyebilir. */
+        (h.kaynak ? ' <span class="badge">OTOMATİK</span>' : '') +
+        '<div class="muted" style="font-size:.76rem">' + esc(h.tur) + ' · ' + esc(h.tarih) + '</div>' +
+      '</div>' +
+      '<div class="flex gap-8">' +
+        '<button class="btn btn-ghost" style="font-size:.76rem;padding:5px 10px" ' +
+          'onclick="haberDuzenle(' + jsArg(h.kimlik) + ')">Düzenle</button>' +
+        '<button class="btn btn-ghost" style="font-size:.76rem;padding:5px 10px" ' +
+          'onclick="haberSil(' + jsArg(h.kimlik) + ')">Sil</button>' +
+      '</div>' +
+    '</div>').join('');
+}
+
+async function haberEkle(){
+  const c = document.getElementById('hbSonuc');
+  const govde = {
+    tur: document.getElementById('hbTur').value,
+    tarih: document.getElementById('hbTarih').value,
+    baslik: document.getElementById('hbBaslik').value,
+    metin: document.getElementById('hbMetin').value,
+    one: document.getElementById('hbOne').checked,
+  };
+  c.textContent = 'Gönderiliyor…';
+  try {
+    /* Düzenleme kipindeysek PATCH, değilsek POST. */
+    const yol = HB_DUZENLENEN ? '/admin/haber/' + encodeURIComponent(HB_DUZENLENEN) : '/admin/haber';
+    const r = await fetch(API_BASE + yol, { method: HB_DUZENLENEN ? 'PATCH' : 'POST',
+      headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+      body: JSON.stringify(govde) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { c.textContent = j.message || 'Eklenemedi.'; return; }
+    c.textContent = HB_DUZENLENEN ? 'Güncellendi.' : 'Yayınlandı.';
+    haberVazgec();
+    haberPaneli();
+  } catch { c.textContent = 'Bağlantı kurulamadı.'; }
+}
+
+/* DÜZENLEME KİPİ. Boşsa yeni kayıt, doluysa var olanı günceller.
+
+   Akış denge duyurusunun SAYILARINI veremiyor (RSS özetinde yok,
+   yazının kendisi otomatik erişime kapalı). Yönetici oyun içi
+   duyurudaki değerleri buradan yazıyor. */
+let HB_DUZENLENEN = null;
+
+async function haberDuzenle(kimlik){
+  let liste = [];
+  try { liste = (await (await fetch(API_BASE + '/haberler')).json()).items || []; } catch { return; }
+  const h = liste.find((x) => x.kimlik === kimlik);
+  if (!h) return;
+  HB_DUZENLENEN = kimlik;
+  document.getElementById('hbTur').value = h.tur;
+  document.getElementById('hbTarih').value = h.tarih;
+  document.getElementById('hbBaslik').value = h.baslik;
+  document.getElementById('hbMetin').value = h.metin || '';
+  document.getElementById('hbOne').checked = !!h.one;
+  document.getElementById('hbGonder').textContent = 'Güncelle';
+  document.getElementById('hbVazgec').hidden = false;
+  document.getElementById('hbSonuc').textContent = 'Düzenleniyor: ' + h.baslik;
+  document.getElementById('hbBaslik').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function haberVazgec(){
+  HB_DUZENLENEN = null;
+  document.getElementById('hbBaslik').value = '';
+  document.getElementById('hbMetin').value = '';
+  document.getElementById('hbOne').checked = false;
+  document.getElementById('hbGonder').textContent = 'Yayınla';
+  document.getElementById('hbVazgec').hidden = true;
+  document.getElementById('hbSonuc').textContent = '';
+}
+
+/* DUYURUYU AYRIŞTIR. Sayısal ayrıntılar akıştan gelemiyor (RSS özetinde
+   yok, yazının kendisi 403); duyuru zaten oyunun içinde ve Türkçe, o
+   yüzden iş yapıştırmayı zahmetsiz kılmak. */
+async function duyuruAyristir(){
+  const alan = document.getElementById('hbMetin');
+  const c = document.getElementById('hbSonuc');
+  if (!alan.value.trim()) { c.textContent = 'Önce duyuruyu yapıştır.'; return; }
+  c.textContent = 'Ayrıştırılıyor…';
+  try {
+    const r = await fetch(API_BASE + '/admin/haber/ayristir', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+      body: JSON.stringify({ metin: alan.value }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { c.textContent = j.message || 'Ayrıştırılamadı.'; return; }
+    alan.value = j.metin;
+    c.textContent = 'Düzenlendi — kontrol edip yayınla.';
+  } catch { c.textContent = 'Bağlantı kurulamadı.'; }
+}
+
+async function haberSil(kimlik){
+  if (!confirm('Bu haber silinsin mi?')) return;
+  try {
+    await fetch(API_BASE + '/admin/haber/' + encodeURIComponent(kimlik),
+      { method: 'DELETE', credentials: 'same-origin' });
+    haberPaneli();
+  } catch {}
 }
 
 /* Sınama sırasında açılmış hesaplar (guvtest…, bottest… gibi). Yayın

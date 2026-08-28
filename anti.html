@@ -40,12 +40,52 @@ try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribut
   <div class="container">
     <p class="eyebrow">KARŞINDAKİ DESTEYİ SEÇ — ONU YENENLERİ GÖSTERELİM</p>
     <h1>ANTİ DESTE</h1>
-    <p><span class="api-status" data-api-status style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2);color:#eaf0fb"><span class="led"></span>Veri alınamadı</span></p>
+    <p><span class="api-status" data-api-status style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2);color:#eaf0fb"><span class="led"></span>Veri yükleniyor…</span></p>
   </div>
 </section>
 
 <section class="section">
   <div class="container">
+
+    <!-- İKİ BÖLÜM. Sayfa tek işe adanmıştı (meta destelerin antileri);
+         eşleşme hesabı ayrı bir soru soruyor ("bu iki deste karşılaşınca
+         kim kazanır") ve karışmasınlar diye sekmeyle ayrıldı. -->
+    <div class="anti-sekme">
+      <button class="anti-sek aktif" id="sekAnti" onclick="sekmeAc('anti')">
+        🛡️ Meta destelerin antileri
+        <small>Karşındaki desteyi seç, onu yenenleri göster</small>
+      </button>
+      <button class="anti-sek" id="sekEs" onclick="sekmeAc('eslesme')">
+        ⚔️ Eşleşme oranı hesapla
+        <small>İki desteyi gir, bu karşılaşmayı kim kazanıyor gör</small>
+      </button>
+    </div>
+
+    <!-- ============ BÖLÜM 2: EŞLEŞME ORANI ============ -->
+    <div id="bolumEslesme" hidden>
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-head"><span class="dot">⚔️</span><h3>Senin desten</h3>
+          <span class="badge" id="benimSayi" style="margin-left:auto">0/8</span></div>
+        <p class="muted" style="font-size:.82rem;margin:0 0 12px">
+          Kutulara dokunup kart seç. 1. kutu <b>evrim</b>, 2. kutu <b>kahraman</b>, 3. kutu <b>ikisi de</b> olabilir.</p>
+        <div class="es-slotlar" id="benimSlot"></div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-head"><span class="dot">🛡️</span><h3>Rakibin destesi</h3>
+          <span class="badge" id="rakipSayi" style="margin-left:auto">0/8</span></div>
+        <div class="es-slotlar" id="rakipSlot"></div>
+      </div>
+
+      <div class="flex gap-8" style="flex-wrap:wrap">
+        <button class="btn btn-gold" id="hesaplaBtn" onclick="esHesapla(this)" disabled>Eşleşmeyi Hesapla</button>
+        <button class="btn btn-ghost" onclick="esTemizle()">Temizle</button>
+      </div>
+      <div id="esSonuc" style="margin-top:16px"></div>
+    </div>
+
+    <!-- ============ BÖLÜM 1: ANTİ DESTE (mevcut) ============ -->
+    <div id="bolumAnti">
 
     <!-- Sonuç YUKARIDA duruyor: seçim yapıldığında kullanıcı zaten oraya
          kaydırılıyor ve yeni bir deste seçmek için listeye geri dönebiliyor. -->
@@ -62,12 +102,60 @@ try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribut
         Daha fazla deste göster
       </button>
     </div>
+    </div><!-- /bolumAnti -->
   </div>
 </section>
+
+
+<!-- REKLAM · alt bilgiden önce -->
+
+<!-- ÖZGÜN İÇERİK — sayfanın verisini nasıl okuyacağını anlatır.
+     Doldurma metin değil: rakamlar sunucudaki ölçümlerden geliyor. -->
+<section class="section aciklama">
+  <div class="container">
+    <div class="aciklama-kutu">
+      <h2>Eşleşme oranları nereden geliyor?</h2>
+      <p>Bu sayfa "bu desteye karşı ne oynanır" sorusunu tahminle değil,
+   oynanmış maçlarla cevaplıyor. Kaynak Nihai Kademe'nin üst
+   sıralarındaki oyuncuların savaş günlükleri: her maçta iki destenin
+   kazanma koşulu bulunuyor ve sonuç o eşleşmenin karnesine yazılıyor.</p>
+      <h3>En kritik ayrıntı: maçın iki tarafı da taranan listede olmalı</h3>
+      <p>İlk akla gelen yöntem "üst sıradaki oyuncuların günlüğündeki bütün
+   sıralamalı maçları say" olurdu. Ölçtük, çalışmıyor. Günlüğünü
+   okuduğumuz hesaplar maçlarının <b>%54,8'ini</b> kazanıyor,
+   karşılarındaki rakipler ise yalnızca <b>%29,4'ünü</b>.</p>
+      <p>Sebebi basit ve düzeltilmezse her sayıyı zehirler: bir hesap ilk
+   1000'de olduğu için son maçları galibiyet ağırlıklıdır — oraya öyle
+   çıkmıştır. Rakipleri ise tam da onun yendiği insanlardır. Bu sapmanın
+   büyüklüğü ölçüldü: aynı eşleşme, örneklenen tarafta ve rakip tarafta
+   hesaplandığında ortalama <b>28,9 puan</b> ayrışıyor. Yani filtresiz bir
+   tablo destenin gücünü değil, kimin günlüğüne baktığımızı ölçer.</p>
+      <p>Çözüm, maçın <b>iki tarafının da</b> taranan merdivende olmasını şart
+   koşmak. O zaman iki oyuncu da aynı havuzdan gelir ve seçilim etkisi
+   ikisine birden uygulanır. Sıralamalı maçların %59,6'sı bu şartı
+   sağlıyor; gerisi eleniyor. Filtrenin etkisi de ölçüldü: 40 maçı geçen
+   83 eşleşmede oranlar ortalama 3,3 puan, tek tek bakıldığında 13 puana
+   kadar değişiyor.</p>
+      <h3>Burada da 40 maç barajı geçerli</h3>
+      <p>Meta sayfasındaki gerekçenin aynısı: 40 maçın altında bir eşleşme için
+   yüzde yazmak, okuyucuya bilgi değil yanlış güven verir. O yüzden ince
+   eşleşmelerde yüzde yerine maç sayısı görürsünüz.</p>
+      <h3>Anti deste seçerken</h3>
+      <p>Tek bir eşleşme oranına bakıp deste değiştirmeyin. Bir anti deste,
+   hedef desteye karşı iyi olduğu kadar <i>geri kalan metaya</i> karşı da
+   ayakta durmak zorunda; sahada karşınıza sadece o deste çıkmıyor. En
+   sağlıklı okuma, hedefe karşı üstün olan seçenekler arasından meta
+   listesinde de makul bir yeri olanı almaktır.</p>
+    </div>
+  </div>
+</section>
+
+<div class="reklam-yuva" data-reklam="icerik3"></div>
 
 <div id="app-footer"></div>
 <script src="assets/js/data.js"></script>
 <script src="assets/js/app.js"></script>
+<script src="assets/js/reklam.js"></script>
 <script>
 mountChrome("anti.html");
 const TRL = () => LANG === "tr";
@@ -244,6 +332,250 @@ function ciz(d, baslik){
 }
 
 /* ---------- açılış ---------- */
+/* ============================================================
+   EŞLEŞME ORANI HESABI
+   ------------------------------------------------------------
+   Kullanıcı iki deste giriyor, "bu karşılaşmayı kim kazanıyor"
+   sorusunu cevaplıyoruz. Sayı sunucudan geliyor (/api/analiz):
+   Nihai Kademe merdivenindeki gerçek maçlar, en az 30 maçlık
+   örneklem, tam deste bulunamazsa 7-6-5 ortak kartlı desteler.
+   Beş kartın altına İNMİYORUZ — o noktada "bulunamadı" demek,
+   uydurmaktan iyidir.
+
+   YUVA KURALLARI (kullanıcı isteği):
+     · 1-2. kutu EVRİM   → yalnızca evrimi olan kartlar listelenir
+     · 3. kutu KAHRAMAN  → yalnızca kahramanı olan kartlar
+     · ikisi de olan kart HER İKİ listede de görünür
+     · destede zaten olan kart listede ÇIKMAZ (aynı kart iki kez
+       eklenemez — kahraman Büyücü varken normal Büyücü de eklenemez,
+       çünkü ikisi aynı karttır)
+   ============================================================ */
+const ES = { benim: new Array(8).fill(null), rakip: new Array(8).fill(null), kartlar: null };
+
+/* Yuva türü: hangi kutuya ne konabilir.
+
+   Kullanıcı isteği: "1.slot evrim, 2.slot kahraman, 3.slotta hem evrim
+   hem kahraman olacak". Üçüncü yuva ikisinin BİRLEŞİMİ — evrimi olan da
+   kahramanı olan da konabiliyor. */
+function esYuva(i){
+  return i === 0 ? "evrim" : i === 1 ? "kahraman" : i === 2 ? "ikisi" : "normal";
+}
+
+/* Kart bu yuvaya konabilir mi? */
+function esUygun(c, y){
+  if (y === "evrim") return c.evrim;
+  if (y === "kahraman") return c.kahraman;
+  if (y === "ikisi") return c.evrim || c.kahraman;
+  return true;
+}
+
+/* Bu yuvada kart hangi görselle çizilsin. Üçüncü yuvada evrimi olan
+   kart evrim çizimiyle, yalnızca kahramanı olan portresiyle görünüyor. */
+function esCizimSecenegi(c, y){
+  if (y === "evrim") return { evo: true, heroSlot: false };
+  if (y === "kahraman") return { evo: false, heroSlot: true };
+  if (y === "ikisi") return c && c.evrim ? { evo: true, heroSlot: false }
+                                        : { evo: false, heroSlot: !!(c && c.kahraman) };
+  return { evo: false, heroSlot: false };
+}
+
+/* EŞLEŞME HESABI ŞU AN KAPALI.
+
+   Kullanıcı üzerinde değişiklik yapacak; yarım hâliyle ziyaretçiye
+   görünmesin diye sekme çubuğu ve bölüm gizleniyor, sayfa eski
+   görünümüne dönüyor.
+
+   KOD SİLİNMEDİ, yalnızca gizlendi: uç (/api/analiz), yuva seçici ve
+   hesap olduğu gibi duruyor. Geri açmak için bu satır `true`.
+
+   Silmek yerine gizlemenin sebebi: özellik ölçülmüş ve sınanmış
+   durumda (20/20). Silip yeniden yazmak o sınamaların hepsini
+   çöpe atardı. */
+const ESLESME_ACIK = false;
+
+(function esGorunurluk(){
+  if (ESLESME_ACIK) return;
+  /* Betik gövdenin SONUNDA çalışıyor, öğeler çizilmiş durumda. */
+  const sek = document.querySelector(".anti-sekme");
+  const bol = document.getElementById("bolumEslesme");
+  if (sek) sek.hidden = true;
+  if (bol) bol.hidden = true;
+})();
+
+function sekmeAc(hangi){
+  if (!ESLESME_ACIK) return;          // bölüm kapalıyken sekme çalışmasın
+  const es = hangi === "eslesme";
+  document.getElementById("bolumEslesme").hidden = !es;
+  document.getElementById("bolumAnti").hidden = es;
+  document.getElementById("sekEs").classList.toggle("aktif", es);
+  document.getElementById("sekAnti").classList.toggle("aktif", !es);
+  if (es && !ES.kartlar) esKartlariYukle();
+}
+
+/* Kart listesi bir kez çekiliyor. Evrim/kahraman uygunluğu BURADA
+   belirleniyor — sunucu zaten alanları veriyor, tahmine gerek yok. */
+async function esKartlariYukle(){
+  try {
+    const r = await fetch(API_BASE + "/cards");
+    const j = await r.json();
+    ES.kartlar = (j.items || []).map((c) => ({
+      id: c.id,
+      anahtar: registerApiCard({ id: c.id, name: c.name, elixirCost: c.elixirCost,
+        icon: (c.iconUrls || {}).medium, evoIcon: (c.iconUrls || {}).evolutionMedium,
+        rarity: c.rarity, maxEvolutionLevel: c.maxEvolutionLevel, type: c.type,
+        traits: c.traits, nameTR: c.nameTR, heroImg: c.heroImg }),
+      ad: c.nameTR || c.name,
+      iksir: c.elixirCost || 0,
+      /* canEvolve app.js'te: maxEvolutionLevel ya da yayımlanmış çizim.
+         Sunucudaki ölçütle aynı yeri gösteriyor (bkz. server/evrim.js). */
+      evrim: canEvolve(c),
+      kahraman: !!(c.heroImg || (c.iconUrls || {}).heroMedium),
+      hedefBina: !!((c.traits || {}).onlyBuildings),
+    })).sort((a, b) => a.iksir - b.iksir || a.ad.localeCompare(b.ad, "tr"));
+  } catch { ES.kartlar = []; }
+  esCiz();
+}
+
+function esCiz(){
+  for (const taraf of ["benim", "rakip"]) {
+    const kutu = document.getElementById(taraf + "Slot");
+    if (!kutu) continue;
+    kutu.innerHTML = ES[taraf].map((k, i) => {
+      const y = esYuva(i);
+      const etiket = y === "evrim" ? '<span class="es-tag ev">EVRİM</span>'
+                   : y === "kahraman" ? '<span class="es-tag kh">KAHRAMAN</span>'
+                   : y === "ikisi" ? '<span class="es-tag ev">EVRİM / KAHRAMAN</span>' : "";
+      const ic = k
+        ? renderCard(k.anahtar, esCizimSecenegi(k, y))
+        : '<span class="es-bos">+</span>';
+      return '<button class="es-slot ' + (k ? "dolu" : "") + '" onclick="esSlotAc(\'' + taraf + '\',' + i + ')">' +
+             etiket + ic + "</button>";
+    }).join("");
+    const dolu = ES[taraf].filter(Boolean).length;
+    const sayac = document.getElementById(taraf + "Sayi");
+    if (sayac) sayac.textContent = dolu + "/8";
+  }
+  const hazir = ES.benim.filter(Boolean).length === 8 && ES.rakip.filter(Boolean).length === 8;
+  const b = document.getElementById("hesaplaBtn");
+  if (b) b.disabled = !hazir;
+}
+
+/* Kart seçme penceresi. */
+function esSlotAc(taraf, i){
+  if (!ES.kartlar) return;
+  const y = esYuva(i);
+  /* AYNI KART İKİ KEZ EKLENEMEZ. Destede olan kart listeden düşüyor;
+     kahraman Büyücü seçilmişse normal Büyücü de çıkmıyor, çünkü ikisi
+     aynı kart kimliği. Bu yuvanın kendi kartı listede KALIYOR ki
+     kullanıcı seçtiğini görebilsin. */
+  const dolular = new Set(ES[taraf].map((k, n) => (k && n !== i) ? k.id : null).filter(Boolean));
+  const liste = ES.kartlar.filter((c) => !dolular.has(c.id) && esUygun(c, y));
+
+  const baslik = y === "evrim" ? "Evrim yuvası"
+               : y === "kahraman" ? "Kahraman yuvası"
+               : y === "ikisi" ? "Evrim / Kahraman yuvası" : "Kart seç";
+  const not = y === "evrim" ? "Yalnızca evrimi olan kartlar listeleniyor."
+            : y === "kahraman" ? "Yalnızca kahramanı olan kartlar listeleniyor."
+            : y === "ikisi" ? "Evrimi ya da kahramanı olan kartlar listeleniyor." : "";
+
+  openModal(
+    '<button class="btn btn-ghost icon-btn modal-close" onclick="closeModal()" aria-label="Kapat">' + (ICONS.close || "✕") + "</button>" +
+    "<h3>" + baslik + "</h3>" +
+    (not ? '<p class="muted" style="font-size:.82rem;margin:8px 0 0">' + not + "</p>" : "") +
+    (ES[taraf][i] ? '<div style="margin-top:10px"><button class="btn btn-ghost" style="font-size:.8rem;padding:6px 12px" onclick="esSlotSil(\'' + taraf + '\',' + i + ')">Bu kartı kaldır</button></div>' : "") +
+    '<div class="es-sec">' + liste.map((c) =>
+      '<button onclick="esSec(\'' + taraf + '\',' + i + ',' + c.id + ')" title="' + esc(c.ad) + '">' +
+      renderCard(c.anahtar, esCizimSecenegi(c, y)) +
+      '<div class="ad">' + esc(c.ad) + "</div></button>").join("") + "</div>" +
+    (liste.length ? "" : '<p class="muted" style="margin-top:12px">Bu yuvaya konabilecek kart kalmadı.</p>'));
+}
+
+function esSec(taraf, i, id){
+  const c = ES.kartlar.find((x) => x.id === id);
+  if (c) ES[taraf][i] = c;
+  closeModal();
+  esCiz();
+}
+function esSlotSil(taraf, i){ ES[taraf][i] = null; closeModal(); esCiz(); }
+function esTemizle(){
+  ES.benim = new Array(8).fill(null);
+  ES.rakip = new Array(8).fill(null);
+  document.getElementById("esSonuc").innerHTML = "";
+  esCiz();
+}
+
+/* Destenin ADI: kazanma koşulu kartı. Kullanıcının istediği biçim
+   "%65 tazı / %35 köstebek" — yani destenin kule yıkan kartıyla
+   anılıyor. Kazanma koşulu yoksa en pahalı kart kullanılıyor. */
+function esDesteAdi(kartlar){
+  const kk = kartlar.filter((c) => c.hedefBina);
+  const sec = (kk.length ? kk : kartlar).slice().sort((a, b) => b.iksir - a.iksir)[0];
+  return sec ? sec.ad : "deste";
+}
+
+async function esHesapla(btn){
+  const kutu = document.getElementById("esSonuc");
+  if (btn) { btn.disabled = true; btn.textContent = "Hesaplanıyor…"; }
+  kutu.innerHTML = spinnerBox("Merdivendeki maçlar taranıyor…");
+
+  const a = ES.benim.map((c) => c.id).join(",");
+  const b = ES.rakip.map((c) => c.id).join(",");
+  let r;
+  try {
+    /* sadeceDeste=1: beş kartın altına inip arketiple tahmin yürütme. */
+    const y = await fetch(API_BASE + "/analiz?a=" + a + "&b=" + b + "&sadeceDeste=1");
+    r = await y.json().catch(() => ({}));
+    if (!y.ok) throw new Error(r.mesaj || r.message || ("Sunucu " + y.status));
+  } catch (e) {
+    kutu.innerHTML = notice("<span>⚠️</span><span>" + esc(e.message || "Hesaplanamadı.") + "</span>");
+    if (btn) { btn.disabled = false; btn.textContent = "Eşleşmeyi Hesapla"; }
+    return;
+  }
+
+  const benimAd = esDesteAdi(ES.benim), rakipAd = esDesteAdi(ES.rakip);
+
+  if (r.kaynak === "yok" || r.oran == null) {
+    /* Kaç maç bulunduğunu SÖYLÜYORUZ: "bulunamadı" tek başına
+       kullanıcıya neyin eksik olduğunu anlatmıyor. */
+    kutu.innerHTML = notice(
+      "<span>🔍</span><span><b>Eşleşme oranı bulunamadı.</b> Bu iki desteyle en az beş kartı " +
+      "uyuşan yeterli maç yok" + (r.mac ? " (en iyi katmanda " + r.mac + " maç bulundu, eşik " + (r.minOrnek || 30) + ")" : "") +
+      ". Merdivende daha çok oynanan destelerle dene.</span>");
+    if (btn) { btn.disabled = false; btn.textContent = "Eşleşmeyi Hesapla"; }
+    return;
+  }
+
+  /* r.oran ZATEN yüzde (0-100). Uç kendi içinde çeviriyor
+     (yuzde() yardımcısı); burada bir daha çarpınca %3600 çıkıyordu. */
+  const sen = Math.round(r.oran);
+  const rak = 100 - sen;
+  const tam = r.katman === 8;
+
+  kutu.innerHTML =
+    '<div class="card">' +
+      '<div class="card-head"><span class="dot">📊</span><h3>Eşleşme sonucu</h3></div>' +
+      '<div class="es-cubuk">' +
+        '<div class="sen" style="width:' + Math.max(12, sen) + '%">%' + sen + " " + esc(benimAd) + "</div>" +
+        '<div class="rakip" style="width:' + Math.max(12, rak) + '%">%' + rak + " " + esc(rakipAd) + "</div>" +
+      "</div>" +
+      '<p style="margin:10px 0 0;font-weight:800">' +
+        (sen > rak ? esc(benimAd) + " destesi önde" : sen < rak ? esc(rakipAd) + " destesi önde" : "Başabaş") +
+      "</p>" +
+      '<p class="muted" style="font-size:.82rem;margin:8px 0 0">' +
+        "<b>" + r.mac + " maç</b> üzerinden" +
+        /* GÜVEN PAYI SAKLANMIYOR: 30 maçlık bir ölçüm ±18 puan
+           oynuyor ve bunu göstermeden yüzde basmak okuyucuyu yanıltır. */
+        (r.pay != null ? " · %95 güven payı <b>±" + r.pay + " puan</b>" : "") +
+        (tam ? " · desteler <b>birebir</b> eşleşti"
+             : " · tam deste bulunamadı, <b>" + r.katman + " ortak kartlı</b> destelerden hesaplandı") +
+      "</p>" +
+      '<p class="muted" style="font-size:.78rem;margin:6px 0 0">' +
+        "Kaynak: Nihai Kademe merdiveni — maçın <b>iki tarafı da</b> sıralamada olan karşılaşmalar.</p>" +
+    "</div>";
+
+  if (btn) { btn.disabled = false; btn.textContent = "Yeniden Hesapla"; }
+}
+
 async function yukle(){
   const liste = document.getElementById("desteListe");
   liste.innerHTML = spinnerBox(TRL() ? "Meta desteleri yükleniyor…" : "Loading meta decks…");

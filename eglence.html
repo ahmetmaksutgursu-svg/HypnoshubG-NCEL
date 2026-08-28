@@ -62,6 +62,12 @@ try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribut
   </div>
 </div>
 
+<!-- SERBEST MOD ŞERİDİ — oyun açıkken görünür.
+     Sayfanın üstündeki uyarı (#puanUyari) yalnızca oyun seçici
+     ekranında duruyor; openGame() seçiciyi gizleyince uyarı da
+     kayboluyordu — yani tam oynarken. Bu şerit oyunun içinde kalıyor. -->
+<div id="serbestSerit" style="display:none"></div>
+
 <!-- KART SIRALAMA OYUNU -->
 <section class="section game-sec" id="siralama">
   <div class="container game-wrap">
@@ -108,7 +114,7 @@ try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribut
             <button class="icon-btn ses-btn" data-ses-dugme onclick="sesDegistir()" aria-pressed="true" title="Sesi kapat">🔊</button>
           </div>
           <p class="muted" style="font-size:.86rem;margin:0">Çark, güncel meta destelerinden birini rastgele seçer. Sonuç; kartlar, kopyalama linki ve oynanış ipucuyla birlikte gösterilir.</p>
-          <span class="api-status" data-api-status><span class="led"></span>Veri alınamadı</span>
+          <span class="api-status" data-api-status><span class="led"></span>Veri yükleniyor…</span>
         </div>
       </div>
       <div id="wheelMsg"></div>
@@ -128,7 +134,7 @@ try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribut
 <section class="section game-sec" id="cenabet" style="padding-top:0">
   <div class="container game-wrap">
     <div class="card text-center" style="padding:26px">
-      <h2 class="section-title" style="font-size:1.5rem"><img class="oyun-simge bas" src="assets/img/cenabet.png" alt=""> Cenabet Deste</h2>
+      <h2 class="section-title" style="font-size:1.5rem"><img class="oyun-simge bas" data-oyun-kapak="cenabet" src="assets/img/oyunlar/cenabet.png" alt=""> Cenabet Deste</h2>
       <p class="muted" style="margin:0 0 18px">Oyundaki kartlardan tamamen rastgele 8 kartlık kafadan bir deste! Mantık arama.</p>
       <button class="big-green-btn" id="cenabetBtn" onclick="cenabet()" style="max-width:420px;margin:0 auto">CENABET BUTON</button>
       <div id="cenabetResult" style="margin-top:22px;display:none">
@@ -198,6 +204,20 @@ try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribut
   </div>
 </section>
 
+<!-- İKSİR HESABI -->
+<section class="section game-sec" id="iksir" style="padding-top:0">
+  <div class="container game-wrap">
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="quiz-top">
+        <span class="quiz-ic">💧</span>
+        <div class="quiz-t"><h2>İKSİR HESABI</h2><span>Destenin ortalama iksiri · 7 saniye · günde 3 hak</span></div>
+        <span class="quiz-left" id="ikLeft">—</span>
+      </div>
+      <div class="quiz-body" id="ikBody"></div>
+    </div>
+  </div>
+</section>
+
 <!-- TOKMAK YARIŞMASI -->
 <section class="section game-sec" id="yarisma" style="padding-top:0">
   <div class="container game-wrap">
@@ -252,9 +272,52 @@ try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribut
   </div>
 </section>
 
+
+<!-- REKLAM · alt bilgiden önce -->
+<div class="reklam-yuva" data-reklam="icerik3"></div>
+
+<!-- ÖZGÜN İÇERİK — bkz. diğer sayfalardaki aynı blok. -->
+<section class="section aciklama">
+  <div class="container">
+    <div class="aciklama-kutu">
+      <h2>Puanlı oyunlar nasıl çalışıyor?</h2>
+      <p>Buradaki oyunların bir kısmı <b>puanlı</b>, bir kısmı serbest. Puanlı
+   olanlar Tokmakçılar tablosuna yazar ve haftalık ödüller o tablodan
+   dağıtılır; serbest olanları istediğiniz kadar oynayabilirsiniz, hiçbir
+   sayacı etkilemezler.</p>
+      <h3>Neden günlük hak var?</h3>
+      <p>Puanlı oyunların her birinin günlük bir sınırı var — kimi günde bir,
+   kimi günde on. Sınır olmasaydı tablo, en iyi oynayanın değil <i>en çok
+   vakti olanın</i> tablosu olurdu. Günlük hak, günde yarım saat ayıran
+   biriyle bütün günü oynayan biri arasındaki farkı kapatıyor. Haklar her
+   gün aynı saatte sıfırlanıyor.</p>
+      <h3>Cevaplar tarayıcıda değil, sunucuda</h3>
+      <p>Soruların doğru cevabı hiçbir zaman tarayıcıya gönderilmiyor. Ekrandaki
+   kod ne kadar incelenirse incelensin cevap orada yok; gönderdiğiniz yanıt
+   sunucuda karşılaştırılıyor ve puanı da sunucu belirliyor. Aynı şekilde
+   günlük hak da sunucuda sayılıyor — sayfayı yenilemek, geliştirici
+   konsolunu açmak ya da doğrudan API'ye istek atmak fazladan hak
+   kazandırmıyor.</p>
+      <h3>Yarım kalan oyun kaybolmaz</h3>
+      <p>Bir oyuna başladıktan sonra bağlantınız koparsa ya da sekmeyi
+   kapatırsanız, geri döndüğünüzde kaldığınız yerden devam edersiniz. Hak
+   oyunun başında harcandığı için bu önemli: yoksa beş ipucu açmış biri
+   hem hakkını hem ilerlemesini kaybederdi.</p>
+      <h3>Hafta bitince ne oluyor?</h3>
+      <p>Her hafta tablo sıfırdan başlar ve önceki haftanın kazananları arşive
+   geçer. Haftalar arasında kısa bir ara olabilir; o pencerede oyunlar
+   açık kalır ama puan hiçbir haftaya yazılmaz — yeni hafta herkes için
+   aynı yerden başlasın diye. Böyle bir durumda ekranda uyarı görürsünüz,
+   puanınızın sessizce kaybolması diye bir şey yoktur.</p>
+    </div>
+  </div>
+</section>
+
+
 <div id="app-footer"></div>
 <script src="assets/js/data.js"></script>
 <script src="assets/js/app.js"></script>
+<script src="assets/js/reklam.js"></script>
 <script>
 mountChrome("");
 /* Kayıtlı ses tercihi düğmeye yansısın (varsayılan: açık). */
@@ -642,7 +705,7 @@ function cenFinish(pick, evoSet, kahramanSet){
 
 /* Giriş yapılınca ya da çıkılınca oyunlar kendini tazelesin — yoksa
    "giriş gerekli" yazısı sayfa yenilenene kadar ekranda kalıyordu. */
-function refreshGames(){ qzInit(); gnInit(); duInit(); ekInit(); kpInit(); djInit(); paintPicker(); }
+function refreshGames(){ qzInit(); gnInit(); duInit(); ekInit(); kpInit(); ikInit(); djInit(); paintPicker(); }
 window.onAuthChange = refreshGames;
 
 /* ============ OYUN SEÇİCİ ============
@@ -656,11 +719,12 @@ const GAMES = [
   { id:"duello",   ic:"⚔️", name:"Deste Düellosu",       desc:"İki meta destesi — hangisi daha çok kazanıyor?",          pts:"günde 10 · tur başına 1" },
   { id:"eksik",    ic:"🧩", name:"Eksik Kartı Bul",      desc:"Meta destesinin 7 kartı açık — 8.'sini dört şıktan bul.", pts:"günde 3 · tur başına 3" },
   { id:"kapisma",  ic:"🥊", name:"Kart Kapışması",       desc:"İki kart yan yana — can, hasar ya da vuruş hızı: hangisi üstün?", pts:"günde 3 · 3 soru × 1 puan" },
+  { id:"iksir",    ic:"💧", name:"İksir Hesabı",         desc:"Meta destesi ekranda — ortalama iksirini 7 saniyede bil.", pts:"günde 3 · 5 soru × 1 puan" },
   { id:"deste",    ic:"🧪", name:"Deste Jeneratörü",     desc:"8 yuva, her yuvada 3 aday. Seçe seçe kendi desteni kur." },
   { id:"siralama", ic:"🎲", name:"Kart Sıralama Oyunu",  desc:"Senaryoya göre kartları sırala, sonucu paylaş." },
   { id:"tahmin",   ic:"🔮", name:"Kart Tahmin Oyunu",    desc:"Bir kart tut, sorularla bulayım." },
   { id:"cark",     ic:"🎡", name:"Rastgele Deste Çarkı", desc:"Çarkı çevir, günün meta destesini gör." },
-  { id:"cenabet",  ic:"assets/img/cenabet.png", name:"Cenabet Buton",        desc:"Kafadan rastgele bir deste. Mantık arama." },
+  { id:"cenabet",  ic:"🪄", name:"Cenabet Buton",        desc:"Kafadan rastgele bir deste. Mantık arama." },
 ];
 
 function paintPicker(){
@@ -673,6 +737,76 @@ function paintPicker(){
         ${g.pts ? `<span class="pick-p">${g.pts}</span>` : ""}
       </span>
     </button>`).join("");
+  /* Kapaklar indiğinde app.js buradan geçiyor. Açık bir oyun varsa
+     onun başlığı da aynı anda tazelenmeli; yoksa liste yeni kapağı
+     gösterirken başlık emojide kalır. */
+  oyunBasligiCiz();
+  bolumKapaklari();
+}
+
+/* OYUN BÖLÜMÜNÜN TURUNCU ŞERİDİ.
+
+   Şeritteki simge de HTML'e elle yazılmıştı (🎯, ⚔️, 🧩 …) ve kapak
+   klasörden gelse bile öylece kalıyordu: liste ve başlık yeni kapağı
+   gösterirken oyunun kendi şeridi eski emojide duruyordu — sayfadaki
+   en büyük simge orası olduğu için de en çok göze batan yer.
+
+   Kapak adı her şeride tek tek gömülmüyor; bölümün kimliği
+   (<section class="game-sec" id="duello">) zaten oyunun kimliği.
+   Böylece klasöre yeni bir kapak bırakmak, HTML'e dokunmadan üç yerde
+   birden geçerli oluyor: liste, başlık ve şerit. */
+function bolumKapaklari(){
+  document.querySelectorAll("section.game-sec[id]").forEach(function(b){
+    const yol = OYUN_GORSEL[b.id];
+    if (!yol) return;                       // kapağı yoksa emoji kalsın
+    const kutu = b.querySelector(".quiz-ic");
+    if (!kutu) return;
+    const im = kutu.querySelector("img");
+    if (im) { if (im.getAttribute("src") !== yol) im.src = yol; return; }
+    const y = document.createElement("img");
+    y.src = yol; y.alt = "";
+    kutu.replaceChildren(y);
+  });
+
+  /* BAŞLIK İÇİNE GÖMÜLÜ SİMGELER.
+
+     Cenabet bölümünün başlığında elle yazılmış bir <img> vardı ve eski
+     `assets/img/cenabet.png` dosyasını gösteriyordu — kalın siyah
+     çerçeveli bir düğme çizimi. Kullanıcı bunu "kararma" diye bildirdi.
+     Kapak klasöründeki yeni görsel öteki her yerde kullanılıyordu ama
+     burası kapak aramasından geçmediği için eski dosyada kalmıştı.
+
+     `data-oyun-kapak` taşıyan her öğe artık kapak sisteminden besleniyor;
+     bir daha elle yazılmış yol kalmasın diye genel bir kural. */
+  document.querySelectorAll("[data-oyun-kapak]").forEach(function(e){
+    const yol = OYUN_GORSEL[e.getAttribute("data-oyun-kapak")];
+    if (!yol) return;
+    if (e.tagName === "IMG") { if (e.getAttribute("src") !== yol) e.src = yol; return; }
+    const im = e.querySelector("img");
+    if (im) { if (im.getAttribute("src") !== yol) im.src = yol; return; }
+    e.innerHTML = oyunSimgesi(yol);
+  });
+}
+
+/* AÇIK OYUNUN BAŞLIĞI.
+
+   Kapaklar sunucudan SONRADAN geliyor. Ana sayfadaki kutucuktan bir
+   oyuna girildiğinde sayfa baştan yükleniyor ve adresteki çengel
+   (#duello) yüzünden oyun daha kapaklar inmeden açılıyordu; başlık
+   yedek emojiye düşüyor, kapaklar geldiğinde de bir daha çizilmediği
+   için emoji öylece kalıyordu — "oyuna tıklayınca logo gidiyor".
+
+   Başlık ayrı bir işleve alındı: hem oyun açılırken hem kapaklar
+   indikten sonra aynı yerden çiziliyor. */
+let ACIK_OYUN = "";
+function oyunBasligiCiz(){
+  if (!ACIK_OYUN) return;
+  const g = GAMES.find(x => x.id === ACIK_OYUN);
+  const b = document.getElementById("gameTitle");
+  if (!g || !b) return;
+  /* innerHTML: simge artık emoji DEĞİL, görsel olabiliyor. Ad `esc`
+     ile geçiyor, yani oyun adından HTML sızma yolu yok. */
+  b.innerHTML = `${oyunSimgesi(oyunKapagi(g.id, g.ic))} ${esc(g.name)}`;
 }
 
 function openGame(id){
@@ -682,17 +816,19 @@ function openGame(id){
   document.querySelectorAll(".game-sec").forEach(s => s.style.display = s.id === id ? "" : "none");
   const bar = document.getElementById("gameBar");
   bar.style.display = "";
-  /* innerHTML: simge artık emoji DEĞİL, görsel olabiliyor. Ad `esc`
-     ile geçiyor, yani oyun adından HTML sızma yolu yok. */
-  document.getElementById("gameTitle").innerHTML = `${oyunSimgesi(oyunKapagi(g.id, g.ic))} ${esc(g.name)}`;
+  ACIK_OYUN = id;
+  seritCiz(!!g.pts);            /* puansız oyunda şerit çıkmasın */
+  oyunBasligiCiz();
   if (location.hash !== "#" + id) history.replaceState(null, "", "#" + id);
   window.scrollTo({ top: 0, behavior: "instant" });
 }
 
 function closeGame(){
+  ACIK_OYUN = "";
   document.getElementById("picker").style.display = "";
   document.querySelectorAll(".game-sec").forEach(s => s.style.display = "none");
   document.getElementById("gameBar").style.display = "none";
+  seritCiz(false);
   history.replaceState(null, "", location.pathname);
   window.scrollTo({ top: 0, behavior: "instant" });
 }
@@ -718,6 +854,7 @@ async function gmStatus(){
   const set = (id, g) => { const el = document.getElementById(id);
     if (el) el.textContent = s.loggedIn ? `${s.games[g].left}/${s.games[g].perDay} hak` : "giriş gerekli"; };
   set("gnLeft", "gunun"); set("duLeft", "duello"); set("ekLeft", "eksik"); set("kpLeft", "kapisma");
+  set("ikLeft", "iksir");
   return s;
 }
 
@@ -740,11 +877,38 @@ function kalanSure(ms){
    kullanıcı düğmeye basıp hata almasın, ne zaman açılacağını görsün.
    Sayaç sıfırlanınca oyun kendiliğinden tazeleniyor. */
 let ACILIS_SAYAC = null;
+/* KİLİT EKRANI — ÜÇ AYRI DURUM.
+
+   Tek bir metin yazılıydı: "Yarışma henüz başlamadı · Başlangıç 20 Ağustos
+   18:00 · Kalan süre 0 saniye". Üç ayrı hata birden veriyordu:
+
+     · Bir haftadır oynayan insana "henüz başlamadı" demek yanlış — 1. hafta
+       oynandı ve bitti.
+     · Tarih `s.acilis`ten geliyordu; o alan takvimin AÇILIŞI (20 Ağustos),
+       yani GEÇMİŞ bir tarih. Ara sırasında bakılması gereken alan
+       `sonrakiBasi`.
+     · Geçmiş bir hedefe geri sayınca "0 saniye" yazıyor ve sayaç her
+       saniye yenile() çağırıp duruyordu.
+
+   Artık durum sunucudan geliyor (takvim.durum → ara / belirsiz /
+   sonrakiBasi) ve üç hâl ayrı yazılıyor. Geri sayım YALNIZCA gerçek bir
+   gelecek an varsa kuruluyor. */
 function kilitliKutu(s, yenile){
   if (ACILIS_SAYAC) { clearInterval(ACILIS_SAYAC); ACILIS_SAYAC = null; }
-  const hedef = s && s.acilis ? new Date(s.acilis).getTime() : 0;
+
+  const ara = s && s.ara === true;
+  const belirsiz = s && s.belirsiz === true;
+  /* Arada hedef SONRAKİ başlangıç; açılış öncesinde açılışın kendisi. */
+  const hamHedef = ara ? (s && s.sonrakiBasi) : (s && s.acilis);
+  let hedef = hamHedef ? new Date(hamHedef).getTime() : 0;
+  /* Geçmiş bir an hedef sayılmıyor: "0 saniye" yazan ölü bir sayaç
+     kuruyordu. Belirsiz arada zaten hiç hedef yok. */
+  if (belirsiz || !(hedef > Date.now())) hedef = 0;
+
   const ne = hedef ? new Date(hedef).toLocaleString("tr-TR",
-    { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) : "";
+    { day: "numeric", month: "long", weekday: "long", hour: "2-digit", minute: "2-digit" }) : "";
+  const no = (s && s.sonrakiNo) || 2;
+
   setTimeout(() => {
     if (!hedef) return;
     ACILIS_SAYAC = setInterval(() => {
@@ -759,16 +923,62 @@ function kilitliKutu(s, yenile){
       el.textContent = kalanSure(kalan);
     }, 1000);
   }, 0);
+
+  /* Başlık ve simge duruma göre. Belirsiz arada kum saati: kilit değil,
+     henüz gelmemiş bir zaman. */
+  const simge = belirsiz ? "⏳" : "🔒";
+  const baslik = ara
+    ? (belirsiz ? no + ". hafta yakında başlayacak." : no + ". hafta yakında başlıyor.")
+    : "Yarışma henüz başlamadı.";
+
+  const zamanSatiri = hedef
+    ? `<p class="cd-line">Başlangıç: <b>${ne}</b></p>
+       <p class="cd-line">Kalan süre: <b><span id="acVal">${kalanSure(hedef - Date.now())}</span></b></p>`
+    : "";
+
+  /* Ara metninde "tablo o an başlıyor" cümlesi YANLIŞ olurdu: tablo zaten
+     başladı, 1. hafta oynandı. Ara için ayrı cümle. */
+  const aciklama = ara
+    ? `<p class="muted" style="font-size:.8rem">1. hafta sona erdi ve <b>ödüller dağıtıldı</b>.
+         ${belirsiz ? "Yeni hafta başlayana kadar" : "O ana kadar"} <b>puanlı oyunlar oynanamıyor</b>
+         ve puan hiçbir haftaya yazılmıyor — yeni hafta herkes için sıfırdan başlasın diye.</p>`
+    : `<p class="muted" style="font-size:.8rem">O ana kadar puanlı oyunlar kapalı ve
+         Tokmakçılar tablosu da o an başlıyor — kimse öne geçemiyor.</p>`;
+
   return `<div class="quiz-mid kilitli">
-      <p style="font-size:1.6rem;margin:0 0 6px">🔒</p>
-      <p><b>Yarışma henüz başlamadı.</b></p>
-      ${ne ? `<p class="cd-line">Başlangıç: <b>${ne}</b></p>
-              <p class="cd-line">Kalan süre: <b><span id="acVal">${kalanSure(hedef - Date.now())}</span></b></p>` : ""}
-      <p class="muted" style="font-size:.8rem">O ana kadar puanlı oyunlar kapalı ve
-         Tokmakçılar tablosu da o an başlıyor — kimse öne geçemiyor.</p>
+      <p style="font-size:1.6rem;margin:0 0 6px">${simge}</p>
+      <p><b>${baslik}</b></p>
+      ${zamanSatiri}
+      ${aciklama}
       <p class="muted" style="font-size:.8rem">Puansız oyunlar (çark, jeneratör,
          kart sıralama, tahmin) şimdi de oynanabilir.</p>
     </div>`;
+}
+
+/* SERBEST MOD ŞERİDİ.
+
+   Oyunlar açık ama puan hiçbir haftaya yazılmıyor. Bunu yazmadan
+   oyunu açmak, oyuncuya puan topladığını sandırmak olurdu: günlük
+   hakkını harcıyor, skorunu görüyor, tabloda karşılığını bulamıyor.
+   Şerit her puanlı oyunun üstünde duruyor. */
+let SERBEST_MOD = false;      /* puanUyarisi() dolduruyor */
+let SERBEST_NO  = 2;
+function seritCiz(oyunPuanli){
+  const el = document.getElementById("serbestSerit");
+  if (!el) return;
+  if (!SERBEST_MOD || !oyunPuanli) { el.style.display = "none"; el.innerHTML = ""; return; }
+  const tr = LANG === "tr";
+  el.style.display = "";
+  el.innerHTML = `<div class="container"><div class="serbest-serit">
+      <span>⏳</span>
+      <span>${tr
+        ? `<b>${SERBEST_NO}. hafta yakında başlayacak.</b> Oyun şimdi oynanabiliyor ama
+           <b>puan hiçbir haftaya yazılmıyor</b> — yeni hafta herkes için sıfırdan
+           başlasın diye. Günlük hakkın yine de harcanıyor.`
+        : `<b>Week ${SERBEST_NO} is coming soon.</b> You can play now, but
+           <b>no points are recorded</b> — the new week starts from zero for everyone.
+           Your daily attempts are still used.`}</span>
+    </div></div>`;
 }
 
 /* Aynı anda tek bir sayaç yeter; oyun değiştirilince öncekini durduruyoruz. */
@@ -804,7 +1014,7 @@ const GN = { id: null, tries: 0, names: [], hints: [] };
 async function gnInit(){
   const s = await gmStatus();
   const body = document.getElementById("gnBody");
-  if (s.acik === false){ body.innerHTML = kilitliKutu(s, gnInit); return; }
+  if (s.oynanabilir === false){ body.innerHTML = kilitliKutu(s, gnInit); return; }
   if (!s.loggedIn){ body.innerHTML = gmLoginBox("Günün kartını oynamak için hesabın olmalı."); return; }
   if (s.games.gunun.left <= 0){
     body.innerHTML = bitmisKutu("Bugünün kartını çoktan oynadın.", s.resetAt, gnInit);
@@ -821,7 +1031,15 @@ async function gnStart(){
   body.innerHTML = spinnerBox("Günün kartı alınıyor…");
   const r = await gmApi("/gunun/start", {});
   if (!r.ok){ body.innerHTML = notice(`<span>ℹ️</span><span>${r.message || "Başlatılamadı."}</span>`); return; }
-  GN.id = r.sessionId; GN.tries = 0; GN.names = r.names; GN.hints = [];
+  /* İlerleme SUNUCUDAN okunuyor, sıfırdan başlatılmıyor.
+
+     Burada `tries = 0` ve `hints = []` yazılıydı. Sunucu artık yarım
+     kalan oyunu geri veriyor; istemci ilerlemeyi sıfırlarsa kullanıcı
+     beş ipucu açmış olsa bile hiçbirini göremez ve hakkını yeniden
+     harcadığını sanır. Devam etmenin bir anlamı olması için ekranın da
+     kaldığı yeri göstermesi gerekiyor. */
+  GN.id = r.sessionId; GN.names = r.names;
+  GN.tries = r.tries || 0; GN.hints = r.hints || [];
   gnPaint();
   gmStatus();
 }
@@ -854,6 +1072,9 @@ async function gnGuess(){
   }
   const r = await gmApi("/gunun/guess", { sessionId: GN.id, guess });
   if (!r.ok && r.status !== 200){ gnPaint(`<span class="bad">${r.message || "Hata"}</span>`); return; }
+  /* Sonucu duyur: doğruda onaylayan, yanlışta yumuşak inen ses.
+     Ekran boyanmadan ÖNCE çalıyor ki geri bildirim gecikmesin. */
+  try { r.correct ? sesDogru() : sesYanlis(); } catch {}
   GN.tries = r.tries;
   if (r.finished){
     document.getElementById("gnBody").innerHTML = `
@@ -875,7 +1096,7 @@ let DU = { id: null };
 async function duInit(){
   const s = await gmStatus();
   const body = document.getElementById("duBody");
-  if (s.acik === false){ body.innerHTML = kilitliKutu(s, duInit); return; }
+  if (s.oynanabilir === false){ body.innerHTML = kilitliKutu(s, duInit); return; }
   if (!s.loggedIn){ body.innerHTML = gmLoginBox("Düelloya girmek için hesabın olmalı."); return; }
   if (s.games.duello.left <= 0){
     body.innerHTML = bitmisKutu("Bugünlük düello hakkın bitti.", s.resetAt, duInit); return;
@@ -911,6 +1132,9 @@ async function duAnswer(key){
   document.querySelectorAll(".du-deck").forEach(b => b.disabled = true);
   const r = await gmApi("/duello/answer", { sessionId: DU.id, key });
   if (!r.ok && r.status !== 200) return;
+  /* Sonucu duyur: doğruda onaylayan, yanlışta yumuşak inen ses.
+     Ekran boyanmadan ÖNCE çalıyor ki geri bildirim gecikmesin. */
+  try { (r.correct ?? (key === r.winner)) ? sesDogru() : sesYanlis(); } catch {}
   document.querySelectorAll(".du-deck").forEach((b) => {
     const k = b.getAttribute("onclick").match(/"([^"]+)"/)?.[1];
     if (k === r.winner) b.classList.add("right"); else b.classList.add("lost");
@@ -937,7 +1161,7 @@ const EK = { id: null };
 async function ekInit(){
   const s = await gmStatus();
   const body = document.getElementById("ekBody");
-  if (s.acik === false){ body.innerHTML = kilitliKutu(s, ekInit); return; }
+  if (s.oynanabilir === false){ body.innerHTML = kilitliKutu(s, ekInit); return; }
   if (!body) return;
   if (!s.loggedIn){ body.innerHTML = gmLoginBox("Bu oyuna girmek için hesabın olmalı."); return; }
   if (s.games.eksik.left <= 0){
@@ -986,6 +1210,9 @@ async function ekAnswer(id){
   document.querySelectorAll(".ek-opt").forEach(b => b.disabled = true);
   const r = await gmApi("/eksik/answer", { sessionId: EK.id, id });
   if (!r.ok && r.status !== 200) return;
+  /* Sonucu duyur: doğruda onaylayan, yanlışta yumuşak inen ses.
+     Ekran boyanmadan ÖNCE çalıyor ki geri bildirim gecikmesin. */
+  try { (r.correct ?? (id === r.answer)) ? sesDogru() : sesYanlis(); } catch {}
   document.querySelectorAll(".ek-opt").forEach((b) => {
     const bid = Number(b.getAttribute("data-id"));
     if (bid === r.answer) b.classList.add("right");
@@ -1161,7 +1388,7 @@ const KP_ETIKET = { hp:"can", dmg:"hasar", sn:"vuruş aralığı" };
 async function kpInit(){
   const s = await gmStatus();
   const body = document.getElementById("kpBody");
-  if (s.acik === false){ body.innerHTML = kilitliKutu(s, kpInit); return; }
+  if (s.oynanabilir === false){ body.innerHTML = kilitliKutu(s, kpInit); return; }
   if (!body) return;
   if (!s.loggedIn){ body.innerHTML = gmLoginBox("Bu oyuna girmek için hesabın olmalı."); return; }
   if (s.games.kapisma.left <= 0){
@@ -1185,7 +1412,14 @@ async function kpStart(){
       : notice(`<span>ℹ️</span><span>${r.message || "Başlatılamadı."}</span>`);
     return;
   }
-  KP.id = r.sessionId; KP.rounds = r.rounds; KP.tur = 0; KP.dogru = 0; KP.mesgul = false;
+  /* Cevaplanan turlar sunucudan geliyor; sıfırlanırsa kullanıcı ilk tura
+     geri döner ve sunucu "bu tur zaten cevaplandı" diye reddeder —
+     oyun kilitlenirdi. Sıradaki tur, cevaplananların bittiği yer. */
+  KP.id = r.sessionId; KP.rounds = r.rounds; KP.mesgul = false;
+  const cevaplanan = Array.isArray(r.cevaplanan) ? r.cevaplanan : [];
+  KP.dogru = r.dogru || 0;
+  KP.tur = 0;
+  while (cevaplanan.indexOf(KP.tur) >= 0 && KP.tur < KP.rounds.length) KP.tur++;
   kpPaint();
 }
 
@@ -1221,6 +1455,9 @@ async function kpAnswer(id){
 
   const r = await gmApi("/kapisma/answer", { sessionId: KP.id, round: KP.tur, id });
   if (!r.ok && r.status !== 200){ KP.mesgul = false; return; }
+  /* Sonucu duyur: doğruda onaylayan, yanlışta yumuşak inen ses.
+     Ekran boyanmadan ÖNCE çalıyor ki geri bildirim gecikmesin. */
+  try { (r.correct ?? (id === r.answer)) ? sesDogru() : sesYanlis(); } catch {}
   KP.dogru = r.dogru;
 
   const birim = KP.rounds[KP.tur].birim;
@@ -1262,12 +1499,38 @@ const QZ = { id: null, step: 0, total: 13, checkpoints: [2, 7], safe: 0, busy: f
              kilit: 400, ara: 750 };
 
 async function qzApi(path, body){
-  const r = await fetch(API_BASE + "/quiz" + path, {
-    method: body ? "POST" : "GET", credentials: "same-origin",
-    headers: body ? { "Content-Type": "application/json" } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  return { ok: r.ok, status: r.status, ...(await r.json().catch(() => ({}))) };
+  /* AĞ HATASI ARTIK FIRLATMIYOR, YANIT DÖNDÜRÜYOR.
+
+     Eskiden `fetch` çıplaktı. Bağlantı bir an koptuğunda (mobil sinyal,
+     kısa kesinti) istisna fırlıyordu; çağıran fonksiyon yarıda kesiliyor,
+     QZ.busy true kalıyor, şıklar disabled kalıyor ve sayaç durmuş
+     oluyordu — yani EKRAN DONUYORDU. Kullanıcı bildirdi: "oyun bir anda
+     donuyor, sayfa yenileyince hakkımdan biri gitmiş oluyor". Hak tur
+     BAŞLARKEN harcandığı için, donan turu kapatamayan kişi hakkını
+     yanmış görüyordu.
+
+     Hata artık olağan bir yanıt gibi dönüyor ki çağıran onu ele alıp
+     kullanıcıya çıkış yolu gösterebilsin. */
+  try {
+    const r = await fetch(API_BASE + "/quiz" + path, {
+      method: body ? "POST" : "GET", credentials: "same-origin",
+      headers: body ? { "Content-Type": "application/json" } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    return { ok: r.ok, status: r.status, ...(await r.json().catch(() => ({}))) };
+  } catch {
+    return { ok: false, status: 0, agHatasi: true,
+             message: "Bağlantı kurulamadı. Turun duruyor — devam edebilirsin." };
+  }
+}
+
+/* Donmuş turdan çıkış kutusu. `qzStart` yarım tur varsa YENİ HAK
+   HARCAMADAN onu geri döndürüyor, yani bu düğme hak yakmıyor. */
+function qzKurtar(mesaj){
+  QZ.busy = false;
+  document.getElementById("qzBody").innerHTML =
+    notice(`<span>⚠️</span><span>${mesaj || "Bağlantı koptu."}</span>`) +
+    `<div class="quiz-kurtar"><button class="btn btn-primary" onclick="qzStart()">Devam et</button></div>`;
 }
 
 /* Puan merdiveni: hangi basamaktayız, barajlar nerede. */
@@ -1294,12 +1557,26 @@ async function qzInit(){
   const s = await qzStatus();
   const body = document.getElementById("qzBody");
   QZ.step = 0; qzLadder();
-  if (s.acik === false){ body.innerHTML = kilitliKutu(s, qzInit); return; }
+  if (s.oynanabilir === false){ body.innerHTML = kilitliKutu(s, qzInit); return; }
   if (!s.loggedIn){
     body.innerHTML = `<div class="quiz-mid">
       <p>Yarışmaya girip <b>Tokmakçılar</b> tablosuna puan yazmak için hesabın olmalı.</p>
       <button class="btn btn-primary" onclick="openAuth('login')">Giriş Yap</button>
       <button class="btn btn-ghost" onclick="openAuth('register')">Kayıt Ol</button></div>`;
+    return;
+  }
+  /* YARIM KALAN TUR. Bağlantı koptuysa ya da sunucu yeniden başladıysa
+     tur sunucuda duruyor; kullanıcıya kaldığı yerden devam etmeyi
+     öneriyoruz. Bu kutu HAK UYARISINDAN ÖNCE geliyor — hakkı dolmuş
+     olsa bile o turu bitirmeye hakkı var, çünkü hakkı zaten ödenmişti. */
+  if (s.devam){
+    body.innerHTML = `<div class="quiz-mid">
+      <p><b>Yarım kalan turun var.</b></p>
+      <p class="muted">Bağlantı koptuğunda <b>${s.devam.soru}. soruda</b>ydın —
+         ${s.devam.puan > 0 ? `şu an <b>${s.devam.puan} puan</b>` : "henüz puan yok"}.
+         Hakkın yanmadı, kaldığın yerden devam edebilirsin.</p>
+      <button class="btn btn-primary quiz-start" onclick="qzStart()">Kaldığın Yerden Devam Et</button>
+      <button class="btn btn-ghost" onclick="qzBitir()">Turu Bitir</button></div>`;
     return;
   }
   if (s.left <= 0){
@@ -1320,8 +1597,12 @@ async function qzStart(){
   body.innerHTML = spinnerBox("Sorular hazırlanıyor…");
   const r = await qzApi("/start", {});
   if (!r.ok){ body.innerHTML = notice(`<span>⚠️</span><span>${r.message || "Başlatılamadı."}</span>`); return; }
-  QZ.id = r.sessionId; QZ.step = r.step; QZ.total = r.total; QZ.checkpoints = r.checkpoints; QZ.safe = 0;
+  QZ.id = r.sessionId; QZ.step = r.step; QZ.total = r.total; QZ.checkpoints = r.checkpoints;
+  /* Devam eden turda geçilen baraj sunucudan geliyor; sıfırlamak,
+     kullanıcıya geçtiği barajı geçmemiş gibi gösterirdi. */
+  QZ.safe = r.safe || 0;
   if (r.kilitMs) QZ.kilit = r.kilitMs;
+  if (r.sureMs) QZ.sure = r.sureMs;
   document.getElementById("qzLeft").textContent = `${r.left}/3 hak`;
   qzPaint(r.question, r.options);
 }
@@ -1338,6 +1619,11 @@ function qzPaint(question, options){
         ${cp ? `<span class="quiz-cp">🛡️ BARAJ</span>` : ""}
         ${QZ.safe ? `<span class="quiz-safe">güvencen: ${QZ.safe}</span>` : ""}
       </div>
+      ${/* SÜRE ÇUBUĞU. Sayaç, şıklar açıldığında başlıyor (kilit süresi
+            bitince) — kapalı şıklara bakarken süre işlemesi haksız olurdu.
+            Sunucu da aynı anı esas alıyor. */""}
+      <div class="quiz-sure" id="qzSure"><span class="qs-bar" id="qzBar"></span>
+        <span class="qs-num" id="qzNum">${Math.ceil((QZ.sure||7000)/1000)}</span></div>
       <p class="quiz-text">${question}</p>
       <div class="quiz-opts locked">
         ${options.map((o, i) => `<button class="quiz-opt" data-i="${i}" disabled
@@ -1355,12 +1641,235 @@ function qzPaint(question, options){
     if (!kutu) return;                       // soru bu arada değiştiyse dokunma
     kutu.classList.remove("locked");
     kutu.querySelectorAll(".quiz-opt").forEach((b) => { b.disabled = false; });
+    qzSayacBaslat();
   }, QZ.kilit);
+}
+
+/* ============ İKSİR HESABI ============
+   Meta destesinin ortalama iksiri, 7 saniyede, dört şıktan.
+
+   Yanlış cevap ELEMİYOR: beş sorunun beşi de soruluyor (bkz. games.js).
+   O yüzden burada "elendin" ekranı yok, sıradaki soru geliyor.
+
+   Kart iksirleri sunucudan GELMİYOR; ekranda yalnızca görseller var,
+   yoksa oyun bir toplama işlemine dönerdi. */
+const IK = { id:null, step:0, toplam:5, dogru:0, sure:7000, mesgul:false };
+let ikSayac = null;
+
+function ikSayacDurdur(){ if (ikSayac) { clearInterval(ikSayac); ikSayac = null; } }
+
+/* Sayaç yarışmadakiyle aynı desende: 100 ms'de bir çiziliyor ama tik
+   sesi yalnızca SANİYE DEĞİŞİNCE çalıyor, yoksa saniyede on kez öter. */
+function ikSayacBaslat(){
+  ikSayacDurdur();
+  const toplam = IK.sure || 7000;
+  const bas = Date.now();
+  const cubuk = document.getElementById("ikBar");
+  const sayi = document.getElementById("ikNum");
+  if (!cubuk || !sayi) return;
+  let sonSaniye = null;
+  const ciz = () => {
+    const kalan = Math.max(0, toplam - (Date.now() - bas));
+    cubuk.style.width = (kalan / toplam * 100) + "%";
+    const saniye = Math.ceil(kalan / 1000);
+    sayi.textContent = saniye;
+    cubuk.classList.toggle("az", kalan <= 2000);
+    if (saniye !== sonSaniye && saniye > 0) {
+      sonSaniye = saniye;
+      try { sesSayacTik(saniye <= 3); } catch {}
+    }
+    if (kalan <= 0) {
+      ikSayacDurdur();
+      /* Boş cevap = süre doldu. Sunucu da kendi tarafında ölçüyor;
+         bu yalnızca olağan yol, tek dayanak değil. */
+      if (!IK.mesgul) ikAnswer("");
+    }
+  };
+  ciz();
+  ikSayac = setInterval(ciz, 100);
+}
+
+async function ikInit(){
+  const s = await gmStatus();
+  const body = document.getElementById("ikBody");
+  if (!body) return;
+  ikSayacDurdur();
+  if (s.oynanabilir === false){ body.innerHTML = kilitliKutu(s, ikInit); return; }
+  if (!s.loggedIn){ body.innerHTML = gmLoginBox("Bu oyuna girmek için hesabın olmalı."); return; }
+  if (s.games.iksir.left <= 0){
+    body.innerHTML = bitmisKutu("Bugünlük “İksir Hesabı” hakkın bitti.", s.resetAt, ikInit);
+    return;
+  }
+  body.innerHTML = `<div class="quiz-mid">
+    <p>Ekrana bir <b>meta destesi</b> gelecek; destenin <b>ortalama iksir</b>
+       maliyetini dört şıktan seç.</p>
+    <p class="muted">5 soru · her soru için <b>7 saniye</b> · her doğru <b>1 puan</b><br>
+       Yanlış cevap elemez, sorular sonuna kadar devam eder.</p>
+    <button class="btn btn-primary quiz-start" onclick="ikStart()">Başla</button></div>`;
+}
+
+async function ikStart(){
+  const body = document.getElementById("ikBody");
+  ikSayacDurdur();
+  body.innerHTML = spinnerBox("Deste seçiliyor…");
+  const r = await gmApi("/iksir/start", {});
+  if (!r.ok){
+    body.innerHTML = r.error === "limit"
+      ? bitmisKutu(r.message || "Bugünlük hakkın bitti.", r.resetAt, ikInit)
+      : notice(`<span>ℹ️</span><span>${r.message || "Başlatılamadı."}</span>`);
+    return;
+  }
+  IK.id = r.sessionId; IK.mesgul = false;
+  ikPaint(r);
+}
+
+function ikPaint(r){
+  IK.step = r.step; IK.toplam = r.toplam; IK.dogru = r.dogru;
+  if (r.sureMs) IK.sure = r.sureMs;
+  /* Kartlar site genelindeki kart bileşeniyle çiziliyor (registerApiCard
+     + renderCard) — Eksik Kartı Bul'daki görünümün aynısı, ayrı bir
+     kart işaretlemesi tutmuyoruz. */
+  /* Evrim / kahraman / şampiyon slotları, meta sayfasındaki ve Deste
+     Düellosu'ndaki desenin aynısı: sunucu her kartın hangi slotta
+     olduğunu söylüyor, renderCard da ona göre doğru görseli ve rozeti
+     çiziyor (evrim moru, kahraman portresi, şampiyon altını).
+
+     iksirGizli: kart iksirini basmasın — cevap o. */
+  const kartlar = [], evoK = [], heroK = [], champK = [];
+  (r.cards || []).forEach(c => {
+    const k = registerApiCard(c);
+    kartlar.push(k);
+    if (c.evo) evoK.push(k);
+    if (c.hero) heroK.push(k);
+    if (c.champion) champK.push(k);
+  });
+  const kart = (k) => renderCard(k, {
+    evo: evoK.includes(k), heroSlot: heroK.includes(k),
+    hero: champK.includes(k), iksirGizli: true,
+  });
+  document.getElementById("ikBody").innerHTML = `
+    <div class="kp-head">
+      <span class="kp-step">${r.step}/${r.toplam}. soru</span>
+      <span class="kp-score">${r.dogru} doğru</span>
+    </div>
+    <div class="quiz-sure" id="ikSure"><span class="qs-bar" id="ikBar"></span>
+      <span class="qs-num" id="ikNum">${Math.ceil((IK.sure||7000)/1000)}</span></div>
+    <p class="du-q">Bu destenin <b>ortalama iksiri</b> kaç?</p>
+    <div class="ek-deck">
+      <div class="mini-cards">${kartlar.slice(0,4).map(kart).join("")}</div>
+      <div class="mini-cards">${kartlar.slice(4,8).map(kart).join("")}</div>
+    </div>
+    <div class="quiz-opts">
+      ${(r.options||[]).map((o,i)=>`<button class="quiz-opt" data-v="${esc(o)}"
+        onclick='ikAnswer(${jsArg(o)})'>
+        <span class="qo-l">${"ABCD"[i]}</span><span>${esc(o)}</span></button>`).join("")}
+    </div>
+    <div id="ikAfter"></div>`;
+  ikSayacBaslat();
+}
+
+async function ikAnswer(secim){
+  if (IK.mesgul) return;
+  IK.mesgul = true;
+  ikSayacDurdur();
+  document.querySelectorAll(".quiz-opt").forEach(b => b.disabled = true);
+
+  const r = await gmApi("/iksir/answer", { sessionId: IK.id, step: IK.step - 1, choice: secim });
+  if (!r.ok && r.status !== 200){ IK.mesgul = false; return; }
+  try { r.correct ? sesDogru() : sesYanlis(); } catch {}
+
+  /* Doğru şık her hâlükârda işaretleniyor — yanlış yapan da öğrensin. */
+  document.querySelectorAll(".quiz-opt").forEach(b => {
+    const v = b.getAttribute("data-v");
+    if (v === r.answer) b.classList.add("right");
+    else if (v === secim && secim !== "") b.classList.add("wrong");
+  });
+
+  const bas = r.zamanAsimi
+    ? `<p class="gn-no">Süre doldu! Doğrusu <b>${esc(r.answer)}</b> iksirdi.</p>`
+    : r.correct
+      ? `<p class="gn-ok">Doğru! <b>+1 puan</b></p>`
+      : `<p class="gn-no">Yanlış. Doğrusu <b>${esc(r.answer)}</b> iksirdi.</p>`;
+
+  if (r.finished){
+    document.getElementById("ikAfter").innerHTML = bas + `
+      <div class="quiz-mid" style="margin-top:6px">
+        <p><b>${r.dogru}/${r.toplam} doğru — ${r.points} puan.</b></p>
+        ${r.left > 0
+          ? `<button class="btn btn-primary" onclick="ikStart()">Yeni oyun (${r.left} hak)</button>`
+          : bitmisKutu("Bugünlük hakkın bitti.", r.resetAt, ikInit)}</div>`;
+    gmStatus();
+    return;
+  }
+
+  /* Sonucu okumaya zaman bırakıp sıradaki soruya geçiyoruz. Sunucu
+     sıradaki soruyu AYNI yanıtta gönderdi; ayrı istek atsaydık sayacın
+     başlangıcı ağ gecikmesine bağlı olurdu. Süre, soru EKRANA GELİNCE
+     başlıyor (ikPaint → ikSayacBaslat), bu bekleme sırasında değil. */
+  document.getElementById("ikAfter").innerHTML = bas +
+    `<p class="muted text-center" style="font-size:.8rem">Sıradaki soru geliyor…</p>`;
+  setTimeout(() => { IK.mesgul = false; ikPaint(r); }, 1400);
+  gmStatus();
+}
+
+/* SORU SÜRESİ.
+
+   Sınırsızken oyuncu soruyu başka sekmede aratıp dönebiliyordu; yarışma
+   bilgi değil arama hızı ölçüyordu. Süre dolunca BOŞ cevap gönderiliyor
+   ve sunucu bunu süre aşımı sayıp turu bitiriyor — son geçilen baraj
+   kadar puan yazılıyor, emek boşa gitmiyor.
+
+   Sayaç her soruda sıfırlanıyor ve cevap verilince durduruluyor; aksi
+   hâlde önceki sorunun sayacı yenisini de eritirdi. */
+let qzSayac = null;
+
+function qzSayacDurdur(){
+  if (qzSayac) { clearInterval(qzSayac); qzSayac = null; }
+}
+
+function qzSayacBaslat(){
+  qzSayacDurdur();
+  const toplam = QZ.sure || 7000;
+  const bas = Date.now();
+  const cubuk = document.getElementById("qzBar");
+  const sayi = document.getElementById("qzNum");
+  if (!cubuk || !sayi) return;
+
+  /* Son çalınan saniye. Sayaç 100 ms'de bir çiziliyor ama tik SANİYE
+     DEĞİŞİNCE çalmalı — yoksa saniyede on kez öter. */
+  let sonSaniye = null;
+
+  const ciz = () => {
+    const gecen = Date.now() - bas;
+    const kalan = Math.max(0, toplam - gecen);
+    cubuk.style.width = (kalan / toplam * 100) + "%";
+    const saniye = Math.ceil(kalan / 1000);
+    sayi.textContent = saniye;
+    /* Son iki saniyede kırmızıya dönüyor: sayıya bakmayan da fark etsin. */
+    cubuk.classList.toggle("az", kalan <= 2000);
+
+    /* SAAT TİKİ. Son üç saniyede acil sese geçiyor — ekrandaki kırmızı
+       çubukla aynı uyarı, ekrana bakmayan için. Sıfırda çalmıyor: o an
+       zaten "süre doldu" ekranı ve sesi geliyor, üstüne tik binmesin. */
+    if (saniye !== sonSaniye && saniye > 0) {
+      sonSaniye = saniye;
+      try { sesSayacTik(saniye <= 3); } catch {}
+    }
+
+    if (kalan <= 0) {
+      qzSayacDurdur();
+      /* Boş cevap = "süre doldu". Sunucu bunu süre aşımı olarak işliyor. */
+      if (!QZ.busy) qzAnswer("", document.querySelector(".quiz-opt") || document.createElement("button"));
+    }
+  };
+  ciz();
+  qzSayac = setInterval(ciz, 100);
 }
 
 async function qzAnswer(choice, btn){
   if (QZ.busy) return;
   QZ.busy = true;
+  qzSayacDurdur();
   document.querySelectorAll(".quiz-opt").forEach((b) => b.disabled = true);
   btn.classList.add("picked");
 
@@ -1375,9 +1884,15 @@ async function qzAnswer(choice, btn){
     return;
   }
   if (!r.ok && r.status !== 200){
-    document.getElementById("qzBody").innerHTML = notice(`<span>⚠️</span><span>${r.message || "Hata."}</span>`);
+    /* TUR BURADA DONUYORDU: busy geri alınmadığı için şıklar kilitli
+       kalıyor, kullanıcı hakkını harcamış bir turun içinde mahsur
+       kalıyordu. Artık çıkış yolu gösteriliyor. */
+    qzKurtar(r.message);
     return;
   }
+  /* Sonucu duyur: doğruda onaylayan, yanlışta yumuşak inen ses.
+     Ekran boyanmadan ÖNCE çalıyor ki geri bildirim gecikmesin. */
+  try { r.correct ? sesDogru() : sesYanlis(); } catch {}
   // Doğru şıkkı işaretle: yanlışsa hangisi olduğunu göster.
   document.querySelectorAll(".quiz-opt").forEach((b) => {
     const txt = b.textContent.trim().slice(1).trim();
@@ -1387,6 +1902,7 @@ async function qzAnswer(choice, btn){
 
   if (r.araMs) QZ.ara = r.araMs;
   if (r.kilitMs) QZ.kilit = r.kilitMs;
+  if (r.sureMs) QZ.sure = r.sureMs;
   setTimeout(() => {
     if (r.finished) return qzEnd(r);
     QZ.step = r.step; QZ.safe = r.safe || 0;
@@ -1394,10 +1910,30 @@ async function qzAnswer(choice, btn){
   }, r.correct ? QZ.ara : 1600);
 }
 
+/* Yarım kalan turu BİTİRMEK (devam etmek yerine).
+
+   Sayfa yenilendiğinde `QZ.id` bellekte yok, oysa çekilme ucu oturum
+   kimliği istiyor. O yüzden önce turu geri alıp kimliğini öğreniyoruz;
+   `/start` yarım tur varsa yeni hak harcamadan onu döndürüyor. Sonra
+   normal çekilme işliyor — yani kullanıcı o ana kadar bildiği soru
+   kadar puanını alıyor, turu boşa gitmiyor. */
+async function qzBitir(){
+  const body = document.getElementById("qzBody");
+  body.innerHTML = spinnerBox("Tur kapatılıyor…");
+  const r = await qzApi("/start", {});
+  if (!r.ok){ body.innerHTML = notice(`<span>⚠️</span><span>${r.message || "Tur kapatılamadı."}</span>`); return; }
+  QZ.id = r.sessionId; QZ.step = r.step; QZ.total = r.total;
+  QZ.checkpoints = r.checkpoints; QZ.busy = false;
+  await qzWithdraw();
+}
+
 async function qzWithdraw(){
   if (QZ.busy) return;
   QZ.busy = true;
   const r = await qzApi("/withdraw", { sessionId: QZ.id });
+  /* Çekilme de donabiliyordu: ağ koparsa qzEnd hiç çağrılmıyor ve
+     busy true kalıyordu. */
+  if (!r.ok && r.status !== 200) return qzKurtar(r.message);
   qzEnd(r);
 }
 
@@ -1482,9 +2018,32 @@ function guessQuestions(){
     { label:"🚶 Normal", test:c => tr(c).speed === 60 },
     { label:"🏃 Hızlı",  test:c => (tr(c).speed||0) >= 90 },
   ]});
+  /* Karma birim çıkaran kart (Goblin Çetesi, Serseriler): tek bir
+     sayıyla anlatılamaz, çünkü iki farklı birim çıkarıyor ve
+     vuruş hızları, canları, menzilleri farklı. Tek değer soran
+     sorular bunları eliyor. Tanım BURADA çünkü aşağıdaki iki soru da
+     kullanıyor; sonraya bırakılırsa ilk kullanımda tanımsız kalıyor. */
+  const tekBirim = (c) => !tr(c).karma;
+
+  /* YAKIN DÖVÜŞ / MENZİLLİ — eşikler Tokmak Yarışması'yla AYNI.
+
+     Burada "1200 üstü menzilli" yazıyordu ve bu, Tokmak'ta düzeltilen
+     hatanın kardeşiydi: oyun yakın dövüşü üç kademe tutuyor (500 kısa,
+     1200 orta, 1600 uzun), yani Prens ve Mega Minyon 1600 ile
+     "menzilli" sayılıyordu. 122 kartın dağılımı sayılmıştı —
+     100-1600 arası 38 kart hepsi yakın dövüş, 3500+ 20 kart
+     tartışmasız menzilli, aradaki ruhlar tartışmalı.
+
+     Aradaki boşluk BİLEREK: ruhlar hiçbir şıkka uymuyor, yani soru
+     onlar için sorulmuyor. Kullanıcının "aslında haklıydım" diyeceği
+     bir durum kalmıyor.
+
+     Karma birim çıkaran kartlar da eleniyor: Goblin Çetesi'nin içinde
+     hem yakın dövüşçü hem menzilli var, tek bir cevabı yok. */
+  const MENZIL_YAKIN = 1600, MENZIL_UZAK = 3500;
   qs.push({ id:"reach", text:"<b>Yakın dövüş</b> mü, <b>menzilli</b> mi?", opts: [
-    { label:"🗡️ Yakın dövüş", test:c => { const r = tr(c).range||0; return r > 0 && r <= 1200; } },
-    { label:"🏹 Menzilli",     test:c => (tr(c).range||0) > 1200 },
+    { label:"🗡️ Yakın dövüş", test:c => { const r = tr(c).range||0; return tekBirim(c) && r > 0 && r <= MENZIL_YAKIN; } },
+    { label:"🏹 Menzilli",     test:c => tekBirim(c) && (tr(c).range||0) >= MENZIL_UZAK },
   ]});
 
   /* Aşağıdakiler sonradan eklendi. Önceki dokuz soru 122 kartı her zaman
@@ -1514,10 +2073,28 @@ function guessQuestions(){
     { label:"Evet, hızlanır", test:varMi("charge") },
     { label:"Hayır",          test:yokMu("charge") },
   ]});
+  /* VURUŞ HIZI — karma birim çıkaran kartlar bu soruya GİRMİYOR.
+
+     Kullanıcı bildirdi: "Serseriler kaç saniyede vurur — 1,5 saniye
+     diyor ama seriseri kızdan mı bahsediyor oğlandan mı?" Haklı çıktı,
+     ölçüldü:
+
+        Serseri Oğlan  1500 ms · 758 can
+        Serseri Kız    1000 ms · 102 can
+
+     Kart iki farklı birim çıkarıyor ve elimizdeki sayı yalnızca
+     birincisininki. Goblin Çetesi'nde de aynı (Goblin 1100 ms,
+     Mızraklı Goblin 1700 ms). Böyle bir kart için "vuruş hızı şudur"
+     demek, hangi birimden bahsedildiğini söylemeden cevap vermek olur —
+     kullanıcı doğru bildiği hâlde yanlış sayılabilir.
+
+     `karma` işaretli kartlar hiçbir şıkka uymuyor; motor bu soruyu
+     onlar için hiç sormuyor. Uydurma bir ortalama vermektense soruyu
+     sormamak doğru: yanlış cevap, eksik sorudan kötüdür. */
   qs.push({ id:"hitspd", text:"<b>Vuruş hızı</b> nasıl?", opts: [
-    { label:"⚡ Çok seri (1 sn altı)", test:c => { const h = tr(c).hitSpeed||0; return h > 0 && h < 1000; } },
-    { label:"⏱️ Orta (1–1,5 sn)",      test:c => { const h = tr(c).hitSpeed||0; return h >= 1000 && h <= 1500; } },
-    { label:"🐌 Yavaş (1,5 sn üstü)",  test:c => (tr(c).hitSpeed||0) > 1500 },
+    { label:"⚡ Çok seri (1 sn altı)", test:c => { const h = tr(c).hitSpeed||0; return tekBirim(c) && h > 0 && h < 1000; } },
+    { label:"⏱️ Orta (1–1,5 sn)",      test:c => { const h = tr(c).hitSpeed||0; return tekBirim(c) && h >= 1000 && h <= 1500; } },
+    { label:"🐌 Yavaş (1,5 sn üstü)",  test:c => tekBirim(c) && (tr(c).hitSpeed||0) > 1500 },
   ]});
 
   /* --- BİNALARA özel --- */
@@ -1829,19 +2406,97 @@ async function puanUyarisi(){
   if (!el) return;
   const d = await fetch(API_BASE + "/board/weekly", { credentials: "same-origin" })
     .then(r => r.ok ? r.json() : null).catch(() => null);
-  if (!d || d.acik !== false) { el.innerHTML = ""; return; }
+  if (!d) { el.innerHTML = ""; return; }
+
+  /* DÖNEM SÜRÜYOR ama sonrasında ara var → ÖNCEDEN haber ver.
+     Uyarı yalnızca ara başladıktan sonra çıkıyordu; bugün oynayan
+     kimse yarın oyunların kilitleneceğini bilmiyordu. */
+  if (d.acik !== false) {
+    const g = d.week && d.week.araGeliyor;
+    /* Belirsiz arada tarih (g) yok ama ara VAR. Yalnızca g'ye bakmak,
+       uyarıyı hiç göstermemek demekti. */
+    const gVar = (d.week && d.week.araVar === true) || !!g;
+    const gBelirsiz = !!(d.week && d.week.araBelirsiz === true);
+    if (!gVar) { el.innerHTML = ""; return; }
+    const trO = LANG === "tr";
+    const bicim = (t) => new Date(t).toLocaleString(trO ? "tr-TR" : "en-GB",
+      { timeZone: "Europe/Istanbul", day: "numeric", month: "long",
+        weekday: "long", hour: "2-digit", minute: "2-digit" });
+    const bitis = bicim(d.week.end), basla = g ? bicim(g) : null;
+    const noO = d.week.araNo || 2;
+    el.innerHTML = notice(`<span>${gBelirsiz ? "⏳" : "📅"}</span><span>${
+      gBelirsiz
+        ? (trO
+          ? `<b>${noO}. hafta yakında başlayacaktır.</b> Bu hafta <b>${bitis}</b>'da bitiyor;
+             sonrasında <b>oyunlar kapalı olacak</b>. Ödüller aynı kalıyor.`
+          : `<b>Week ${noO} is coming soon.</b> This week ends <b>${bitis}</b> and the games are
+             closed afterwards. The rewards stay the same.`)
+        : (trO
+          ? `<b>${noO}. hafta ${basla}'da başlayacaktır.</b> Bu hafta <b>${bitis}</b>'da bitiyor;
+             arada <b>oyunlar kapalı olacak</b>. Ödüller aynı kalıyor.`
+          : `<b>Week ${noO} starts ${basla}.</b> This week ends <b>${bitis}</b> and the games are
+             closed in between. The rewards stay the same.`)}</span>`, "info");
+    return;
+  }
   const tr = LANG === "tr";
-  const a = new Date(d.acilis || d.week?.start);
+  /* Belirsiz arada acilis/start null geliyor. `new Date(null)` 1 Ocak
+     1970 verir; ekranda "1 Ocak Perşembe'de başlayacaktır" yazardı. */
+  const belirsiz = d.belirsiz === true || (d.week && d.week.belirsiz === true)
+                   || !(d.acilis || (d.week && d.week.start));
+  const an = d.acilis || d.week?.start;
+  const a = an ? new Date(an) : null;
   /* Tarih DEĞİL tarih+saat: açılış 18.00 ve yalnız günü yazmak, o sabah
      gelen oyuncuya "bugün açık" dedirtiyordu. */
-  const gun = a.toLocaleString(tr ? "tr-TR" : "en-GB",
-    { timeZone: "Europe/Istanbul", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
-  el.innerHTML = notice(`<span>⏳</span><span>${tr
-    ? `<b>Tokmakçılar tablosu ${gun}'de açılıyor.</b> O ana kadar <b>puanlı oyunlar oynanamıyor</b>
-       ve sıralama da o anda başlıyor — yarış herkes için aynı anda başlasın diye.
-       <b>Puansız oyunlar</b> her zaman açık.`
-    : `<b>The leaderboard opens ${gun}.</b> Scored games are locked until then and the
-       leaderboard starts at the same moment. Unscored games are always open.`}</span>`, "warn");
+  const gun = a ? a.toLocaleString(tr ? "tr-TR" : "en-GB",
+    { timeZone: "Europe/Istanbul", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) : null;
+  /* ARA sırasında gün adı da yazılıyor ("28 Ağustos Cuma 18.00"):
+     oyuncu bir haftadır oynuyor, ona "tablo açılıyor" demek yanlış —
+     bilmek istediği şey yeni haftanın ne zaman başladığı. */
+  const ara = d.ara === true;
+  const serbest = d.serbest === true;
+  const no = d.sonrakiNo || 2;
+  /* Şerit de aynı yanıttan besleniyor — ikinci istek atmaya gerek yok. */
+  SERBEST_MOD = serbest; SERBEST_NO = no;
+  if (ACIK_OYUN) { const g = GAMES.find(x => x.id === ACIK_OYUN); seritCiz(!!(g && g.pts)); }
+  const gunAdli = a ? a.toLocaleString(tr ? "tr-TR" : "en-GB",
+    { timeZone: "Europe/Istanbul", day: "numeric", month: "long", weekday: "long",
+      hour: "2-digit", minute: "2-digit" }) : null;
+  el.innerHTML = notice(`<span>⏳</span><span>${ara
+    ? (tr
+      /* "Puansız oyunlar her zaman açık" cümlesi ARADA YANLIŞ: bu
+         pencerede site üzerinde düzenleme yapıldığı için puansız oyun
+         da kapalı. Açılış öncesi metinde cümle olduğu gibi duruyor. */
+      /* SERBEST MOD: oyunlar açık, puan yazılmıyor.
+         "Oyunlar kapalı" cümlesi artık yanlış olurdu; oyuncunun
+         bilmesi gereken şey oynayabildiği ama puanın sayılmadığı. */
+      ? (serbest
+         ? `<b>${no}. hafta yakında başlayacaktır.</b> Ödüller aynı olacak.
+            <b>Oyunlar şimdi açık</b> ama puan hiçbir haftaya yazılmıyor —
+            yeni hafta herkes için sıfırdan başlasın diye. Günlük hakkın harcanıyor.`
+         : belirsiz
+         ? `<b>${no}. hafta yakında başlayacaktır.</b> Ödüller aynı olacak.
+            O ana kadar <b>oyunlar kapalı</b> ve puan hiçbir haftaya yazılmıyor —
+            yeni hafta herkes için sıfırdan başlasın diye.`
+         : `<b>${no}. hafta ${gunAdli}'da başlayacaktır.</b> Ödüller aynı olacak.
+            O ana kadar <b>oyunlar kapalı</b> ve puan hiçbir haftaya yazılmıyor —
+            yeni hafta herkes için sıfırdan başlasın diye.`)
+      : (serbest
+         ? `<b>Week ${no} is coming soon.</b> The rewards stay the same.
+            <b>The games are open now</b>, but no points are recorded — the new week
+            starts from zero for everyone. Your daily attempts are still used.`
+         : belirsiz
+         ? `<b>Week ${no} is coming soon.</b> The rewards stay the same. The games are
+            closed until then and no points are recorded, so the new week starts from zero
+            for everyone.`
+         : `<b>Week ${no} starts ${gunAdli}.</b> The rewards stay the same. The games are
+            closed until then and no points are recorded, so the new week starts from zero
+            for everyone.`))
+    : (tr
+      ? `<b>Tokmakçılar tablosu ${gun}'de açılıyor.</b> O ana kadar <b>puanlı oyunlar oynanamıyor</b>
+         ve sıralama da o anda başlıyor — yarış herkes için aynı anda başlasın diye.
+         <b>Puansız oyunlar</b> her zaman açık.`
+      : `<b>The leaderboard opens ${gun}.</b> Scored games are locked until then and the
+         leaderboard starts at the same moment. Unscored games are always open.`)}</span>`, "warn");
 }
 function reloadFun(){ loadFun(); }
 

@@ -42,7 +42,7 @@ try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribut
          dil değişince i18n bu iki satırı geri yazıp sekmeyi eziyordu. -->
     <p class="eyebrow" id="rankEyebrow">Aktif sezon — en iyi 100 oyuncu</p>
     <h1 id="rankTitle">GLOBAL SIRALAMALAR</h1>
-    <p><span class="api-status" data-api-status style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2);color:#eaf0fb"><span class="led"></span>Veri alınamadı</span></p>
+    <p><span class="api-status" data-api-status style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2);color:#eaf0fb"><span class="led"></span>Veri yükleniyor…</span></p>
   </div>
 </section>
 
@@ -88,9 +88,54 @@ try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribut
   </div>
 </section>
 
+
+<!-- REKLAM · alt bilgiden önce -->
+
+<!-- ÖZGÜN İÇERİK — sayfanın verisini nasıl okuyacağını anlatır.
+     Doldurma metin değil: rakamlar sunucudaki ölçümlerden geliyor. -->
+<section class="section aciklama">
+  <div class="container">
+    <div class="aciklama-kutu">
+      <h2>Sıralamalar ne anlatıyor?</h2>
+      <p>Burada iki liste var: <b>Nihai Kademe</b> sekmesi aktif sezonun dünya
+   genelindeki en iyi oyuncularını, <b>Türkiye</b> sekmesi ise aynı sezonun
+   Türkiye sıralamasını gösteriyor. Her satırda oyuncunun son maçında
+   kullandığı deste de duruyor — sıralamayı yalnızca isim listesi olmaktan
+   çıkaran kısım burası.</p>
+      <h3>Madalyon kupa değildir</h3>
+      <p>Nihai Kademe'deki ilerleme kupayla değil <b>madalyonla</b> ölçülüyor ve
+   bu modda kart seviyeleri eşitleniyor. Bunu kendi ölçümümüzde de
+   görüyoruz: Nihai maçlarında kule canları oyuncunun seviyesinden bağımsız
+   olarak sabit çıkıyor, oysa Kupa Yolu maçlarında kral seviyesine göre
+   değişiyor. Pratik sonucu şu: bu listedeki sıra <i>kartlarınızın
+   seviyesini</i> değil, o sezon nasıl oynadığınızı gösterir.</p>
+      <h3>Listedeki desteye bakarken</h3>
+      <p>Bir oyuncunun son maç destesi, o oyuncunun "ana destesi" olmayabilir.
+   Üst sıradaki oyuncular sezon içinde deste değiştirir, eşleşmeye göre
+   uyarlar, bazen sadece deneme yapar. Tek bir satırdan meta çıkarmak
+   yerine <a href="meta.html">meta sayfasındaki</a> toplu istatistiğe
+   bakmak daha doğru sonuç verir; oradaki liste yüzlerce maçtan
+   hesaplanıyor.</p>
+      <h3>PRO rozeti nasıl veriliyor?</h3>
+      <p>Rozet dört yoldan biriyle çıkıyor: dünya sıralamasında ilk 100'de olmak,
+   bu sezon 3000 madalyona ulaşmak, <b>en iyi sezonunda 2200 madalyonu
+   görmüş olmak</b>, ya da başvuru üzerine elle verilmiş olmak.</p>
+      <p>Son kuralın barajı rastgele seçilmedi. 30 klanın 150 sıradan üyesi
+   üzerinde ölçtük: 2200 barajını <b>150 kişiden 9'u</b> geçiyor, yani
+   yaklaşık %6, ve aynı örneklemin ortanca en iyi sezonu 1706. Aynı grupta
+   diğer kurallarla PRO olan hiç kimse yoktu. Yani kural, uzun süredir
+   oynayan ve bir dönem gerçekten yükselmiş oyuncuları yakalıyor ama
+   rozeti sıradanlaştırmıyor.</p>
+    </div>
+  </div>
+</section>
+
+<div class="reklam-yuva" data-reklam="icerik3"></div>
+
 <div id="app-footer"></div>
 <script src="assets/js/data.js"></script>
 <script src="assets/js/app.js"></script>
+<script src="assets/js/reklam.js"></script>
 <script>
 mountChrome("siralamalar.html");
 document.getElementById("lbSearchBtn").innerHTML = ICONS.search;

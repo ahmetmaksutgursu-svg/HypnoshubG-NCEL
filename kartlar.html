@@ -40,7 +40,7 @@ try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribut
   <div class="container">
     <p class="eyebrow" data-i18n="cards.sub">Tüm Clash Royale kartları — enderlik ve iksir maliyetine göre</p>
     <h1 data-i18n="cards.title">KARTLAR</h1>
-    <p><span class="api-status" data-api-status><span class="led"></span>Veri alınamadı</span></p>
+    <p><span class="api-status" data-api-status><span class="led"></span>Veri yükleniyor…</span></p>
   </div>
 </section>
 
@@ -68,9 +68,51 @@ try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribut
   </div>
 </section>
 
+
+<!-- REKLAM · alt bilgiden önce -->
+
+<!-- ÖZGÜN İÇERİK — sayfanın verisini nasıl okuyacağını anlatır.
+     Doldurma metin değil: rakamlar sunucudaki ölçümlerden geliyor. -->
+<section class="section aciklama">
+  <div class="container">
+    <div class="aciklama-kutu">
+      <h2>Kart listesini okumak</h2>
+      <p>Liste oyundaki bütün kartları enderlik ve iksir maliyetiyle birlikte
+   gösteriyor. Bir karta tıkladığınızda o kartın <b>şu anda</b> hangi meta
+   destelerinde oynandığını görürsünüz — yani "bu kart iyi mi" sorusunun
+   cevabını yorumdan değil, kartın gerçekten kullanıldığı destelerden
+   alırsınız.</p>
+      <h3>İksir maliyeti tek başına bir şey söylemez</h3>
+      <p>Pahalı kart kötü, ucuz kart iyi değildir. Önemli olan destenin
+   <i>ortalama</i> iksiri ve kartların birbirini nasıl tamamladığı. 4,0
+   ortalamalı bir deste hızlı döner ama tek bir büyük saldırıyı
+   karşılayamayabilir; 4,3 ortalamalı bir deste ağır kalır ama doğru anda
+   maçı bitirir. Ortalamayı gözünüzde canlandırmak isterseniz
+   <a href="eglence.html#iksir">İksir Hesabı</a> oyunu tam olarak bunu
+   çalıştırıyor.</p>
+      <h3>Evrim ve Kahraman ayrı filtreler</h3>
+      <p>Bu ikisi karıştırılıyor çünkü oyunun verisinde <i>aynı alanda</i>
+   duruyorlar. O alan bir sayı değil, bit maskesi: 122 kartın tamamında
+   ölçtük, birinci bit <b>evrim</b> çizimiyle, ikinci bit <b>kahraman</b>
+   çizimiyle birebir örtüşüyor. Değeri 3 olan kartlarda ikisi de var.
+   Alanı düz bir sayı gibi okuyan bir site, kahramanları "evrimi var" diye
+   listeler. Burada iki filtre ayrı duruyor, çünkü ölçüm ayrı olduklarını
+   söylüyor.</p>
+      <h3>Enderlik ne anlama gelir, ne anlama gelmez</h3>
+      <p>Efsanevi bir kart, sıradan bir karttan güçlü olmak zorunda değil; sadece
+   daha zor bulunur ve yükseltmesi pahalıdır. Meta listelerinde uzun
+   süredir en üstte duran destelerin çoğu sıradan ve ender kartlar üzerine
+   kuruludur. Enderlik bir güç göstergesi değil, bir maliyet göstergesidir.</p>
+    </div>
+  </div>
+</section>
+
+<div class="reklam-yuva" data-reklam="icerik3"></div>
+
 <div id="app-footer"></div>
 <script src="assets/js/data.js"></script>
 <script src="assets/js/app.js"></script>
+<script src="assets/js/reklam.js"></script>
 <script>
 mountChrome("kartlar.html");
 const TRC = () => LANG === "tr";

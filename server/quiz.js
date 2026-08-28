@@ -37,6 +37,8 @@ const DAILY_LIMIT = 3;               // hesap başına günlük hak
    ne kadar kaldığını gösterebilmek için o anı da veriyoruz. */
 /* Günlük haklar 18.00'da sıfırlanıyor — kural takvim.js'de. */
 const takvim = require("./takvim");
+/* "Bu kartın evrimi var mı" tek yerde cevaplanıyor — bkz. evrim.js */
+const evrim = require("./evrim");
 const resetAt = () => takvim.sifirlanmaAni();
 const SESSION_TTL = 40 * 60e3;       // yarım saatten uzun süren oturum düşer
 
@@ -76,6 +78,18 @@ const UI_ARA_MS = 750;
    Çift tıklamanın bir sonraki soruya sıçrayıp haksız yere ceza almasını da
    engelliyor — kilit olmasaydı ilk eşik masum bir çift tıklamayı yakalardı. */
 const KILIT_MS = 400;
+
+/* SORU BAŞINA SÜRE. Sınırsızken oyuncu soruyu başka sekmede aratıp
+   dönebiliyordu; yarışma bilgi değil arama hızı ölçüyordu.
+
+   Ekranda gösterilen süre bu. Sunucunun eleme eşiği ise TOLERANS kadar
+   daha geniş: istemcinin cevabı ağdan geçerken 7 saniye dolmuş olabilir
+   ve zamanında basmış birini haksız yere elemek, geç basanı affetmekten
+   çok daha kötü. Süre asıl olarak İSTEMCİDE bitiyor (sayaç sıfırlanınca
+   boş cevap gönderiliyor); buradaki eşik, hiç cevap göndermeyen ya da
+   sayacı durduran istemciye karşı arka duvar. */
+const SURE_MS = Math.max(3000, parseInt(process.env.QUIZ_SURE_MS, 10) || 7000);
+const SURE_TOLERANS = 2000;
 const BOT_BAN = { ms: 3 * 24 * 3600e3, label: "3 gün" };
 const BOT_SEBEP = "Otomatik tespit: yarışma soruları insan hızının altında cevaplandı";
 
@@ -100,7 +114,21 @@ function savePlays() {
   }, 500);
 }
 const dayKey = (d = new Date()) => takvim.gunAnahtari(d);
-const playsToday = (userId) => plays[`${userId}|${dayKey()}`] || 0;
+/* SINIRSIZ OYUN KİPİ — yalnızca sınama içindir.
+
+   `SINIRSIZ_OYUN=1` ile başlatılan sunucuda günlük hak sayacı okunmuyor,
+   yani puanlı oyunlar sınırsız oynanabiliyor. Amaç, oyunları elle sınarken
+   günde üç hakla kısıtlı kalmamak.
+
+   Canlı sunucuda bu değişken TANIMLI DEĞİL, dolayısıyla davranış hiç
+   değişmiyor. Değişken bilerek ortamdan okunuyor: kodda sabit bir anahtar
+   olsaydı yanlışlıkla açık dağıtılabilirdi. Açıkken sunucu başlarken
+   büyük harflerle uyarı yazıyor ki fark edilmeden kalmasın.
+
+   Hak KAYDI yine tutuluyor (notePlay/note çalışıyor); yalnızca kontrol
+   sırasında sıfır sayılıyor. Böylece sayaç mantığı da sınanmış oluyor. */
+const SINIRSIZ = process.env.SINIRSIZ_OYUN === "1";
+const playsToday = (userId) => SINIRSIZ ? 0 : (plays[`${userId}|${dayKey()}`] || 0);
 function notePlay(userId) {
   const k = `${userId}|${dayKey()}`;
   plays[k] = (plays[k] || 0) + 1;
@@ -115,11 +143,57 @@ const pick = (a) => a[rnd(a.length)];
 const sig = (q) => q.q + "|" + q.options.join(",");
 
 const RARITY_TR = { common: "Sıradan", rare: "Ender", epic: "Destansı", legendary: "Efsanevi", champion: "Şampiyon" };
+
 const KIND_TR = { Troop: "Asker", Building: "Bina", Spell: "Büyü" };
+
+  /* MENZİL SORUSU — eşikler ölçümle konuldu.
+
+     Eski kural "range > 1200 ise menzilli" idi ve YANLIŞTI: kullanıcı
+     bildirdi, "hangisi menzilli saldırır" sorusunun cevabı PRENS çıkmış.
+     Prens yakın dövüşçü. Sebep, oyunun yakın dövüşü tek bir sayı değil üç
+     kademe olarak tutması. 122 kartın gerçek dağılımı sayıldı:
+
+        100–1600 : 38 kart — hepsi yakın dövüş
+                   (Goblinler 500, Domuz Binicisi 800, Şövalye 1200,
+                    Prens ve Mega Minyon 1600 — "uzun yakın dövüş")
+        2000–2500:  3 kart — ruhlar (Ateş/Buz/Elektro): tek kullanımlık,
+                   hangi tarafa saydığı tartışmalı
+        3500+    : 20 kart — Yavru Ejderha, Okçular, Silahşör, Prenses…
+                   tartışmasız menzilli
+
+     İki ayrı eşik var, arada bilerek boşluk bırakıldı: ruhlar ne doğru
+     cevap ne de çeldirici olabiliyor. Ödüllü bir yarışmada "aslında haklıydım"
+     dedirtecek tek bir soru bile çıkmasın diye tartışmalı kartlar tamamen
+     dışarıda. */
+  const MENZIL_YAKIN = 1600;      // bu değere kadar (dahil) yakın dövüş
+  const MENZIL_UZAK  = 3500;      // bu değerden itibaren (dahil) menzilli
 
 /* ---------- soru üreticileri ----------
    Her biri {q, options[4], answer} döner ya da üretemezse null.
    `pool` = o zorluk için uygun kart listesi. */
+/* BİLİNMEYEN, "HAYIR" DEĞİLDİR.
+
+   Evet/hayır soruları çeldiricileri `!x.traits.air` gibi bir ölçütle
+   seçiyordu. Özellik verisi OLMAYAN kartta bu ifade de yanlış çıkıyor,
+   yani kart sessizce "havayı vuramaz" sayılıyordu.
+
+   ÖLÇÜLDÜ: 88 askerin 27'sinde özellik verisi HİÇ YOK — kaynak veri
+   yeni kartlara yetişmiyor (kart türlerinde de aynı boşluk çıkmıştı).
+   Aralarında Cellat, Uçan Makine, Büyülü Okçu, Dart Goblini gibi
+   havayı VURAN kartlar var; hepsi çeldirici havuzundaydı.
+
+   Kullanıcı bildirdi: "havaya vuran birlik hangisidir sorusunda
+   İyileştirici Ruh'u seçtim, yanlış dedi". İyileştirici Ruh'un
+   özellikleri büyü biçiminde geliyor (kimliği büyü bloğunda,
+   28000016) ve air alanı hiç yok.
+
+   Artık bilinmeyen kart HER İKİ havuzdan da çıkıyor: ne doğru cevap
+   ne çeldirici olabiliyor. Soru sayısı azalıyor ama yanlış cevap
+   üretmiyor — bilmediğimiz bir şeyi "hayır" saymak, kullanıcıya
+   yanlış öğretmek demek. */
+const bilinen = (kartlar, alan) =>
+  kartlar.filter((x) => x.traits && x.traits[alan] !== undefined);
+
 const MAKERS = {
   elixir: (pool) => {
     const c = pick(pool.filter((x) => x.elixir));
@@ -179,7 +253,7 @@ const MAKERS = {
   },
 
   air: (pool, all) => {
-    const t = all.filter((x) => x.tr && x.traits && x.type === "Troop" && !x.traits.onlyBuildings);
+    const t = bilinen(all.filter((x) => x.tr && x.type === "Troop" && !x.traits?.onlyBuildings), "air");
     const yes = pick(t.filter((x) => x.traits.air));
     const no = shuffle(t.filter((x) => !x.traits.air)).slice(0, 3);
     if (!yes || no.length < 3) return null;
@@ -187,7 +261,7 @@ const MAKERS = {
   },
 
   flying: (pool, all) => {
-    const t = all.filter((x) => x.traits && x.type === "Troop");
+    const t = bilinen(all.filter((x) => x.type === "Troop"), "flying");
     const yes = pick(t.filter((x) => x.traits.flying));
     const no = shuffle(t.filter((x) => !x.traits.flying)).slice(0, 3);
     if (!yes || no.length < 3) return null;
@@ -195,7 +269,7 @@ const MAKERS = {
   },
 
   onlyBuildings: (pool, all) => {
-    const t = all.filter((x) => x.traits && x.type === "Troop");
+    const t = bilinen(all.filter((x) => x.type === "Troop"), "onlyBuildings");
     const yes = pick(t.filter((x) => x.traits.onlyBuildings));
     const no = shuffle(t.filter((x) => !x.traits.onlyBuildings)).slice(0, 3);
     if (!yes || no.length < 3) return null;
@@ -203,7 +277,7 @@ const MAKERS = {
   },
 
   squad: (pool, all) => {
-    const t = all.filter((x) => x.traits && x.type === "Troop");
+    const t = bilinen(all.filter((x) => x.type === "Troop"), "count");
     const yes = pick(t.filter((x) => (x.traits.count || 0) >= 3));
     const no = shuffle(t.filter((x) => (x.traits.count || 0) <= 1)).slice(0, 3);
     if (!yes || no.length < 3) return null;
@@ -211,16 +285,39 @@ const MAKERS = {
   },
 
   tanky: (pool, all) => {
-    const t = shuffle(all.filter((x) => x.traits && x.traits.hp > 0)).slice(0, 4);
+    /* Karma birim çıkaran kartlar (Goblin Çetesi, Serseriler) elenir:
+       iki farklı birim çıkarıyorlar ve elimizdeki tek sayı yalnızca
+       birincisininki. Kullanıcı bildirdi — "Serseriler 1,5 saniyede
+       vurur diyor ama kızdan mı oğlandan mı bahsediyor?" Ölçüldü:
+       oğlan 1500 ms / 758 can, kız 1000 ms / 102 can. Tek sayıyla
+       cevaplanamayacak bir soruyu sormamak doğru. */
+    /* `hpSeviyeli` OLMAYAN kart soruya girmiyor.
+
+       Canlar 11. seviyeye çekilerek karşılaştırılıyor (bkz. server.js →
+       seviyeliDeger); seviye dizisi bulunmayan kart ham temel değerine
+       düşüyor ve o değer öbürleriyle kıyaslanamaz. Böyle bir kartı soruya
+       koymak, yanlış cevabı garanti etmek olurdu — kullanıcı tam bunu
+       bildirdi: Okçu Kraliçe, Felaket Kulesi'nden "daha canlı" çıkıyordu. */
+    const t = shuffle(all.filter((x) => x.traits && x.traits.hp > 0
+                                     && x.traits.hpSeviyeli && !x.traits.karma)).slice(0, 4);
     if (t.length < 4) return null;
     const max = Math.max(...t.map((x) => x.traits.hp));
     if (t.filter((x) => x.traits.hp === max).length > 1) return null;
     const win = t.find((x) => x.traits.hp === max);
-    return { q: "Bu birimlerden hangisinin <b>canı en yüksek</b>?", options: t.map((x) => x.tr), answer: win.tr };
+    /* Seviye SORUDA yazıyor: can seviyeye göre değişiyor ve hangi
+       seviyeden bahsedildiğini söylemeden sormak muğlak kalırdı. */
+    return { q: "Bu birimlerden hangisinin <b>canı en yüksek</b>? <span class=\"q-not\">(11. seviye)</span>",
+             options: t.map((x) => x.tr), answer: win.tr };
   },
 
   fastest: (pool, all) => {
-    const t = shuffle(all.filter((x) => x.traits && x.traits.speed > 0)).slice(0, 4);
+    /* Karma birim çıkaran kartlar (Goblin Çetesi, Serseriler) elenir:
+       iki farklı birim çıkarıyorlar ve elimizdeki tek sayı yalnızca
+       birincisininki. Kullanıcı bildirdi — "Serseriler 1,5 saniyede
+       vurur diyor ama kızdan mı oğlandan mı bahsediyor?" Ölçüldü:
+       oğlan 1500 ms / 758 can, kız 1000 ms / 102 can. Tek sayıyla
+       cevaplanamayacak bir soruyu sormamak doğru. */
+    const t = shuffle(all.filter((x) => x.traits && x.traits.speed > 0 && !x.traits.karma)).slice(0, 4);
     if (t.length < 4) return null;
     const max = Math.max(...t.map((x) => x.traits.speed));
     if (t.filter((x) => x.traits.speed === max).length > 1) return null;
@@ -229,9 +326,12 @@ const MAKERS = {
   },
 
   ranged: (pool, all) => {
-    const t = all.filter((x) => x.traits && x.traits.range > 0 && x.type === "Troop");
-    const yes = pick(t.filter((x) => x.traits.range > 1200));
-    const no = shuffle(t.filter((x) => x.traits.range <= 1200)).slice(0, 3);
+    /* `karma` kartlar (Goblin Çetesi, Serseriler) elenir: içlerinde hem
+       yakın dövüşçü hem menzilli birim var, tek bir menzille anlatılamaz.
+       Bkz. server.js → cardTraits, ikinci birim. */
+    const t = all.filter((x) => x.traits && x.traits.range > 0 && x.type === "Troop" && !x.traits.karma);
+    const yes = pick(t.filter((x) => x.traits.range >= MENZIL_UZAK));
+    const no = shuffle(t.filter((x) => x.traits.range <= MENZIL_YAKIN)).slice(0, 3);
     if (!yes || no.length < 3) return null;
     return { q: "Hangisi <b>menzilli</b> saldırır (yakın dövüş değil)?", options: shuffle([yes, ...no]).map((x) => x.tr), answer: yes.tr };
   },
@@ -280,21 +380,20 @@ async function cards(deps) {
     rarity: c.rarity || "",
     type: kinds.get(key(c.name)) || "",
     traits: traits.get(key(c.name)) || null,
-    /* EVRİM ÖLÇÜTÜ: YALNIZCA yayımlanmış evrim çizimi.
+    /* EVRİM ÖLÇÜTÜ TEK YERDE — bkz. evrim.js.
 
-       Burada `maxEvolutionLevel` de kabul ediliyordu ve YANLIŞTI: o alan
-       kahraman mekaniğini de işaretliyor. Kullanıcı bildirdi — "bu
-       kartların hangisinin evrimi var" sorusunda hiçbirinin evrimi yoktu,
-       Mini P.E.K.K.A seçildi ve DOĞRU sayıldı. Mini P.E.K.K.A bir kahraman;
-       evrimi yok, ama o alanı taşıdığı için soru onu evrimli sanıyordu.
+       Burada iki kez yanlış ölçüt kullanıldı. Önce maxEvolutionLevel
+       reddedildi ("kahraman mekaniğini de işaretliyor" diye), sonra
+       yalnızca evrim çizimine bakıldı. İkincisi de yanlıştı: ÖLÇÜLDÜ,
+       çizim ölçütü 13 kartı evrimsiz sayıyordu — Balon, Dev, Mini
+       P.E.K.K.A, Mezar Taşı ve ötekiler, 30 oyuncunun 21-30 tanesinde
+       evrimi AÇIK olmasına rağmen.
 
-       Daha kötüsü çeldiriciler `!evo` içinden seçildiği için, dört şıkkın
-       tamamı gerçekte evrimsiz olabiliyordu: sorunun doğru cevabı yoktu.
+       Bu soruda bedeli ağır: evrimli bir kart "evrimsiz" sayılınca
+       ÇELDİRİCİ havuzuna düşüyor ve soru iki doğru cevaplı oluyor.
 
-       Doğrulanabilir tek işaret evrim çizimi (41 kart). Aynı ayrımı
-       sitenin geri kalanı da kullanıyor (bkz. server/server.js →
-       heroOnlyCards ve assets/js/app.js → gercekEvrim). */
-    evo: !!c.iconUrls?.evolutionMedium,
+       Ölçüt artık evrim.js'de ve orada nasıl ölçüldüğü yazılı. */
+    evo: evrim.evrimiVar(c),
     /* Kahraman olup evrimi olmayan kartlar çeldirici olarak kalabilir —
        gerçekten evrimleri yok. Ayrımı ayrıca tutuyoruz ki ileride
        kahramanla ilgili bir soru yazılırsa tahmine gerek kalmasın. */
@@ -410,24 +509,92 @@ function mount(app, deps) {
   const { readSession, addPoints, banUser } = deps;
   app.use("/api/quiz", require("express").json({ limit: "4kb" }));
 
+/* ---------- YARIDA KALAN TURU BULMA ----------
+
+   Kullanıcı bildirdi: bağlantı koptuğunda ya da sunucu yeniden
+   başladığında hem HAKKI yanıyor hem de PUAN yazılmıyordu. 7. soruda
+   kopan biri, 6 doğrusunu ve hakkını birden kaybediyordu.
+
+   Sebep tek bir yerde değildi:
+     · Hak turun BAŞINDA harcanıyor (notePlay), yani kopunca geri gelmiyor.
+     · Oturum sunucuda ve diskte YAŞAMAYA devam ediyor (yeniden başlatmayı
+       da atlatıyor), ama `sessionId` yalnızca sayfanın belleğindeydi.
+       Sayfa yenilenince bağ kopuyor ve o oturuma bir daha kimse
+       ulaşamıyordu — sunucuda duran tur, sahibi tarafından istenemez
+       hâlde öylece TTL dolana kadar bekliyordu.
+
+   Çözüm oturumu kullanıcıya bağlamak: kimliğinden yarım turu bulup
+   kaldığı sorudan devam ettiriyoruz. Yeni bir hak HARCANMIYOR, çünkü
+   zaten harcanmıştı. */
+function aktifOturum(userId) {
+  const simdi = Date.now();
+  for (const [id, g] of sessions) {
+    if (g.userId !== userId || g.done) continue;
+    if (simdi - (g.at || 0) > SESSION_TTL) continue;
+    return { id, g };
+  }
+  return null;
+}
+/* Devam ederken gönderilecek gövde. Cevap süresi ölçümü SIFIRLANIYOR:
+   kopukluk sırasında geçen dakikaları "düşünme süresi" saymak, bot
+   kontrolünün ölçtüğü şeyi anlamsız kılardı. Kontrol yalnızca ÇOK HIZLI
+   cevabı yakaladığı için sıfırlamak kimseye avantaj vermiyor. */
+function devamGovdesi(id, g, kullaniciId) {
+  g.soruAt = Date.now();
+  g.at = Date.now();
+  oturumKaydet();
+  const q = g.questions[g.step];
+  return {
+    sessionId: id, step: g.step + 1, total: TOTAL_Q, checkpoints: CHECKPOINTS,
+    question: q.q, options: q.options,
+    left: Math.max(0, DAILY_LIMIT - playsToday(kullaniciId)),
+    kilitMs: KILIT_MS, sureMs: SURE_MS, devam: true, score: g.score,
+    /* Geçilen baraj da gidiyor: arayüz merdiveni buna göre boyuyor.
+       Gönderilmeseydi devam eden kullanıcı, geçtiği barajı geçmemiş
+       gibi görür ve elenirse ne alacağını yanlış bilirdi. */
+    safe: checkpointScore(g.step),
+  };
+}
+
   app.get("/api/quiz/status", (req, res) => {
     const s = readSession(req);
+    /* Yarım tur varsa arayüz "Devam et" gösterebilsin. Soruyu BURADA
+       göndermiyoruz: durum ucu önbelleklenebilir ve giriş ekranında da
+       çağrılıyor; soruyu ancak kullanıcı devam etmeyi seçtiğinde
+       veriyoruz. */
+    const yarim = s ? aktifOturum(s.user.id) : null;
     res.json({
       total: TOTAL_Q, checkpoints: CHECKPOINTS, dailyLimit: DAILY_LIMIT,
       played: s ? playsToday(s.user.id) : 0,
       left: s ? Math.max(0, DAILY_LIMIT - playsToday(s.user.id)) : DAILY_LIMIT,
       loggedIn: !!s, resetAt: resetAt(), ...takvim.durum(),
+      devam: yarim ? { soru: yarim.g.step + 1, toplam: TOTAL_Q, puan: yarim.g.score } : null,
     });
   });
 
   app.post("/api/quiz/start", async (req, res) => {
     /* Açılış kilidi — bkz. games.js'deki not. Yarışma soruları da açılmadan
        görülmesin: hakkını harcamasa bile soruları önden öğrenmiş olurdu. */
-    if (!takvim.acikMi())
+    /* Serbest modda yarışma oynanabiliyor ama puan haftaya
+       yazılmıyor; tabloyu board.js koruyor. */
+    if (!takvim.oynanabilirMi())
       return res.status(423).json({ error: "kapali", ...takvim.durum(),
-        message: "Tokmak Yarışması 20 Ağustos 18.00'da başlıyor." });
+        message: takvim.kilitMesaji("Tokmak Yarışması") });
     const s = readSession(req);
     if (!s) return res.status(401).json({ error: "auth", message: "Yarışmaya girmek için giriş yapmalısın." });
+
+    /* YARIM TUR VARSA ONU SÜRDÜR — sıra günlük hak kontrolünden ÖNCE.
+
+       Sıra önemli: hak kontrolü öne alınsaydı, 3 hakkını da kullanmış
+       ama son turu kopmuş biri "hakkın doldu" duvarına çarpar ve
+       sunucuda bekleyen turunu asla bitiremezdi. Oysa o turun hakkı
+       zaten ödenmiş; ona geri dönmek yeni bir hak istemek değil.
+
+       Bu yüzden burada notePlay ÇAĞRILMIYOR: hak turun başında bir kez
+       harcandı, devam etmek ikinci kez harcatmaz. */
+    const yarim = aktifOturum(s.user.id);
+    if (yarim) return res.json(devamGovdesi(yarim.id, yarim.g, s.user.id));
+
     if (playsToday(s.user.id) >= DAILY_LIMIT)
       return res.status(429).json({ error: "limit", resetAt: resetAt(), message: `Günlük hakkın doldu (${DAILY_LIMIT}/${DAILY_LIMIT}).` });
 
@@ -447,7 +614,7 @@ function mount(app, deps) {
       sessionId: id, step: 1, total: TOTAL_Q, checkpoints: CHECKPOINTS,
       question: q.q, options: q.options,
       left: Math.max(0, DAILY_LIMIT - playsToday(s.user.id)),
-      kilitMs: KILIT_MS,
+      kilitMs: KILIT_MS, sureMs: SURE_MS,
     });
   });
 
@@ -477,6 +644,29 @@ function mount(app, deps) {
         message: "Sorular insan hızının çok altında cevaplandı. Bu tur iptal edildi ve " +
                  `hesabın ${(r && r.ok ? r.ban.label : BOT_BAN.label)} askıya alındı. ` +
                  "Hata olduğunu düşünüyorsan iletişim kısmından yaz.",
+      });
+    }
+
+    /* SÜRE DOLDU MU? İki yoldan gelebilir:
+         · istemci sayacı bitince boş cevap gönderir (olağan yol),
+         · istemci hiç göndermez / sayacı durdurursa süre aşımı burada
+           yakalanır (arka duvar).
+       Sonuç ikisinde de aynı: yanlış cevap gibi elenir ve son geçilen
+       baraj kadar puan yazılır. Puanı tamamen silmek, barajı geçmiş
+       emeği yok saymak olurdu. */
+    const zamanAsimi = choice === "" || gecen > SURE_MS + SURE_TOLERANS;
+    if (zamanAsimi) {
+      g.done = true;
+      const answered = g.step;
+      const points = checkpointScore(answered);
+      if (points) addPoints(s.user.id, points, "yarisma");
+      sessions.delete(req.body.sessionId); oturumKaydet();
+      return res.json({
+        correct: false, answer: q.answer, finished: true, reason: "sure",
+        answered, points,
+        message: points
+          ? `Süre doldu! Son geçtiğin baraj ${points}. soru — <b>${points} puan</b> aldın.`
+          : "Süre doldu! İlk barajı (2. soru) geçemediğin için puan alamadın.",
       });
     }
 
@@ -518,7 +708,7 @@ function mount(app, deps) {
       step: g.step + 1, score: g.score,
       question: next.q, options: next.options,
       safe: checkpointScore(g.step),
-      araMs: UI_ARA_MS, kilitMs: KILIT_MS,
+      araMs: UI_ARA_MS, kilitMs: KILIT_MS, sureMs: SURE_MS,
     });
   });
 
@@ -555,3 +745,15 @@ function kullaniciSil(userId) {
 }
 
 module.exports = { mount, TOTAL_Q, CHECKPOINTS, DAILY_LIMIT, kullaniciOzeti, kullaniciSil };
+
+/* Sınama için açılan iç kapı.
+
+   Bir sorunun İKİ doğru cevabı olması, tek tek oynayarak yakalanamıyor:
+   kullanıcılar bildirdikçe öğreniyorduk (menzilli → Prens, havaya vurur →
+   Goblin Çetesi elenmiş). Tek güvenilir yol binlerce soru üretip her
+   sorunun DÖRT şıkkını da ölçüte vurmak; bunun için üreticilerin ve kart
+   listesinin dışarıdan çağrılabilmesi gerekiyor.
+
+   Yalnızca okuma sağlıyor: puan, oturum ya da doğru cevap sızdırmıyor.
+   Yarışmanın kendi ucu bundan etkilenmiyor. */
+module.exports._sinama = { MAKERS, LADDER, cards, pools, MENZIL_YAKIN, MENZIL_UZAK };

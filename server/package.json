@@ -9,9 +9,12 @@
     "start": "node --max-old-space-size=6144 server.js",
     "dev": "node --max-old-space-size=6144 --watch server.js"
   },
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "dotenv": "^16.4.5",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "web-push": "^3.6.7"
   }
 }

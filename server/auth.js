@@ -33,6 +33,10 @@
    ============================================================ */
 
 const crypto = require("crypto");
+/* Ziyaretçinin GERÇEK adresi. Cloudflare arkasında req.ip Cloudflare'in
+   kenar sunucusunu gösteriyor — ölçüldü, bkz. gercekip.js. */
+const { gercekIp } = require("./gercekip");
+const mail = require("./mail");
 const fs = require("fs");
 const path = require("path");
 const { veriYolu } = require("./veriyolu");
@@ -392,7 +396,7 @@ function mount(app) {
          istismar burada: puan tablosunda ödül olduğu için tek betikle
          yüzlerce hesap açıp hepsiyle oynamak mümkündü. Aynı IP'den saatte
          KAYIT_MAX hesap. Başarısız denemeler sayılmıyor, yalnızca açılanlar. */
-      const ip = req.ip || req.socket?.remoteAddress || "?";
+      const ip = gercekIp(req);
       if (tooManyAttempts("reg:" + ip, KAYIT_PENCERE, KAYIT_MAX))
         return res.status(429).json({ error: "rate",
           message: "Bu bağlantıdan çok fazla hesap açıldı. Bir saat sonra tekrar deneyin." });
@@ -471,8 +475,17 @@ function mount(app) {
     try {
       const { username, password } = req.body || {};
       const uLower = String(username || "").toLowerCase();
-      const ip = req.ip || req.socket?.remoteAddress || "?";
-      if (tooManyAttempts("u:" + uLower) ||
+      /* Sayaç anahtarı KATLANMIŞ adla tutuluyor, ham yazımla değil.
+         Ölçüldü: aşağıdaki arama "Gızlı" ile "Gizli"yi aynı hesaba
+         düşürüyor (adAnahtari ı→i katlıyor), ama sayaç ham yazımı anahtar
+         alınca her yazım kendi 8 hakkını alıyordu — tek hesaba, tek IP'den,
+         15 dakikada 8 yerine 64 deneme (medyan hesapta; en kötüsünde 384).
+         Kaba kuvvete karşı asıl koruma bu sayaç, o yüzden anahtarı
+         aramayla AYNI olmak zorunda. uLower yalnızca birebir eşleşme
+         aramasında kalıyor. */
+      const uKey = adAnahtari(username);
+      const ip = gercekIp(req);
+      if (tooManyAttempts("u:" + uKey) ||
           tooManyAttempts("ip:" + ip, RATE_WINDOW, GIRIS_IP_MAX))
         return res.status(429).json({ error: "rate", message: "Çok fazla deneme. 15 dakika sonra tekrar deneyin." });
 
@@ -490,11 +503,11 @@ function mount(app) {
         : (await hashPassword(String(password || ""), crypto.randomBytes(SALT_BYTES)), false);
 
       if (!ok) {
-        noteAttempt("u:" + uLower); noteAttempt("ip:" + ip);
+        noteAttempt("u:" + uKey); noteAttempt("ip:" + ip);
         // Hangisinin yanlış olduğunu söylemiyoruz.
         return res.status(401).json({ error: "bad", message: "Kullanıcı adı veya şifre hatalı." });
       }
-      clearAttempts("u:" + uLower); clearAttempts("ip:" + ip);
+      clearAttempts("u:" + uKey); clearAttempts("ip:" + ip);
       const ban = banState(user);
       if (ban) return res.status(403).json({ error: "banned", ban: { until: ban.until, label: ban.label, reason: ban.reason || "" },
         message: banMessage(ban) });
@@ -607,6 +620,82 @@ function hesabiSil(id, kim) {
     const n = parseInt(process.env.AD_BEKLEME_SAAT, 10);
     return (Number.isFinite(n) && n >= 0 ? n : 24) * 3600e3;
   })();
+  /* ============================================================
+     PAROLA DEĞİŞTİRME  (giriş yapmış kullanıcı, profilden)
+     ------------------------------------------------------------
+     Sıfırlama akışından AYRI: orada kimliği e-postaya gelen kod
+     kanıtlıyor, burada MEVCUT PAROLA kanıtlıyor.
+
+     Mevcut parola neden şart: oturum çerezi ele geçirilmiş olabilir
+     (ortak bilgisayarda açık kalmış oturum, çalınmış cihaz). Yalnızca
+     oturuma güvenseydik, o çerezi eline geçiren kişi parolayı
+     değiştirip hesabı tamamen ele geçirirdi. Mevcut parola sorulunca
+     bunu yapamıyor.
+
+     Hız sınırı da şart: bu uç, mevcut parolayı DENEME imkânı veriyor.
+     Sınırsız olsaydı, oturumu ele geçiren biri parolayı buradan kaba
+     kuvvetle bulabilirdi — giriş ekranındaki sınırı da atlayarak.
+
+     Değişiklikten sonra ÖTEKİ oturumlar kapanıyor, bu oturum kalıyor:
+     amaç zaten "başkası giriyorsa atılsın". Bu oturumu da kapatmak
+     kullanıcıyı sebepsizce yeniden giriş yapmaya zorlardı.
+     ============================================================ */
+  app.post("/api/auth/password", async (req, res) => {
+    const s = readSession(req);
+    if (!s) return res.status(401).json({ error: "auth", message: "Önce giriş yapın." });
+    const u = s.user;
+
+    if (banState(u))
+      return res.status(403).json({ error: "ban", message: "Yasaklı hesabın parolası değiştirilemez." });
+
+    /* Kullanıcı ADI başına sınır — giriş ekranıyla aynı sayaç. Saldırgan
+       oturumu ele geçirse bile parola denemeleri aynı havuzdan sayılıyor. */
+    const anahtar = "pw:" + adAnahtari(u.username);
+    if (tooManyAttempts(anahtar, RATE_WINDOW, RATE_MAX))
+      return res.status(429).json({ error: "cok_deneme",
+        message: "Çok fazla hatalı deneme. 15 dakika sonra tekrar deneyin." });
+
+    const eski = String(req.body?.current || "");
+    const yeni = String(req.body?.password || "");
+
+    if (!(await verifyPassword(eski, u))) {
+      noteAttempt(anahtar);
+      return res.status(401).json({ error: "bad_current",
+        message: "Mevcut parolanız hatalı — parola değiştirilmedi." });
+    }
+
+    /* Yeni parola kayıt sırasındaki kurallardan geçmeli; parola
+       değiştirme, kural atlamanın arka kapısı olmamalı. */
+    const hata = validate({ username: u.username, email: u.email, password: yeni });
+    if (hata && /parola|şifre/i.test(hata))
+      return res.status(400).json({ error: "bad_password", message: hata });
+
+    /* Aynı parolayı tekrar koymak bir şey değiştirmez; kullanıcı
+       "değişti" sanıp yanılmasın. */
+    if (await verifyPassword(yeni, u))
+      return res.status(400).json({ error: "ayni",
+        message: "Yeni parolanız eskisiyle aynı. Farklı bir parola seçin." });
+
+    const tuz = crypto.randomBytes(SALT_BYTES);
+    u.salt = tuz.toString("hex");
+    u.hash = await hashPassword(yeni, tuz);
+
+    /* ÖTEKİ oturumları kapat, bu oturumu koru. */
+    let kapanan = 0;
+    for (const [t, o] of Object.entries(db.sessions))
+      if (o && o.userId === u.id && t !== s.token) { delete db.sessions[t]; kapanan++; }
+
+    clearAttempts(anahtar);
+    clearAttempts(adAnahtari(u.username));
+    save();
+    console.log(`🔑  Parola değişti: ${u.username}` +
+                (kapanan ? ` (${kapanan} başka oturum kapatıldı)` : ""));
+    res.json({ ok: true, kapanan,
+      message: kapanan
+        ? `Parolan değiştirildi. Güvenlik için diğer ${kapanan} oturum kapatıldı.`
+        : "Parolan değiştirildi." });
+  });
+
   app.post("/api/auth/username", async (req, res) => {
     const s = readSession(req);
     if (!s) return res.status(401).json({ error: "auth", message: "Önce giriş yapın." });
@@ -674,6 +763,143 @@ function hesabiSil(id, kim) {
      Hesaba yazılır, böylece başka tarayıcıda da durur. Giriş yoksa
      istemci kendi yerel listesini kullanır; burada 401 dönmek yeterli. */
   const MAX_FAVS = 200;
+
+  /* ============================================================
+     PAROLA SIFIRLAMA
+     ------------------------------------------------------------
+     Sıfırlama akışı, yanlış yazılırsa HER HESABI ele geçirmenin
+     yolu olur. Buradaki kararlar bunun içindir:
+
+     · Cevap HER ZAMAN aynı: "bilgiler doğruysa kod gönderildi".
+       Kullanıcı adı ya da e-posta yanlışsa da aynı cevap dönüyor.
+       Farklı cevap verseydik saldırgan hangi kullanıcı adının
+       kayıtlı olduğunu ve hangi e-postaya bağlı olduğunu tek tek
+       öğrenebilirdi.
+     · Kod DÜZ METİN saklanmıyor. Veritabanı ele geçse bile
+       koddan hesaba erişilemesin diye özetlenmiş tutuluyor —
+       parolalarda olduğu gibi.
+     · 15 dakika ömür, TEK kullanım, en fazla 5 deneme. Altı haneli
+       kod 1.000.000 ihtimal; deneme sınırı olmasa kaba kuvvetle
+       kırılırdı.
+     · Kod isteme hız sınırlı: hesap başına ve IP başına. IP artık
+       Cloudflare arkasında da doğru okunuyor (bkz. gercekip.js).
+     · Parola değişince BÜTÜN OTURUMLAR kapanıyor. Hesap zaten ele
+       geçirilmişse saldırganın açık oturumu da düşsün.
+     ============================================================ */
+  const KOD_OMUR = 15 * 60e3;
+  const KOD_DENEME = 5;
+  /* Aynı hesap için 15 dakikada en fazla 3 kod. Daha fazlası posta
+     kutusunu doldurmaktan başka işe yaramaz (ve taciz aracı olur). */
+  const KOD_ISTEK_MAX = 3;
+
+  /* token -> { userId, ozet, exp, deneme } — bellekte.
+     DİSKE YAZILMIYOR: sunucu yeniden başlarsa yarım kalmış sıfırlamalar
+     düşer, kullanıcı yeniden kod ister. Kalıcı saklamanın getirisi yok,
+     riski var. */
+  const kodlar = new Map();
+  const kodOzet = (kod, tuz) => crypto.createHash("sha256")
+    .update(String(tuz)).update(String(kod)).digest("hex");
+
+  setInterval(() => {
+    const simdi = Date.now();
+    for (const [k, v] of kodlar) if (v.exp < simdi) kodlar.delete(k);
+  }, 5 * 60e3).unref?.();
+
+  app.post("/api/auth/sifirla/iste", async (req, res) => {
+    const { username, email } = req.body || {};
+    const ip = gercekIp(req);
+    const ad = adAnahtari(username);
+    const posta = String(email || "").trim().toLowerCase();
+
+    /* Hız sınırı — cevabı değiştirmeden. Sınıra takılan da aynı
+       mesajı görüyor ki "bu hesap var" bilgisi sızmasın. */
+    const bosuna = tooManyAttempts("sif:" + ad, RATE_WINDOW, KOD_ISTEK_MAX)
+                || tooManyAttempts("sifip:" + ip, RATE_WINDOW, 10);
+
+    const AYNI_CEVAP = { ok: true,
+      mesaj: "Bilgiler doğruysa e-posta adresine bir kod gönderildi. " +
+             "Gelen kutunda yoksa gereksiz (spam) klasörüne bak." };
+
+    if (bosuna) return res.json(AYNI_CEVAP);
+    noteAttempt("sif:" + ad);
+    noteAttempt("sifip:" + ip);
+
+    const user = db.users.find((u) => adAnahtari(u.username) === ad);
+    /* Kullanıcı adı VE e-posta birlikte tutmalı. Yalnız e-posta yetseydi,
+       adresi bilinen birinin hesabına kod göndertmek mümkün olurdu. */
+    if (!user || !user.emailLower || user.emailLower !== posta || !mail.hazirMi())
+      return res.json(AYNI_CEVAP);
+
+    const kod = String(crypto.randomInt(0, 1000000)).padStart(6, "0");
+    const token = crypto.randomBytes(24).toString("hex");
+    const tuz = crypto.randomBytes(8).toString("hex");
+    kodlar.set(token, { userId: user.id, tuz, ozet: kodOzet(kod, tuz),
+                        exp: Date.now() + KOD_OMUR, deneme: 0 });
+
+    /* POSTA ARKA PLANDA. Yanıtı beklemiyoruz — iki sebeple:
+
+       1) Yayında görüldü: Gmail'e bağlanılamayınca istek askıda kaldı ve
+          kullanıcı "Gönderiliyor…" ekranında öylece bekledi.
+       2) Daha sinsisi, ZAMAN SIZINTISI: eşleşmeyen hesap 0,5 saniyede
+          dönerken eşleşen hesap posta gönderimini bekliyordu. Yanıt süresi
+          "bu hesap var mı" sorusunu cevaplıyordu — aynı mesajı vermenin
+          bütün anlamını yok eden bir açık. Artık iki durum da anında
+          dönüyor. */
+    mail.sifirlamaKodu(user.email, kod, user.username).catch((e) => {
+      console.warn("⚠️  Sıfırlama postası gönderilemedi:",
+                   String(e && e.message || e).slice(0, 160));
+      kodlar.delete(token);   // gitmeyen kodun açık kalmasının anlamı yok
+    });
+    /* Jeton cevapta dönüyor: hangi sıfırlama olduğunu takip etmek için.
+       Tek başına işe yaramaz — kod olmadan hiçbir şey yapılamıyor. */
+    res.json({ ...AYNI_CEVAP, token });
+  });
+
+  app.post("/api/auth/sifirla/onayla", async (req, res) => {
+    const { token, kod, password } = req.body || {};
+    const kayit = kodlar.get(String(token || ""));
+    const HATA = { error: "bad_code", mesaj: "Kod yanlış ya da süresi dolmuş. Yeniden kod iste." };
+
+    if (!kayit || kayit.exp < Date.now()) { kodlar.delete(String(token || "")); return res.status(400).json(HATA); }
+    if (kayit.deneme >= KOD_DENEME) { kodlar.delete(String(token)); return res.status(400).json(HATA); }
+    kayit.deneme++;
+
+    const verilen = kodOzet(String(kod || "").trim(), kayit.tuz);
+    const a = Buffer.from(verilen, "hex"), b = Buffer.from(kayit.ozet, "hex");
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return res.status(400).json(HATA);
+
+    const user = db.users.find((u) => u.id === kayit.userId);
+    if (!user) { kodlar.delete(String(token)); return res.status(400).json(HATA); }
+
+    /* Yeni parola kayıt sırasındaki kurallardan geçmeli — sıfırlama,
+       kural atlamanın arka kapısı olmamalı. */
+    const hata = validate({ username: user.username, email: user.email, password });
+    if (hata && /parola|şifre/i.test(hata)) return res.status(400).json({ error: "bad_password", mesaj: hata });
+
+    const salt = crypto.randomBytes(SALT_BYTES);
+    user.salt = salt.toString("hex");
+    user.hash = await hashPassword(String(password), salt);
+
+    /* BÜTÜN OTURUMLARI KAPAT — bu hesabın açık her oturumu düşsün. */
+    let kapanan = 0;
+    for (const [t, s] of Object.entries(db.sessions))
+      if (s && s.userId === user.id) { delete db.sessions[t]; kapanan++; }
+
+    kodlar.delete(String(token));
+    clearAttempts("sif:" + adAnahtari(user.username));
+    clearAttempts(adAnahtari(user.username));       // giriş denemeleri de sıfırlansın
+    save();
+    console.log(`🔑  Parola sıfırlandı: ${user.username} (${kapanan} oturum kapatıldı).`);
+    res.json({ ok: true, mesaj: "Parolan değiştirildi. Yeni parolanla giriş yapabilirsin.", kapanan });
+  });
+
+  /* Posta ayarı çalışıyor mu — YÖNETİCİYE ÖZEL. Şifreyi göstermez,
+     yalnızca bağlantının kurulup kurulmadığını söyler. */
+  app.get("/api/admin/mail", async (req, res) => {
+    const s = readActiveSession(req);
+    if (!s || !isAdmin(s.user)) return res.status(403).json({ error: "forbidden" });
+    res.json(await mail.dene());
+  });
 
   app.get("/api/auth/favorites", (req, res) => {
     const s = readSession(req);

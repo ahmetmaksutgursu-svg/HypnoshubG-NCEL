@@ -40,14 +40,36 @@ try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribut
   <div class="container">
     <p class="eyebrow" id="metaEyebrow" data-i18n="meta.eyebrow">AKTİF SEZON META DESTELERİ</p>
     <h1 data-i18n="nav.meta">META DESTELERİ</h1>
-    <p><span class="api-status" data-api-status style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2);color:#eaf0fb"><span class="led"></span>Veri alınamadı</span></p>
+    <p><span class="api-status" data-api-status style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2);color:#eaf0fb"><span class="led"></span>Veri yükleniyor…</span></p>
   </div>
 </section>
 
 <section class="section">
   <div class="container">
 
-    <div id="metaSummary" style="margin-bottom:18px"></div>
+    <!-- MOD SEÇME EKRANI.
+
+         Kullanıcı isteği: Meta'ya girince doğrudan bir liste değil, önce
+         mod seçimi çıksın. Eskiden Nihai listesi açılıyordu ve bunun
+         yalnızca Nihai verisi olduğu HİÇBİR YERDE yazmıyordu — liste
+         bütün oyunu kapsıyor sanılabiliyordu.
+
+         Kutucuklar veri durumunu da gösteriyor: kaç maç birikmiş, kaç
+         deste güvenilir eşiği geçmiş. Böylece kullanıcı içeri girmeden
+         ne bulacağını biliyor. -->
+    <div id="modSecim">
+      <h2 style="margin:0 0 6px" data-i18n="meta.modeChoose">Mod seç</h2>
+      <p class="muted" style="margin:0 0 18px">Her modun destesi ayrı hesaplanıyor — o modda oynanan maçlardan.</p>
+      <div class="grid grid-3" id="modKutulari"></div>
+      <p class="muted" style="font-size:.82rem;margin-top:16px" id="modAciklama"></p>
+    </div>
+
+    <div id="modIcerik" style="display:none">
+      <button class="btn btn-ghost" onclick="modaDon()" style="margin-bottom:14px"><span data-i18n="meta.modeBack">← Mod seçimine dön</span></button>
+      <div id="modBaslik" style="margin-bottom:10px"></div>
+      <div id="modNot" class="muted" style="font-size:.82rem;margin-bottom:14px"></div>
+
+      <div id="metaSummary" style="margin-bottom:18px"></div>
     <div class="flex between center wrap gap-12" style="margin-bottom:16px">
       <div class="tabs" id="sortTabs">
         <button class="active" data-sort="usage" onclick="setSort('usage',this)" data-i18n="meta.sortUsage">🔥 En Çok Kullanılan</button>
@@ -57,12 +79,65 @@ try{var _t=localStorage.getItem("hs-theme");document.documentElement.setAttribut
       <span class="muted" style="font-size:.8rem" data-i18n="meta.clickHint">Bir desteye tıklayın → o desteyle en yükseğe çıkan oyuncular</span>
     </div>
     <div class="grid grid-3" id="metaGrid"></div>
+    </div><!-- /modIcerik -->
   </div>
 </section>
+
+
+<!-- REKLAM · alt bilgiden önce -->
+
+<!-- ÖZGÜN İÇERİK — sayfanın verisini nasıl okuyacağını anlatır.
+     Doldurma metin değil: rakamlar sunucudaki ölçümlerden geliyor. -->
+<section class="section aciklama">
+  <div class="container">
+    <div class="aciklama-kutu">
+      <h2>Meta destesi nasıl belirleniyor?</h2>
+      <p>Bu sayfadaki liste elle seçilmiyor. Nihai Kademe'de oynanmış gerçek
+   maçların savaş günlükleri düzenli olarak okunuyor, her maçtaki iki deste
+   ayrı ayrı kaydediliyor ve sıralama bu birikimden çıkıyor. Kimsenin
+   "bence bu deste güçlü" demesine gerek kalmıyor.</p>
+      <h3>İki sekme, iki ayrı soru</h3>
+      <p><b>En çok kullanılan</b> ile <b>en yüksek galibiyet</b> aynı şey değil ve
+   meta tartışmalarının çoğu bu ikisinin karıştırılmasından çıkıyor.
+   Kullanım oranı bir destenin ne kadar <i>popüler</i> olduğunu söyler;
+   popülerlik kolay oynanabilirlikten, yayıncıların tercihinden ya da
+   kartların hemen herkeste hazır olmasından gelebilir. Kazanma oranı ise o
+   desteyle girilen maçların ne kadarının kazanıldığını söyler.</p>
+      <p>Pratikte şöyle okuyun: <b>yüksek kullanım + orta kazanma oranı</b>
+   genelde öğrenmesi kolay, güvenli destelerdir — kimse onlarla rezil
+   olmaz ama kimse onlarla uçmaz da. <b>Düşük kullanım + yüksek kazanma
+   oranı</b> ise ya ustalık isteyen ya da henüz yayılmamış desteleri
+   işaret eder; asıl fırsat çoğu zaman oradadır, çünkü rakipleriniz o
+   destenin nasıl oynandığını bilmiyordur.</p>
+      <h3>40 maç barajı neden var</h3>
+      <p>Bir deste 40 maçtan az oynanmışsa yanına yüzde <b>yazılmıyor</b>; kaç
+   maça dayandığı yazılıyor. Sebep matematiksel: %50 civarındaki bir oranın
+   %95 güven aralığı 40 maçta yaklaşık <b>±15 puan</b>. Yani 8 maçın 6'sını
+   kazanan bir deste ekranda "%75 kazanıyor" diye parlar, oysa aynı destenin
+   gerçek oranı pekâlâ %40 da olabilir. Güvenilir görünen uydurma bir sayı
+   yazmak, "yeterli veri yok" demekten çok daha kötüdür.</p>
+      <h3>21 günlük pencere</h3>
+      <p>Meta durmuyor. Denge güncellemeleri, yeni kartlar ve sezon değişimi
+   birkaç hafta içinde listeyi baştan yazabiliyor. Bu yüzden 21 günden eski
+   maçlar hesaptan düşüyor. İki ay önce herkesin oynadığı bir deste bugünün
+   listesinde görünmüyor — eksik değil, bilerek.</p>
+      <h3>Her mod ayrı sayılıyor</h3>
+      <p>Nihai Kademe, Büyük Mücadele ve Kupa Yolu aynı torbaya atılmıyor. Aynı
+   deste mücadelede ve merdivende farklı işler; kart seviyelerinin
+   eşitlendiği bir modla eşitlenmediği modu birlikte saymak ikisini birden
+   yanlış gösterirdi. Mod kutucukları içeri girmeden önce o modda kaç maç
+   birikmiş ve kaç destenin barajı geçtiğini de gösteriyor — böylece ince
+   bir listeye girip boşuna aramıyorsunuz.</p>
+    </div>
+  </div>
+</section>
+
+<div class="reklam-yuva" data-reklam="icerik3"></div>
 
 <div id="app-footer"></div>
 <script src="assets/js/data.js"></script>
 <script src="assets/js/app.js"></script>
+<script src="assets/js/reklam.js"></script>
 <script>
 mountChrome("meta.html");
 const TRL = () => LANG === "tr";
@@ -77,6 +152,12 @@ function setSort(s, btn){
 function summary(){
   const m = HypnoAPI.metaMeta;
   const el = document.getElementById("metaSummary");
+  /* Bu kutu NİHAİ verisini anlatıyor: kaç sıralı maç, hangi denge
+     düzeltmesi, hangi yuva dağılımı. Mücadele sekmesindeyken onu
+     göstermek, ekrandaki destelerle ilgisi olmayan sayıları o destelerin
+     sayıları gibi okutur. Mücadelenin kendi açıklaması sekmenin altındaki
+     notta. */
+  if (MOD !== "nihai"){ el.innerHTML = ""; return; }
   /* metaMeta yoksa canlı meta hesaplanamamış demektir. Örnek deste
      göstermiyoruz; uyarıyı render() basıyor, burası sadece susuyor. */
   if (!m){ el.innerHTML = ""; return; }
@@ -166,7 +247,10 @@ function render(){
       <div class="foot">
         <span class="elixir-badge">💧 ${deckElixir(d.cards)}</span>
         ${d.usage!=null?`<span>${t("word.usage")}: <b>%${d.usage}</b></span>`:""}
-        ${d.battles?`<span class="muted">${nfTR(d.battles)} ${t("unit.battle")} · ${d.pilots} ${t("unit.players")}</span>`:""}
+        ${d.battles?`<span class="muted">${nfTR(d.battles)} ${t("unit.battle")}${
+          /* Pilot sayısı yalnızca Nihai listesinde toplanıyor; mücadele
+             kaydında yok ve yazdırılınca "undefined oyuncu" çıkıyordu. */
+          d.pilots!=null ? ` · ${d.pilots} ${t("unit.players")}` : ""}</span>`:""}
         <a class="wr" style="margin-left:auto"
            href="anti.html?kartlar=${d.cards.map(k=>CARD_DB[k]?.id).filter(Boolean).join(",")}&amp;ad=${encodeURIComponent(d.name)}"
            onclick="event.stopPropagation()" title="${TRL()?"Bu desteyi ne yener?":"What beats this deck?"}">🛡️</a>
@@ -188,7 +272,7 @@ function showDeckPlayers(key){
     </div>
     <p class="muted" style="font-size:.82rem;margin:0 0 14px">
       ${d.winrate!=null ? `%${d.winrate} ${t("word.winrate")} ${TRL()?"(düzeltmeli)":"(corrected)"} · ${TRL()?"ham":"raw"} %${d.rawWinrate}` : (TRL() ? "galibiyet oranı için yetersiz veri" : "not enough data for a win rate")}
-      · ${nfTR(d.battles)} ${t("unit.battle")} · ${d.pilots} ${t("unit.players")} · 💧 ${deckElixir(d.cards)}
+      · ${nfTR(d.battles)} ${t("unit.battle")}${d.pilots!=null?` · ${d.pilots} ${t("unit.players")}`:""} · 💧 ${deckElixir(d.cards)}
     </p>
     <div class="mini-cards" style="margin-bottom:6px">${d.cards.slice(0,4).map(c=>renderCard(c,{evo:(d.evo||[]).includes(c),heroSlot:(d.hero||[]).includes(c),hero:(d.champ||[]).includes(c)})).join("")}</div>
     <div class="mini-cards" style="margin-bottom:16px">${d.cards.slice(4,8).map(c=>renderCard(c,{evo:(d.evo||[]).includes(c),heroSlot:(d.hero||[]).includes(c),hero:(d.champ||[]).includes(c)})).join("")}</div>
@@ -211,6 +295,110 @@ function showDeckPlayers(key){
   `);
 }
 
+/* ---------- MOD SEÇİMİ ----------
+
+   Nihai listesi canlı örneklemeden geliyor (her tazelemede yeniden
+   hesaplanıyor). Mücadele ve Kupa Yolu ise BİRİKTİRİLEN tablodan: o
+   modlarda tek bir tazelemede yeterli maç toplanmıyor (200 oyuncudan
+   mücadelede 231, kupada 103 maç çıkıyor ve yüzlerce desteye
+   dağılıyor), o yüzden maçlar zaman içinde saklanıyor.
+
+   Ayrım kullanıcıdan gizlenmiyor: eşiğin altındaki destelerde yüzde
+   YAZILMIYOR, kaç maça dayandığı yazılıyor. */
+let MOD = null;
+
+/* Modların tanımı. Kapak görseli `assets/img/modlar/<id>.png` —
+   yoksa emoji kullanılıyor, yani klasör boşken de sayfa çalışıyor. */
+const MOD_TANIM = [
+  { id: "nihai",    ad: "Nihai Kademe",    emoji: "🏅",
+    aciklama: "Nihai Kademe sıralı maçları. Sitedeki en geniş veri." },
+  { id: "mucadele", ad: "Mücadele",        emoji: "⚔️",
+    aciklama: "Mücadele maçları. Büyük ve Küçük ayrı ayrı gösterilemiyor — sebebi aşağıda." },
+  { id: "kupa",     ad: "Kupa Yolu",       emoji: "🏆",
+    aciklama: "Kupa Yolu (ladder) maçları." },
+];
+
+let MOD_DURUM = null;
+
+async function modDurumuOku(){
+  try { MOD_DURUM = await (await fetch(API_BASE + "/meta/modlar")).json(); }
+  catch { MOD_DURUM = null; }
+}
+
+function modKutulariCiz(){
+  const kutu = document.getElementById("modKutulari");
+  if (!kutu) return;
+  kutu.innerHTML = MOD_TANIM.map((m) => {
+    const d = m.id === "nihai" ? null : (MOD_DURUM || {})[m.id];
+    /* Veri durumu kutunun üstünde yazıyor: kullanıcı içeri girmeden ne
+       bulacağını bilsin. Nihai canlı hesaplandığı için sayaç yok. */
+    const durum = m.id === "nihai"
+      ? `<span class="badge good">canlı hesaplanıyor</span>`
+      : d
+        ? (d.guvenli > 0
+            ? `<span class="badge good">${nfTR(d.guvenli)} deste güvenilir</span>`
+            : `<span class="badge">${nfTR(d.mac || 0)} maç birikti</span>`)
+        : `<span class="badge">—</span>`;
+    return `
+      <a class="card hoverable" href="meta.html?mod=${m.id}" style="text-decoration:none;color:inherit;display:block">
+        <div class="flex center gap-12" style="align-items:center">
+          <span class="mod-ic">${modSimgesi(m.id, m.emoji)}</span>
+          <div style="min-width:0">
+            <h3 style="margin:0 0 4px;font-size:1.05rem">${esc(m.ad)}</h3>
+            ${durum}
+          </div>
+        </div>
+        <p class="muted" style="font-size:.82rem;margin:12px 0 0">${esc(m.aciklama)}</p>
+      </a>`;
+  }).join("");
+
+  const not = document.getElementById("modAciklama");
+  if (not) not.innerHTML =
+    `<b>Neden Büyük ve Küçük Mücadele ayrı değil:</b> Supercell'in maç kaydında kademeyi söyleyen bir alan yok — ikisi de aynı mod adıyla geliyor. ` +
+    `Ayırmak, hangi maçın hangi kademeden geldiğini uydurmak olurdu. ` +
+    `<b>Kaos</b> ise dönemsel bir etkinlik; günlüklerde meta çıkaracak kadar maç birikmiyor.`;
+}
+
+/* Mod kapağı: klasörde görsel varsa o, yoksa emoji. Oyun ve arayüz
+   kapaklarıyla aynı mantık — dosya bırakmak yetiyor, kod değişmiyor. */
+function modSimgesi(id, emoji){
+  const yol = (OYUN_GORSEL.modlar || {})[id];
+  return yol ? `<img class="oyun-simge" src="${yol}" alt="" loading="lazy">` : emoji;
+}
+
+function modaDon(){
+  location.href = "meta.html";
+}
+
+/* Büyük Mücadele listesini Nihai'nin kart biçimine çeviriyor, böylece
+   çizim kodu tek kalıyor.
+
+   Kartlar `registerApiCard` ile kaydediliyor: deste ADI (nameDeck) ve
+   kart çizimi bu kayda bakıyor. Atlanırsa desteler adsız çıkıyor ve
+   kart görselleri boş kalıyor — Nihai listesi de aynı yoldan geçiyor.
+
+   Oran yoksa `winrate` null geçiyor; kart o zaman yüzde yerine kaç
+   maça dayandığını yazıyor. */
+function mucadeleyiCevir(j){
+  return (j.items || []).map((d, i) => {
+    const keys = [], evo = [];
+    d.cards.forEach((c) => {
+      const k = registerApiCard({
+        id: c.id, name: c.name, nameTR: c.nameTR, elixirCost: c.elixir,
+        rarity: c.rarity, icon: c.icon, evoIcon: c.evoIcon,
+      });
+      keys.push(k);
+      if ((d.evo || []).includes(c.id)) evo.push(k);
+    });
+    return {
+      key: d.key, name: nameDeck(keys), cards: keys, evo, champ: [], hero: [],
+      usage: d.usage, winrate: d.winrate, rawWinrate: d.winrate,
+      enoughData: d.yeterli, battles: d.battles, players: [], source: "mucadele",
+      rank: i + 1,
+    };
+  });
+}
+
 async function loadMeta(){
   document.getElementById("metaGrid").innerHTML = spinnerBox(TRL()?"Sezon meta verisi maç kayıtlarından hesaplanıyor…":"Computing the season meta from battle logs…");
   /* Eşleşme tablosu deste ADLARINI da belirliyor (nameDeck onu kaynak
@@ -218,7 +406,30 @@ async function loadMeta(){
      HypnoAPI.meta() adları tablo gelmeden hesaplayabiliyor ve bu sayfa
      Anti Deste sayfasından farklı adlar yazıyordu. */
   await eslesmeYukle();
-  DECKS = await HypnoAPI.meta();
+  const not = document.getElementById("modNot");
+  if (MOD === "nihai"){
+    DECKS = await HypnoAPI.meta();
+    if (not) not.innerHTML = TRL()
+      ? "Bu liste <b>Nihai Kademe</b> maçlarından hesaplanıyor."
+      : "Computed from <b>Path of Legends</b> battles.";
+  } else {
+    let j = null;
+    try { j = await (await fetch(API_BASE + "/meta?mod=" + encodeURIComponent(MOD))).json(); } catch { j = null; }
+    const tanimAd = (MOD_TANIM.find((m) => m.id === MOD) || {}).ad || MOD;
+    DECKS = j ? mucadeleyiCevir(j) : [];
+    if (not) not.innerHTML = j
+      /* Mod adı TANIMDAN geliyor, sabit yazılmıyor: "Büyük Mücadele"
+         diye sabitlenmişti ve Kupa Yolu sayfasında da öyle yazıyordu.
+         Yeni bir mod eklendiğinde metni güncellemeyi hatırlamak
+         gerekmesin. */
+      ? (TRL()
+        ? `<b>${esc(tanimAd)}</b> maçları <b>zaman içinde birikiyor</b>: şu an ${nfTR(j.toplam||0)} maç, ${nfTR(j.deste||0)} deste.
+           Kazanma oranı yalnızca <b>${j.minOrnek} maçı geçen</b> destelerde yazılıyor —
+           şu an ${j.guvenli||0} deste bu eşikte. Liste her gün güvenilirleşiyor.`
+        : `<b>${esc(tanimAd)}</b> data <b>accumulates over time</b>: ${j.toplam||0} battles so far.
+           Win rate is shown only above ${j.minOrnek} battles (${j.guvenli||0} decks qualify).`)
+      : (TRL() ? "Bu modun verisi alınamadı." : "Could not load data for this mode.");
+  }
   paintApiStatus();
   summary();
   render();
@@ -227,6 +438,43 @@ async function loadMeta(){
 function reloadMeta(){ loadMeta(); }
 
 (async function(){
+  /* AÇILIŞ: adreste mod yoksa SEÇİM EKRANI, varsa o modun listesi.
+
+     Eskiden Nihai doğrudan açılıyordu ve hangi verinin gösterildiği
+     hiçbir yerde yazmıyordu. Artık kullanıcı önce modu seçiyor;
+     seçim adrese de yazıldığı için bağlantı paylaşılabiliyor ve
+     tarayıcının geri tuşu çalışıyor. */
+  const istenen = new URLSearchParams(location.search).get("mod");
+  const gecerli = MOD_TANIM.some((m) => m.id === istenen);
+
+  await modDurumuOku();
+  /* Kapaklar mod kutucuklarında da kullanılıyor; gelmesini bekliyoruz
+     ki kutular emojiyle çizilip sonra zıplamasın. */
+  if (typeof oyunGorselleriniYukle === "function" && !OYUN_GORSEL.__geldi) {
+    try { await oyunGorselleriniYukle(); OYUN_GORSEL.__geldi = 1; } catch {}
+  }
+
+  if (!gecerli){
+    document.getElementById("modSecim").style.display = "";
+    document.getElementById("modIcerik").style.display = "none";
+    modKutulariCiz();
+    paintApiStatus();
+    return;
+  }
+
+  MOD = istenen;
+  document.getElementById("modSecim").style.display = "none";
+  document.getElementById("modIcerik").style.display = "";
+  const tanim = MOD_TANIM.find((m) => m.id === MOD);
+  const bas = document.getElementById("modBaslik");
+  if (bas && tanim) bas.innerHTML =
+    `<h2 style="margin:0;display:flex;align-items:center;gap:10px">
+       <span class="mod-ic">${modSimgesi(tanim.id, tanim.emoji)}</span>${esc(tanim.ad)}</h2>`;
+  /* Sıralama sekmeleri yalnızca Nihai'de anlamlı: biriken modlarda
+     çoğu destede oran yok, "en yüksek galibiyet" sıralaması yanıltırdı. */
+  const sirala = document.getElementById("sortTabs");
+  if (sirala) sirala.style.display = MOD === "nihai" ? "" : "none";
+
   await loadMeta();
   // ?deck=<key> (or ?deck=1 for the top deck) opens that deck's pilot list.
   const want = new URLSearchParams(location.search).get("deck");
