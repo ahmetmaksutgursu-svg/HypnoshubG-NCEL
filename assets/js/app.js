@@ -1519,27 +1519,92 @@ function deckSpecialSlots(cards, keys){
   };
 }
 
-/* ---------- Season helper (ends first Monday of next month) ---------- */
+/* ---------- SEZON SAYACI ----------
+   Clash Royale sezonu, ayın İLK PAZARTESİSİ saat 09.00 UTC'de biter
+   (oyunun sıfırlama anı; Türkiye saatiyle 12.00).
+
+   ÖNCEKİ HÂLİ YANLIŞTI. Kod, bitişi HER ZAMAN bir sonraki ayın ilk
+   pazartesisi sayıyordu:
+
+       let m = now.getMonth() + 1;   // "next month"
+
+   Yani içinde bulunulan ayın ilk pazartesisi henüz GELMEMİŞ olsa bile
+   atlanıyordu. 5 Eylül 2026'da ölçüldü: sezon 7 Eylül pazartesi
+   bitiyordu (oyun "1 gün 22 saat" diyordu), site ise 5 Ekim'i gösterip
+   "30 gün kaldı" yazıyordu — tam bir ay sapma.
+
+   Doğrusu: önce BU ayın ilk pazartesisine bak; o an geçtiyse gelecek
+   ayınkine geç.
+
+   Saat de eklendi. Eskiden bitiş yerel gece yarısına düşüyordu ve son
+   gün 12 saate kadar şişebiliyordu; artık gerçek sıfırlama anı.
+
+   Etiket, sezonun BAŞLADIĞI aydan geliyor. 3 Ağustos'ta başlayıp
+   7 Eylül'de biten sezon oyunda ağustos sezonudur; bitiş ayına göre
+   adlandırsaydık ekranda "SEZON 2026-09 · 7 Eylül'de bitiyor" yazardı
+   ve aynı etiket iki ayrı sezonu birden anlatırdı. */
+
+/* Supercell'in sezon sıfırlama saati (UTC). Oyun bunu değiştirirse
+   düzeltilecek tek yer burası. */
+const SEZON_SIFIRLAMA_UTC = 9;
+
+/* Verilen ayın ilk pazartesisi, 09.00 UTC. Ay 0-11; 12 ya da -1 de
+   verilebilir — Date.UTC yılı kendisi kaydırıyor. */
+function ilkPazartesi(yil, ay){
+  const d = new Date(Date.UTC(yil, ay, 1, SEZON_SIFIRLAMA_UTC, 0, 0, 0));
+  /* getUTCDay: 0 pazar … 6 cumartesi. Ayın 1'i pazartesiyse 0 eklenir. */
+  d.setUTCDate(1 + ((8 - d.getUTCDay()) % 7));
+  return d;
+}
+
+/* Kalan süre metni. Oyundaki gibi: son iki günde SAAT de yazılıyor.
+   "2 gün kaldı" ile "1 gün 22 saat kaldı" arasındaki fark, sezonu
+   kapatmaya çalışan biri için gerçek bir fark. */
+function sezonKalanMetni(ms){
+  const tr = LANG === "tr";
+  if (ms <= 0) return tr ? "sezon bitti" : "season over";
+  const gun  = Math.floor(ms / 864e5);
+  const saat = Math.floor((ms % 864e5) / 36e5);
+  const dk   = Math.floor((ms % 36e5) / 6e4);
+  if (gun >= 3)  return tr ? `${gun} gün kaldı`              : `${gun} days left`;
+  if (gun >= 1)  return tr ? `${gun} gün ${saat} saat kaldı` : `${gun}d ${saat}h left`;
+  if (saat >= 1) return tr ? `${saat} saat kaldı`            : `${saat}h left`;
+  return tr ? `${dk} dakika kaldı` : `${dk}m left`;
+}
+
 function seasonInfo(){
   const now = new Date();
-  let y = now.getFullYear(), m = now.getMonth() + 1; // next month
-  if (m > 11) { m = 0; y++; }
-  const first = new Date(y, m, 1);
-  const day = first.getDay();               // 0 Sun..6 Sat
-  const offset = (day === 1) ? 0 : ((8 - day) % 7);
-  const end = new Date(y, m, 1 + offset);
-  const daysLeft = Math.max(0, Math.ceil((end - now) / 86400e3));
-  const label = `SEZON ${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
-  const total = 30;
-  const pct = Math.min(100, Math.max(4, Math.round((total - daysLeft) / total * 100)));
+
+  /* Bitiş: bu ayın ilk pazartesisi; o an geçtiyse gelecek ayınki. */
+  let end = ilkPazartesi(now.getUTCFullYear(), now.getUTCMonth());
+  if (end.getTime() <= now.getTime())
+    end = ilkPazartesi(now.getUTCFullYear(), now.getUTCMonth() + 1);
+
+  /* Başlangıç: bir önceki ilk pazartesi. Sezonun GERÇEK uzunluğu
+     buradan çıkıyor — eskiden "total = 30" sabiti vardı ve 28 günlük
+     sezonlarda çubuk sonuna kadar dolmuyordu. */
+  const start = ilkPazartesi(end.getUTCFullYear(), end.getUTCMonth() - 1);
+
+  const kalanMs  = Math.max(0, end.getTime() - now.getTime());
+  const toplamMs = Math.max(1, end.getTime() - start.getTime());
+  const daysLeft = Math.ceil(kalanMs / 864e5);
+  const pct = Math.min(100, Math.max(4,
+    Math.round((toplamMs - kalanMs) / toplamMs * 100)));
+
+  /* Etiket sezonun BAŞLADIĞI aydan (bkz. yukarıdaki not). Ay UTC
+     okunuyor: yerelle karışsaydı ayın ilk/son gününde etiket kayardı. */
+  const label = `SEZON ${start.getUTCFullYear()}-${String(start.getUTCMonth()+1).padStart(2,"0")}`;
+
   const months = LANG==="tr"
     ? ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"]
     : ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const days = LANG==="tr" ? ["Pazar","Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi"] : ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  /* Tarih ZİYARETÇİNİN yerel saatiyle yazılıyor (getDate/getDay),
+     çünkü geri sayım da onun saatine göre işliyor. */
   const endStr = `${end.getDate()} ${months[end.getMonth()]} ${days[end.getDay()]}`;
-  return { label, daysLeft, pct, endStr };
-}
 
+  return { label, daysLeft, kalanMs, kalanStr: sezonKalanMetni(kalanMs), pct, endStr };
+}
 function deckElixir(cards){
   const sum = cards.reduce((a,k) => a + (CARD_DB[k]?.elixir || 0), 0);
   return (sum / cards.length).toFixed(1);

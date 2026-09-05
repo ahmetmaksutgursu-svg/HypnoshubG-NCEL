@@ -2428,14 +2428,14 @@ async function puanUyarisi(){
       gBelirsiz
         ? (trO
           ? `<b>${noO}. hafta yakında başlayacaktır.</b> Bu hafta <b>${bitis}</b>'da bitiyor;
-             sonrasında <b>oyunlar kapalı olacak</b>. Ödüller aynı kalıyor.`
+             sonrasında <b>oyunlar kapalı olacak</b>. Haftanın ödülü tabloda yazıyor.`
           : `<b>Week ${noO} is coming soon.</b> This week ends <b>${bitis}</b> and the games are
-             closed afterwards. The rewards stay the same.`)
+             closed afterwards. The week's reward is shown on the board.`)
         : (trO
           ? `<b>${noO}. hafta ${basla}'da başlayacaktır.</b> Bu hafta <b>${bitis}</b>'da bitiyor;
-             arada <b>oyunlar kapalı olacak</b>. Ödüller aynı kalıyor.`
+             arada <b>oyunlar kapalı olacak</b>. Haftanın ödülü tabloda yazıyor.`
           : `<b>Week ${noO} starts ${basla}.</b> This week ends <b>${bitis}</b> and the games are
-             closed in between. The rewards stay the same.`)}</span>`, "info");
+             closed in between. The week's reward is shown on the board.`)}</span>`, "info");
     return;
   }
   const tr = LANG === "tr";
@@ -2461,36 +2461,36 @@ async function puanUyarisi(){
   const gunAdli = a ? a.toLocaleString(tr ? "tr-TR" : "en-GB",
     { timeZone: "Europe/Istanbul", day: "numeric", month: "long", weekday: "long",
       hour: "2-digit", minute: "2-digit" }) : null;
+  /* ARA METNİ — İKİ AYRI SORU, İKİ AYRI CÜMLE (aynı not index.html'de).
+
+     Eskiden "serbest" dalı en başta geliyordu ve TARİHİ yutuyordu:
+     5 Eylül 18.00 belli olduğu hâlde oyun sayfasında "2. hafta yakında
+     başlayacaktır" yazardı — tarihi bilen tek ekran ana sayfa kalırdı.
+
+     Artık başlangıç cümlesi tarihi biliyorsa yazıyor, oyun cümlesi ise
+     oyunların gerçekten oynanabilir olup olmadığını söylüyor. İkisi
+     birbirinden bağımsız; hangi durum olursa olsun ikisi de doğru. */
+  const basCumle = tr
+    ? (belirsiz ? `<b>${no}. hafta yakında başlayacaktır.</b>`
+                : `<b>${no}. hafta ${gunAdli}'da başlayacaktır.</b>`)
+    : (belirsiz ? `<b>Week ${no} is coming soon.</b>`
+                : `<b>Week ${no} starts ${gunAdli}.</b>`);
+  /* Ödülün ne olduğu tek yerde (sunucudaki ODUL listesi) yazıyor;
+     buradan ona işaret ediliyor. Ödül metnini burada tekrarlamak,
+     5 Eylül'de olduğu gibi ödül değişince ikinci bir yalan bırakırdı. */
+  const odulCumle = tr ? `Haftanın ödülü tabloda yazıyor.`
+                       : `The week's reward is shown on the board.`;
+  const oyunCumle = tr
+    ? (serbest
+        ? `<b>Oyunlar şimdi açık</b> ama puan hiçbir haftaya yazılmıyor —
+           yeni hafta herkes için sıfırdan başlasın diye. Günlük hakkın harcanıyor.`
+        : `O ana kadar <b>oyunlar kapalı</b> ve puan hiçbir haftaya yazılmıyor —
+           yeni hafta herkes için sıfırdan başlasın diye.`)
+    : (serbest
+        ? `<b>The games are open now</b>, but no points are recorded — the new week starts from zero for everyone. Your daily attempts are still used.`
+        : `The games are closed until then and no points are recorded, so the new week starts from zero for everyone.`);
   el.innerHTML = notice(`<span>⏳</span><span>${ara
-    ? (tr
-      /* "Puansız oyunlar her zaman açık" cümlesi ARADA YANLIŞ: bu
-         pencerede site üzerinde düzenleme yapıldığı için puansız oyun
-         da kapalı. Açılış öncesi metinde cümle olduğu gibi duruyor. */
-      /* SERBEST MOD: oyunlar açık, puan yazılmıyor.
-         "Oyunlar kapalı" cümlesi artık yanlış olurdu; oyuncunun
-         bilmesi gereken şey oynayabildiği ama puanın sayılmadığı. */
-      ? (serbest
-         ? `<b>${no}. hafta yakında başlayacaktır.</b> Ödüller aynı olacak.
-            <b>Oyunlar şimdi açık</b> ama puan hiçbir haftaya yazılmıyor —
-            yeni hafta herkes için sıfırdan başlasın diye. Günlük hakkın harcanıyor.`
-         : belirsiz
-         ? `<b>${no}. hafta yakında başlayacaktır.</b> Ödüller aynı olacak.
-            O ana kadar <b>oyunlar kapalı</b> ve puan hiçbir haftaya yazılmıyor —
-            yeni hafta herkes için sıfırdan başlasın diye.`
-         : `<b>${no}. hafta ${gunAdli}'da başlayacaktır.</b> Ödüller aynı olacak.
-            O ana kadar <b>oyunlar kapalı</b> ve puan hiçbir haftaya yazılmıyor —
-            yeni hafta herkes için sıfırdan başlasın diye.`)
-      : (serbest
-         ? `<b>Week ${no} is coming soon.</b> The rewards stay the same.
-            <b>The games are open now</b>, but no points are recorded — the new week
-            starts from zero for everyone. Your daily attempts are still used.`
-         : belirsiz
-         ? `<b>Week ${no} is coming soon.</b> The rewards stay the same. The games are
-            closed until then and no points are recorded, so the new week starts from zero
-            for everyone.`
-         : `<b>Week ${no} starts ${gunAdli}.</b> The rewards stay the same. The games are
-            closed until then and no points are recorded, so the new week starts from zero
-            for everyone.`))
+    ? `${basCumle} ${odulCumle} ${oyunCumle}`
     : (tr
       ? `<b>Tokmakçılar tablosu ${gun}'de açılıyor.</b> O ana kadar <b>puanlı oyunlar oynanamıyor</b>
          ve sıralama da o anda başlıyor — yarış herkes için aynı anda başlasın diye.

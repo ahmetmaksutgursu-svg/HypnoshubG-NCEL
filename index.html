@@ -399,6 +399,42 @@ async function loadBoard(){
     /* Geri sayacak bir an yok: rakam yerine kum saati duruyor. */
     document.getElementById("boardLeft").textContent =
       belirsiz ? "⏳" : sure(d.week.acilisMs);
+    /* ARA METNİ — İKİ AYRI SORU, İKİ AYRI CÜMLE.
+
+       Eskiden bu metin "belirsiz" ve "serbest" durumlarını iç içe üç
+       dala bölüyordu ve tarihi BİLİNEN aranın serbest hâli hiç
+       yazılmamıştı. 5 Eylül 2026 için gerçek bir tarih konunca tam da o
+       dal devreye girdi: oyunlar açıkken ekranda "puanlı oyunlar
+       oynanamıyor" yazıyordu. Ziyaretçi de, AdSense incelemecisi de
+       siteyi kapalı sanardı — reddin gerekçesi ("düşük değere sahip
+       içerik") tam olarak bu pencerede oluşmuştu.
+
+       Artık "ne zaman başlıyor" ile "şu an oynanabilir mi" ayrı ayrı
+       kuruluyor; hangi durum olursa olsun ikisi de doğru.
+
+       "Ödüller aynı olacak" cümlesi KALDIRILDI. 5 Eylül'de ödül düzeni
+       değişti (yalnızca birinciye klana katılım hakkı, başka ödül yok),
+       yani o cümle tutulmayacak bir söz olurdu. Ödülün ne olduğunu
+       hemen yukarıdaki ödül kutusu zaten yazıyor. */
+    const oyunCumlesi = TRb
+      ? (serbest
+          ? `<b>Bütün oyunlar şu an açık ve oynanabiliyor</b> — ama puan hiçbir
+             haftaya yazılmıyor, yeni hafta herkes için sıfırdan başlasın diye.`
+          : `O ana kadar <b>puanlı oyunlar oynanamıyor</b> ve puan hiçbir haftaya
+             yazılmıyor — yeni hafta herkes için sıfırdan başlasın diye.
+             <b>Puansız oyunlar</b> her zaman açık.`)
+      : (serbest
+          ? `<b>All games are open and playable right now</b>, but no points are recorded so the new week starts from zero for everyone.`
+          : `Scored games are locked until then and no points are recorded, so the new week starts from zero for everyone. Unscored games are always open.`);
+    const baslangicCumlesi = TRb
+      ? (belirsiz ? `<b>yakında</b> başlayacak` : `<b>${gunluAn(a)}</b>'da başlıyor`)
+      : (belirsiz ? `starts soon` : `starts <b>${gunluAn(a)}</b>`);
+    const araCumlesi = TRb
+      ? `${no - 1}. hafta sona erdi ve <b>ödüller dağıtıldı</b>. ${no}. hafta
+         ${baslangicCumlesi}; <b>bu haftanın ödülü hemen yukarıda yazıyor</b>.
+         ${oyunCumlesi}`
+      : `Week ${no - 1} has ended and the rewards were handed out. Week ${no} ${baslangicCumlesi}; <b>this week's reward is shown above</b>. ${oyunCumlesi}`;
+
     body.innerHTML = (d.odul ? odulHtml(d, fmt, TRb) : "") + `
       <p class="board-empty">
         <b>${ara
@@ -409,27 +445,7 @@ async function loadBoard(){
                        : `Week ${no} starts ${gunluAn(a)}.`))
             : (TRb ? "Yarış henüz başlamadı." : "The race has not started yet.")}</b><br>
         ${ara
-          ? (belirsiz
-              /* SERBEST MOD: tablo kapalı ama oyunlar açık. Eski cümle
-                 ("puanlı oyunlar oynanamıyor") artık yanlış olurdu ve
-                 oyuncuyu sitenin kapalı olduğuna inandırırdı. */
-              ? (serbest
-                 ? (TRb ? `${no - 1}. hafta sona erdi ve <b>ödüller dağıtıldı</b>. ${no}. hafta
-                          <b>yakında</b> başlayacak; <b>ödüller aynı</b> olacak.
-                          <b>Bütün oyunlar şu an açık ve oynanabiliyor</b> — ama puan hiçbir
-                          haftaya yazılmıyor, yeni hafta herkes için sıfırdan başlasın diye.`
-                        : `Week ${no - 1} has ended and the rewards were handed out. Week ${no} starts soon with the same rewards. <b>All games are open and playable right now</b>, but no points are recorded so the new week starts from zero for everyone.`)
-                 : TRb ? `${no - 1}. hafta sona erdi ve <b>ödüller dağıtıldı</b>. ${no}. hafta
-                        <b>yakında</b> başlayacak; <b>ödüller aynı</b> olacak. O ana kadar
-                        <b>puanlı oyunlar oynanamıyor</b> ve puan hiçbir haftaya yazılmıyor —
-                        yeni hafta herkes için sıfırdan başlasın diye.
-                        <b>Puansız oyunlar</b> her zaman açık.`
-                     : `Week ${no - 1} has ended and the rewards were handed out. Week ${no} starts soon with the same rewards. Scored games are locked until then and no points are recorded, so the new week starts from zero for everyone. Unscored games are always open.`)
-              : (TRb ? `1. hafta sona erdi. Yeni dönem <b>${gunluAn(a)}</b>'da başlıyor ve
-                    <b>ödüller aynı</b> olacak. O ana kadar <b>puanlı oyunlar oynanamıyor</b>;
-                    puan da hiçbir haftaya yazılmıyor — yeni hafta herkes için sıfırdan
-                    başlasın diye. <b>Puansız oyunlar</b> her zaman açık.`
-                 : `Week 1 has ended. The new period starts <b>${gunluAn(a)}</b> with the same rewards. Scored games are locked until then and no points are recorded, so the new week starts from zero for everyone. Unscored games are always open.`))
+          ? araCumlesi
           : (TRb ? `Tokmakçılar tablosu <b>${acilisAni(a)}</b>'de açılıyor. O ana kadar <b>puanlı oyunlar oynanamıyor</b>;
                     sıralama da o anda başlıyor — herkes aynı yerden başlasın diye.
                     <b>Puansız oyunlar</b> her zaman açık.`
@@ -468,11 +484,11 @@ async function loadBoard(){
     ? `<p class="board-ara">${
         araBelirsiz
           ? (TRb
-              ? `<b>⏳ ${araNo}. hafta yakında başlayacaktır.</b> Bu hafta <b>${anAdli(d.week.end)}</b>'da bitiyor; sonrasında <b>oyunlar kapalı olacak</b>. Ödüller aynı kalıyor.`
-              : `<b>⏳ Week ${araNo} is coming soon.</b> This week ends <b>${anAdli(d.week.end)}</b> and the games are closed afterwards. The rewards stay the same.`)
+              ? `<b>⏳ ${araNo}. hafta yakında başlayacaktır.</b> Bu hafta <b>${anAdli(d.week.end)}</b>'da bitiyor; sonrasında <b>oyunlar kapalı olacak</b>. Haftanın ödülü tabloda yazıyor.`
+              : `<b>⏳ Week ${araNo} is coming soon.</b> This week ends <b>${anAdli(d.week.end)}</b> and the games are closed afterwards. The week's reward is shown on the board.`)
           : (TRb
-              ? `<b>📅 ${araNo}. hafta ${anAdli(araBasi)}'da başlayacaktır.</b> Bu hafta <b>${anAdli(d.week.end)}</b>'da bitiyor; arada <b>oyunlar kapalı olacak</b>. Ödüller aynı kalıyor.`
-              : `<b>📅 Week ${araNo} starts ${anAdli(araBasi)}.</b> This week ends <b>${anAdli(d.week.end)}</b> and the games are closed in between. The rewards stay the same.`)
+              ? `<b>📅 ${araNo}. hafta ${anAdli(araBasi)}'da başlayacaktır.</b> Bu hafta <b>${anAdli(d.week.end)}</b>'da bitiyor; arada <b>oyunlar kapalı olacak</b>. Haftanın ödülü tabloda yazıyor.`
+              : `<b>📅 Week ${araNo} starts ${anAdli(araBasi)}.</b> This week ends <b>${anAdli(d.week.end)}</b> and the games are closed in between. The week's reward is shown on the board.`)
       }</p>`
     : "";
 
@@ -649,11 +665,11 @@ async function loadGecenHafta(){
     const metin = araMi
       ? (TRb
           ? (basAn
-              ? sonrakiNo + ". hafta <b>" + basAn + "</b>'da başlayacaktır; ödüller aynı olacak."
-              : sonrakiNo + ". hafta yakında başlayacaktır; ödüller aynı olacak.")
+              ? sonrakiNo + ". hafta <b>" + basAn + "</b>'da başlayacaktır; haftanın ödülü tabloda yazıyor."
+              : sonrakiNo + ". hafta yakında başlayacaktır; haftanın ödülü tabloda yazıyor.")
           : (basAn
-              ? "Week " + sonrakiNo + " starts <b>" + basAn + "</b> with the same rewards."
-              : "Week " + sonrakiNo + " starts soon with the same rewards."))
+              ? "Week " + sonrakiNo + " starts <b>" + basAn + "</b>; the reward is shown on the board."
+              : "Week " + sonrakiNo + " starts soon; the reward is shown on the board."))
       : TRb
       ? (nezaman
           ? "İlk dönem sürüyor. Tablo <b>" + nezaman + "</b>'da sıfırlanacak; dönemi ilk üçte bitirenler puanlarıyla burada kalacak."
@@ -709,7 +725,7 @@ async function boardBan(userId, username){
   const s = seasonInfo();
   document.getElementById("sLabel").textContent = s.label;
   document.getElementById("sFill").style.width = s.pct + "%";
-  document.getElementById("sDays").textContent = s.daysLeft + (LANG==="tr"?" gün kaldı":" days left");
+  document.getElementById("sDays").textContent = s.kalanStr;
   document.getElementById("sEnd").textContent = s.endStr;
 })();
 
@@ -842,8 +858,8 @@ async function loadHeroStats(){
   loadBoard(); loadGecenHafta(); loadHeroStats();
 })();
 
-window.onLangChange = () => { paintApiStatus(); loadHeroStats(); const s=seasonInfo(); document.getElementById("sDays").textContent = s.daysLeft + (LANG==="tr"?" gün kaldı":" days left"); document.getElementById("sEnd").textContent=s.endStr; };
-window.repaint = () => { loadBoard(); loadGecenHafta(); if (window.__vid) renderVideos(window.__vid); if (window.__meta) renderHomeMeta(window.__meta); if (window.__pl) renderLbPlayers(window.__pl); if (window.__cl) renderLbClans(window.__cl); const s = seasonInfo(); document.getElementById('sDays').textContent = s.daysLeft + (LANG==='tr'?' gün kaldı':' days left'); document.getElementById('sEnd').textContent = s.endStr; };
+window.onLangChange = () => { paintApiStatus(); loadHeroStats(); const s=seasonInfo(); document.getElementById("sDays").textContent = s.kalanStr; document.getElementById("sEnd").textContent=s.endStr; };
+window.repaint = () => { loadBoard(); loadGecenHafta(); if (window.__vid) renderVideos(window.__vid); if (window.__meta) renderHomeMeta(window.__meta); if (window.__pl) renderLbPlayers(window.__pl); if (window.__cl) renderLbClans(window.__cl); const s = seasonInfo(); document.getElementById('sDays').textContent = s.kalanStr; document.getElementById('sEnd').textContent = s.endStr; };
 </script>
 </body>
 </html>

@@ -31,8 +31,9 @@
      ACILIS         "2026-08-20T18:00"  → yarışmanın açılış anı
      GUN_SAATI      18                  → günün döndüğü saat (0-23)
      DONEM_GUN      7                   → bir dönem kaç gün
-     DONEM_BASLARI  "2026-08-28T18:00"  → elle konmuş dönem başlangıçları
-                                          (virgülle ayrılır)
+     DONEM_BASLARI  "2026-09-05T18:00"  → elle konmuş dönem başlangıçları
+                                          (virgülle ayrılır; "belirsiz"
+                                          yazılırsa yarışma durur)
 
    ------------------------------------------------------------
    ARA VERME
@@ -93,7 +94,25 @@ const ACILIS = (() => {
 let BELIRSIZ = false;
 
 const ELLE_BASLAR = (() => {
-  const ham = String(process.env.DONEM_BASLARI || "belirsiz").trim();
+  /* VARSAYILAN ARTIK "belirsiz" DEĞİL — 5 EYLÜL 2026, 18.00.
+
+   Yarışma, reklam onayı beklenirken bitişi bilinmeyen bir araya
+   alınmıştı ("belirsiz"). 5 Eylül 2026'da yeniden başlatılmasına
+   karar verildi: tablo ve puanlı oyun hakları AYNI ANDA, 18.00'da
+   açılıyor (bkz. server/board.js → ODUL).
+
+   Tarih ortam değişkenine değil KODA yazıldı: Railway'de
+   DONEM_BASLARI tanımlı değil, dolayısıyla canlıyı belirleyen şey
+   bu varsayılan. Ortamda tanımlanırsa yine o kazanır.
+
+   Saat SUNUCUNUN yerel saati; server.js TZ'yi Europe/Istanbul'a
+   sabitliyor, yani 18.00 = Türkiye saati.
+
+   5 Eylül'den sonrası kendiliğinden dönüyor: listede daha ileri bir
+   başlangıç kalmadığı ve "belirsiz" yazmadığı için dönemler yedi
+   günde bir kesintisiz yenileniyor (12 Eylül, 19 Eylül, …).
+   Yarışmayı yeniden durdurmak için buraya "belirsiz" eklemek yeter. */
+const ham = String(process.env.DONEM_BASLARI || "2026-09-05T18:00").trim();
   const cikan = [];
   for (const parca of ham.split(",")) {
     const t = parca.trim();

@@ -95,33 +95,45 @@ function odulAnahtariGecerliMi(anahtar) {
 
    Her giriş GERÇEK bir dönem başlangıcı olmak zorunda; açılışta
    kontrol ediliyor (bkz. odulAnahtariGecerliMi). */
+/* ---------- 5 EYLÜL 2026 KARARI ----------
+   Yarışma 5 Eylül 2026, 18.00'da yeniden açıldı (bkz. takvim.js) ve
+   ödül düzeni SADELEŞTİRİLDİ:
+
+     · YALNIZCA BİRİNCİYE ödül var: klana katılım hakkı.
+     · 2. ve 3. sıraya ödül YOK. Önceki düzende 1. Pass Royale,
+       2. klana katılım hakkı, 3. istediği emoji vardı; üçü de kalktı.
+
+   Liste TEK BİR DÖNEME bağlı: 5–12 Eylül. Dönemler 12 Eylül'den sonra
+   kendiliğinden dönmeye devam ediyor ama ödül duyurusu düşüyor —
+   bilerek. Buraya dört hafta yazmak, verilmemiş dört klan hakkı sözü
+   vermek olurdu. Ödülü sürdürmek için listeye bir sonraki dönemin
+   başlangıcı ekleniyor ("2026-09-12", "2026-09-19", …); her giriş
+   GERÇEK bir dönem başlangıcı olmak zorunda (bkz. odulAnahtariGecerliMi,
+   açılışta denetleniyor).
+
+   Eski "2026-08-20" ve "2026-08-28" kayıtları çıkarıldı: ilki bitmiş
+   bir dönem, ikincisi ise canlıda hiç var olmayan bir dönemdi
+   (DONEM_BASLARI tanımlı olmadığı için 2. hafta o tarihte açılmamıştı)
+   ve her açılışta "geçersiz ödül anahtarı" uyarısı üretiyordu. */
 const ODUL = {
   haftalar: [
-    "2026-08-20",                      // 1. dönem · 20–27 Ağustos 2026
-    "2026-08-28",                      // 2. dönem · 28 Ağustos – 4 Eylül 2026
+    "2026-09-05",                      // 2. dönem · 5–12 Eylül 2026, 18.00
   ],
-  baslik: "Açılış ödülleri",
-  baslikEn: "Opening rewards",
-  /* Ödüller TEK CÜMLE değil, SIRAYA bağlı bir liste.
+  /* Başlık artık "Açılış ödülleri" değil: açılış geride kaldı ve ödül
+     TEK. Çoğul bir başlıkla tek satırlık liste birbirini tutmuyordu. */
+  baslik: "Haftanın ödülü",
+  baslikEn: "This week's reward",
+  /* Ödüller SIRAYA bağlı bir liste olarak duruyor — şu an tek satır
+     olsa da yapı korunuyor; ön yüz kaç ödül olduğunu saymıyor, listeyi
+     olduğu gibi çiziyor, yani ödül eklemek için yalnızca burası
+     değişiyor.
 
-     Başta yalnızca birinciye Pass Royale vardı ve tek bir metin
-     yetiyordu. Üç ödül olunca tek cümleye sıkıştırmak okunmaz hâle
-     gelirdi: yarışan kişinin "ben şu an kaçıncıyım, bana ne düşüyor"
-     sorusunu tek bakışta cevaplaması gerekiyor.
-
-     Ödül eklemek/çıkarmak için yalnızca bu liste değişiyor; ön yüz
-     kaç ödül olduğunu saymıyor, listeyi olduğu gibi çiziyor. */
-  /* Her ödül İKİ DİLDE. Önceden yalnızca Türkçesi vardı ve site
-     İngilizceye alındığında ödüller Türkçe kalıyordu (kullanıcı
-     bildirdi). Ödül metinleri sunucudan geldiği için ön yüzdeki
-     sözlükle çözülemiyor; karşılığı burada duruyor. */
+     Her ödül İKİ DİLDE. Ödül metinleri sunucudan geldiği için ön
+     yüzdeki sözlükle çözülemiyor; karşılığı burada duruyor. */
   siralar: [
-    { sira: 1, simge: "🥇", ne: "Pass Royale",             en: "Pass Royale" },
-    { sira: 2, simge: "🥈", ne: "Klana katılım hakkı",     en: "A spot in the clan" },
-    { sira: 3, simge: "🥉", ne: "İstediği emoji",          en: "Emote of their choice" },
+    { sira: 1, simge: "🥇", ne: "Klana katılım hakkı", en: "A spot in the clan" },
   ],
 };
-
 const db = { weeks: {} };          // { "2026-W33": { userId: {points, games, at} } }
 
 function load() {
