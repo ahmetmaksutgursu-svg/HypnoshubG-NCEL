@@ -1380,7 +1380,7 @@ function registerApiCard(c){
    read "Wizard" in a deck and "Büyücü" on the cards page. Filled by
    HypnoAPI.cards(); until then everything falls back to English. */
 const CARD_NAME_TR = new Map();
-/* English name -> local hero portrait path, for the sixteen hero cards.
+/* English name -> local hero portrait path, for every hero card.
    Same reason as the name map: only /api/cards carries it, but decks and
    battle logs need it too. */
 const HERO_IMG = new Map();

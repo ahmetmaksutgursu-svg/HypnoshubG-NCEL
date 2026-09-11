@@ -1642,21 +1642,24 @@ async function characterArt() {
 
    Bu liste artık "kimler kahramandır" sorusunu CEVAPLAMIYOR, yalnızca
    sıralamayı veriyor. Kimlik sorusunun cevabı API'de: kahraman
-   kartları `iconUrls.heroMedium` taşıyor ve tam 16 tane.
+   kartları `iconUrls.heroMedium` taşıyor — 16 taneydi, Eylül 2026'da
+   Buz Büyücüsü (Ice Wizard) gelince 17 oldu.
 
    Ayrım önemli, çünkü liste elle yazıldığında kayıyordu: içinde
    "Bandit" vardı ve Haydut kahraman değil — kullanıcı ekran
    görüntüsüyle bildirdi, Kartlar > Kahramanlar sekmesinde Yaramaz'ın
-   yerinde Haydut duruyordu. API 16 kahramanı doğru sayıyordu; yanlış
+   yerinde Haydut duruyordu. API kahramanları doğru sayıyordu; yanlış
    olan tek yer bu listeydi.
 
    Supercell yeni bir kahraman eklediğinde de kendiliğinden geliyor:
-   listede olmayan kahramanlar sona ekleniyor. */
+   listede olmayan kahramanlar sona ekleniyor. Buz Büyücüsü de öyle
+   geldi; oyundaki yeri doğrulanana kadar sonda duruyor. */
 const HERO_SIRA = [
   "Valkyrie", "Barbarian Barrel", "Wizard", "Mini P.E.K.K.A",
   "Knight", "Goblins", "Berserker", "Tombstone",
   "Magic Archer", "Balloon", "Dark Prince", "Bowler",
   "Giant", "Musketeer", "Ice Golem", "Mega Minion",
+  "Ice Wizard",
 ];
 
 /* Gerçek kahraman listesi: API söylüyor, sıra yukarıdan geliyor.
@@ -1729,7 +1732,7 @@ app.get("/api/heroes", async (req, res) => {
         cardKinds(),
       ]);
       const byName = new Map((cards.items || []).map((c) => [c.name, c]));
-      /* Roster order is the game's, so no sort. Four of the sixteen (Tombstone,
+      /* Roster order is the game's, so no sort. Four of the heroes (Tombstone,
          Dark Prince, Mega Minion and — as a spell — Barbarian Barrel) have no
          standalone character render in the asset index; those fall back to the
          card art rather than being dropped or given another unit's picture. */
@@ -2745,8 +2748,9 @@ const HERO_DUAL = new Set(["Knight", "Valkyrie", "Musketeer", "Wizard"]);
      · O portredeki karakter 26000102 Berserker'ın ta kendisi.
    Yani oyunun "Yaramaz" adlı kahramanı Berserker; Haydut ise kahraman DEĞİL.
 
-   Kesin ölçüt API'nin kendisinde: `iconUrls.heroMedium`. Bu alanı tam 16 kart
-   taşıyor ve oyunun kahraman sayısı da 16. Haydut'ta bu alan yok, üstelik
+   Kesin ölçüt API'nin kendisinde: `iconUrls.heroMedium`. Bu alanı taşıyan
+   kart sayısı oyunun kahraman sayısıyla birebir aynı (o gün 16, Eylül 2026'da
+   Buz Büyücüsü'yle 17). Haydut'ta bu alan yok, üstelik
    `maxEvolutionLevel` de yok — hiçbir işareti yokken listeye zorlanmıştı.
    Berserker'da ise var.
 
@@ -2755,24 +2759,38 @@ const HERO_DUAL = new Set(["Knight", "Valkyrie", "Musketeer", "Wizard"]);
    ikisini birden taşıdığı için bu listeye girmez). */
 let heroOnly = null;
 let heroAll = null;
+/* Kümeler HANGİ kart listesinden hesaplandı.
+
+   Eskiden ilk hesaptan sonra süreç kapanana dek tutuluyordu. Canlıda
+   yakalandı: sunucu 5 Eylül'de açılmıştı, Buz Büyücüsü ondan sonra
+   kahraman oldu; kart listesi saatte bir yenilendiği halde kümeler
+   yenilenmedi ve canlı site 16 kahramanda kaldı (yeni açılan yerel
+   sunucuda 17). Artık kart listesi yenilenince kümeler de yenileniyor. */
+let heroKaynak = null;
 async function heroOnlyCards() {
-  if (heroOnly) return heroOnly;
-  const body = await kartListesi();
+  let body;
+  try { body = await kartListesi(); }
+  catch (e) { if (heroOnly) return heroOnly; throw e; }   // API düştüyse eldekiyle devam
+  if (heroOnly && heroKaynak === body) return heroOnly;
+  const eskiSayi = heroAll ? `${heroAll.size}/${heroOnly.size}` : "";
   const items = body.items || [];
   heroAll = new Set(items.filter((c) => c.iconUrls?.heroMedium).map((c) => c.name));
-  /* "YALNIZCA KAHRAMAN" KÜMESİ GERÇEKTE BOŞ.
+  /* "YALNIZCA KAHRAMAN" KÜMESİ — heroMedium var, evrim biti yok.
 
-     Ölçüt eskiden "kahraman çizimi var ama evrim çizimi yok" idi ve 12
-     kartı buraya sokuyordu. Ölçüldü: kahraman görseli olan 16 kartın
-     HEPSİNİN evrimi de var (bkz. evrim.js). Yani o 12 kart yanlış
-     sınıflanıyordu; küme doğru ölçütle boş çıkıyor.
+     Ölçüt `evrim.evrimiVar` (maxEvolutionLevel'in 1. biti). Şövalye,
+     Valkür, Silahşör ve Büyücü ikisini birden taşıdığı için (maske 3)
+     buraya girmiyor; kalanlar (maske 2) giriyor.
 
-     Kümeyi kaldırmıyoruz: ileride evrimi olmayan bir kahraman kartı
-     çıkarsa burası kendiliğinden doğru çalışsın. */
+     Ölçüldü (Eylül 2026, sunucu günlüğü): 17 kahraman · 13 yalnızca
+     kahraman. 13'üncüsü o ay gelen Buz Büyücüsü (maxEvolutionLevel = 2);
+     elle eklenmedi, API'den kendiliğinden girdi. */
   heroOnly = new Set(items
     .filter((c) => c.iconUrls?.heroMedium && !evrim.evrimiVar(c))
     .map((c) => c.name));
-  console.log(`🦸  Kahraman kuralı hazır (${heroAll.size} kahraman · ${heroOnly.size} yalnızca kahraman).`);
+  heroKaynak = body;
+  // Saatlik yenilemede günlüğü doldurmasın: yalnız sayı değişince yaz.
+  if (`${heroAll.size}/${heroOnly.size}` !== eskiSayi)
+    console.log(`🦸  Kahraman kuralı hazır (${heroAll.size} kahraman · ${heroOnly.size} yalnızca kahraman).`);
   return heroOnly;
 }
 /* BÜTÜN kahramanlar (evrimi de olanlar dahil).

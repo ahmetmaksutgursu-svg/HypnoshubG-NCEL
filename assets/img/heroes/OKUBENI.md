@@ -20,9 +20,12 @@ Doğru dosya adını tahmin etmeden bulmanın yolu var — aşağıya bakın.
 ## Hangi kart hangi dosya?
 
 Clash Royale API'si artık kahraman görselini **kendisi yayımlıyor**:
-`iconUrls.heroMedium`. Bu alanı taşıyan kart sayısı tam **16** ve oyunun
-kahraman sayısı da 16. Kod da kahraman listesini bu alandan kuruyor; tahmin
-yok.
+`iconUrls.heroMedium`. Bu alanı taşıyan kart sayısı oyunun kahraman sayısıyla
+birebir aynı: **17** (Eylül 2026'da Buz Büyücüsü'yle 16'dan 17'ye çıktı). Kod
+da kahraman listesini bu alandan kuruyor; tahmin yok.
+
+**SVG kabul edilmez.** İçine PNG gömülü bir `.svg` geldiyse gömülü PNG'yi
+çıkarıp `<slug>.png` olarak kaydedin (Buz Büyücüsü böyle geldi).
 
 Görselleri o adresten indirdiyseniz dosya adları Supercell'in varlık
 karmasıdır (`jAj1Q5rclXxU9kVImGqSJxa4wEMfEhvwNQ_4jiGUuqg.webp` gibi). Doğru
@@ -46,8 +49,9 @@ Kod değişikliği ya da yeniden başlatma gerekmez.
 
 ## Şu anki durum
 
-16/16 portre yerinde (`.webp`). Hepsi API'nin `heroMedium` karmasıyla
-birebir eşleştirilerek adlandırıldı.
+17/17 portre yerinde. İlk 16'sı `.webp` ve API'nin `heroMedium` karmasıyla
+birebir eşleştirilerek adlandırıldı. 17. kahraman Buz Büyücüsü (Eylül 2026)
+elle eklendi: `ice-wizard.png`, 300×360, saydam PNG.
 
 | Kart (İngilizce) | Türkçe | Dosya |
 |---|---|---|
@@ -67,6 +71,7 @@ birebir eşleştirilerek adlandırıldı.
 | Magic Archer | Büyülü Okçu | `magic-archer.webp` |
 | Tombstone | Mezar Taşı | `tombstone.webp` |
 | Barbarian Barrel | Barbar Fıçısı | `barbarian-barrel.webp` |
+| Ice Wizard | Buz Büyücüsü | `ice-wizard.png` |
 
 ## Notlar
 

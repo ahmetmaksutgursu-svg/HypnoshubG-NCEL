@@ -211,12 +211,12 @@ async function renderHeroes(){
             + `Kalanlar için görselleri <code>assets/img/heroes/</code> klasörüne koyun `
             + `(bu portreler hiçbir yerde yayınlanmadığı için indirilemiyor): <code>${missing.join("</code>, <code>")}</code>. `
             + `Eksik olanlar şimdilik karakter görseliyle gösteriliyor.`
-          : `16/16 gerçek kahraman fotoğrafı yerinde.`)
+          : `${c.portraits}/${c.heroes} gerçek kahraman fotoğrafı yerinde.`)
     : `${c.heroes} heroes, in the game's own order. `
       + (missing.length
           ? `<b>${c.portraits}/${c.heroes}</b> real portraits in place; drop the rest into `
             + `<code>assets/img/heroes/</code>: <code>${missing.join("</code>, <code>")}</code>.`
-          : `All 16 real portraits in place.`);
+          : `All ${c.heroes} real portraits in place.`);
 }
 function filterCards(r, btn){
   RARITY = r;
